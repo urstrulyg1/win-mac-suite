@@ -1,16 +1,19 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, ToggleLeft, ToggleRight, Search, RefreshCw, FileText, ChevronRight } from 'lucide-react';
-import type { StartupItem } from '../platform/types';
+import {
+  Sparkles, ToggleLeft, ToggleRight, Search, RefreshCw, FileText,
+  ChevronRight, AlertTriangle, ShieldCheck, HelpCircle
+} from 'lucide-react';
 import { usePlatform } from '../platform';
 import InspectorModal, { type InspectorData } from './InspectorModal';
 
 export default function StartupManager() {
   const { config, isMac } = usePlatform();
-  const [items, setItems] = useState<StartupItem[]>([]);
+  const [items, setItems] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [inspectItem, setInspectItem] = useState<InspectorData | null>(null);
+  const [actionMsg, setActionMsg] = useState<string | null>(null);
 
   const fetchStartup = async () => {
     setLoading(true);
@@ -21,15 +24,11 @@ export default function StartupManager() {
         setItems(data.list || []);
       }
     } catch {
-      // Fallback items based on platform
-      setItems(isMac ? [
-        { id: '1', name: 'Docker Desktop', location: '~/Library/LaunchAgents', type: 'LaunchAgent', path: '/Applications/Docker.app', enabled: true, impact: 'High' },
-        { id: '2', name: 'Raycast', location: 'Login Items', type: 'LoginItem', path: '/Applications/Raycast.app', enabled: true, impact: 'Low' },
-        { id: '3', name: 'OneDrive Agent', location: '/Library/LaunchDaemons', type: 'LaunchDaemon', path: '/Applications/OneDrive.app', enabled: true, impact: 'Medium' },
-      ] : [
-        { id: '1', name: 'Microsoft Teams', location: 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', type: 'Registry', path: 'C:\\Program Files\\WindowsApps\\MSTeams.exe', enabled: true, impact: 'High' },
-        { id: '2', name: 'Spotify Web Helper', location: 'HKCU\\Run', type: 'Registry', path: 'C:\\Users\\Spotify.exe', enabled: true, impact: 'Medium' },
-        { id: '3', name: 'SecurityHealthSystray', location: 'HKLM\\Run', type: 'Registry', path: 'C:\\Windows\\System32\\SecurityHealthSystray.exe', enabled: true, impact: 'Low' },
+      setItems([
+        { id: 's-1', name: 'Docker Desktop', rawId: 'com.docker.helper', location: '~/Library/LaunchAgents', type: 'LaunchAgent (User)', path: '~/Library/LaunchAgents/com.docker.helper.plist', enabled: true, impact: 'High', impactScore: 3, whyIsItRunning: 'Spawns Docker Desktop background VM hypervisor on login.', canDisableTemporarily: true },
+        { id: 's-2', name: 'Google Keystone Updater', rawId: 'com.google.keystone.agent', location: '~/Library/LaunchAgents', type: 'LaunchAgent (User)', path: '~/Library/LaunchAgents/com.google.keystone.agent.plist', enabled: true, impact: 'Medium', impactScore: 2, whyIsItRunning: 'Periodically checks for Chrome and Google application updates.', canDisableTemporarily: true },
+        { id: 's-3', name: 'Raycast', rawId: 'com.raycast.macos', location: 'Login Items', type: 'Login Item', path: '/Applications/Raycast.app', enabled: true, impact: 'Low', impactScore: 1, whyIsItRunning: 'Provides global hotkey accessibility hooks for instant search.', canDisableTemporarily: true },
+        { id: 's-4', name: 'Adobe Creative Cloud', rawId: 'com.adobe.acc.installer', location: '/Library/LaunchDaemons', type: 'LaunchDaemon (Root)', path: '/Library/LaunchDaemons/com.adobe.acc.installer.plist', enabled: true, impact: 'High', impactScore: 3, whyIsItRunning: 'Daemon managing Adobe core runtime licenses and font sync.', canDisableTemporarily: true }
       ]);
     } finally {
       setLoading(false);
@@ -40,15 +39,25 @@ export default function StartupManager() {
     fetchStartup();
   }, [isMac]);
 
-  const toggleItem = (id: string) => {
+  const toggleItem = async (item: any) => {
+    const nextState = !item.enabled;
     setItems((prev) =>
-      prev.map((it) => (it.id === id ? { ...it, enabled: !it.enabled } : it)),
+      prev.map((it) => (it.id === item.id ? { ...it, enabled: nextState } : it))
     );
+
+    try {
+      await fetch('http://127.0.0.1:3131/api/actions/toggle-startup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemName: item.name, enable: nextState }),
+      });
+      setActionMsg(`${nextState ? 'Enabled' : 'Disabled'} ${item.name}`);
+    } catch {}
   };
 
   const filteredItems = items.filter((it) =>
     it.name.toLowerCase().includes(search.toLowerCase()) ||
-    it.location.toLowerCase().includes(search.toLowerCase()),
+    it.location.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -60,33 +69,34 @@ export default function StartupManager() {
         <div>
           <div className="inline-flex items-center gap-2 mb-2">
             <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25">
-              <Sparkles size={12} /> {isMac ? 'Login Items & Daemons' : 'Startup Applications'}
+              <Sparkles size={12} /> Startup &amp; Background Items Manager
             </span>
             <span className="pill" style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-3)', borderColor: 'var(--color-line)' }}>
-              Click Any Row To Inspect Config
+              Startup Impact &amp; "Why is this running?" Active
             </span>
           </div>
           <h1 className="text-hero font-extrabold tracking-tight" style={{ color: 'var(--color-ink)' }}>
-            Startup &amp; Background Manager
+            Startup &amp; Background Items Manager
           </h1>
           <p className="mt-1 text-[14px]" style={{ color: 'var(--color-ink-3)' }}>
-            {isMac
-              ? 'Manage Login Items, LaunchAgents, and LaunchDaemons that initialize on macOS boot.'
-              : 'Audit and control Windows Startup apps, Registry Run keys, and Scheduled Tasks.'}
+            Audit Login Items, LaunchAgents, and LaunchDaemons. Learn exactly why every background service is running and temporarily disable resource hogs without deleting configuration files.
           </p>
         </div>
 
-        <button
-          onClick={fetchStartup}
-          disabled={loading}
-          className="btn btn-ghost text-xs cursor-pointer"
-        >
+        <button onClick={fetchStartup} disabled={loading} className="btn btn-ghost text-xs cursor-pointer">
           <RefreshCw size={13} className={loading ? 'animate-spin-smooth' : ''} />
-          <span>Refresh</span>
+          <span>Refresh Startup List</span>
         </button>
       </div>
 
-      {/* Toolbar */}
+      {actionMsg && (
+        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-500 flex items-center justify-between">
+          <span>✓ {actionMsg}</span>
+          <button onClick={() => setActionMsg(null)} className="text-slate-400 hover:text-slate-200">×</button>
+        </div>
+      )}
+
+      {/* Search Toolbar */}
       <div className="card p-4">
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -94,7 +104,7 @@ export default function StartupManager() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search startup applications, helper tools, or registry paths..."
+            placeholder="Search startup items, helper tools, or LaunchAgents..."
             className="field pl-9 py-2 text-xs"
           />
         </div>
@@ -108,25 +118,24 @@ export default function StartupManager() {
             onClick={() =>
               setInspectItem({
                 title: item.name,
-                category: item.type || (isMac ? 'LaunchAgent' : 'Registry Run Key'),
+                category: item.type || 'LaunchAgent',
                 badge: `${item.impact} Boot Impact`,
                 badgeType: item.impact === 'High' ? 'warning' : 'success',
                 subtitle: `Location: ${item.location}`,
                 details: [
                   { label: 'Item Name', value: item.name },
-                  { label: 'Configuration Path', value: item.location, isCode: true },
-                  { label: 'Executable Destination', value: item.path, isCode: true },
-                  { label: 'Initialization State', value: item.enabled ? 'Enabled on Boot' : 'Disabled' },
-                  { label: 'Performance Impact', value: `${item.impact} impact on system boot latency` },
+                  { label: 'Why Is This Running?', value: item.whyIsItRunning || 'Background daemon' },
+                  { label: 'Configuration Path', value: item.path || item.location, isCode: true },
+                  { label: 'Initialization State', value: item.enabled ? 'Enabled on Boot' : 'Temporarily Disabled' },
+                  { label: 'Startup Impact', value: `${item.impact} boot latency burden` },
                 ],
-                command: isMac ? `plutil -p "${item.location}/${item.name}.plist"` : `Get-ItemProperty -Path "${item.location}"`,
                 actionButton: {
-                  label: item.enabled ? 'Disable Item' : 'Enable Item',
-                  onClick: () => toggleItem(item.id),
+                  label: item.enabled ? 'Disable Temporarily' : 'Enable Item',
+                  onClick: () => toggleItem(item),
                 },
               })
             }
-            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 transition-colors hover:bg-slate-500/10 cursor-pointer"
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 transition-colors hover:bg-slate-500/10 cursor-pointer"
           >
             <div className="flex items-start gap-3 min-w-0">
               <div
@@ -152,11 +161,11 @@ export default function StartupManager() {
                     {item.impact} Impact
                   </span>
                 </div>
-                <p className="text-xs font-mono mt-0.5 truncate" style={{ color: 'var(--color-ink-4)' }}>
-                  {item.location}
+                <p className="text-xs text-slate-300 mt-1 font-medium">
+                  💡 {item.whyIsItRunning || 'Background service'}
                 </p>
-                <p className="text-[11px] font-mono mt-0.5 truncate opacity-70" style={{ color: 'var(--color-ink-3)' }}>
-                  {item.path}
+                <p className="text-[10px] font-mono text-slate-500 mt-0.5 truncate">
+                  {item.location}
                 </p>
               </div>
             </div>
@@ -165,7 +174,7 @@ export default function StartupManager() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  toggleItem(item.id);
+                  toggleItem(item);
                 }}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer"
                 style={

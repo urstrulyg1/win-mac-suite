@@ -6,10 +6,16 @@ import RunningDashboard from './components/RunningDashboard';
 import DiagnosticsHub from './components/DiagnosticsHub';
 import SecurityHub from './components/SecurityHub';
 import StorageHub from './components/StorageHub';
-import SystemAppsHub from './components/SystemAppsHub';
+import StartupManager from './components/StartupManager';
 import ReportsPage from './components/ReportsPage';
-import MacUtilitiesHub from './components/MacUtilitiesHub';
-import TroubleshootCenter from './components/TroubleshootCenter';
+import AskAssistantHub from './components/AskAssistantHub';
+import PerformanceDoctorHub from './components/PerformanceDoctorHub';
+import DeveloperDoctorHub from './components/DeveloperDoctorHub';
+import NetworkDoctorHub from './components/NetworkDoctorHub';
+import SystemEventsTimeline from './components/SystemEventsTimeline';
+import CrashHangDoctor from './components/CrashHangDoctor';
+import HardwarePeripheralsHub from './components/HardwarePeripheralsHub';
+import AppleServicesHub from './components/AppleServicesHub';
 import UnsupportedPlatformView from './components/UnsupportedPlatformView';
 import { useDarkMode } from './hooks/useDarkMode';
 import { useToast } from './components/Toast';
@@ -26,7 +32,7 @@ export function buildExportReport(
 ): string {
   const report = {
     suite: platform === 'macos' ? 'MacSuite' : 'WinSuite',
-    version: '5.0.0',
+    version: '7.0.0',
     exportTimestamp: new Date().toISOString(),
     mode,
     summary,
@@ -302,13 +308,69 @@ function MainApp() {
       />
 
       <AnimatePresence mode="wait">
-        {activeTab === 'troubleshoot' ? (
+        {activeTab === 'ask' ? (
           <motion.div
-            key="troubleshoot-tab"
+            key="ask-tab"
             initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
             transition={{ duration: 0.2 }} className="w-full"
           >
-            <TroubleshootCenter onNavigateTab={handleNavTab} />
+            <AskAssistantHub onNavigateTab={handleNavTab} />
+          </motion.div>
+        ) : activeTab === 'timeline' ? (
+          <motion.div
+            key="timeline-tab"
+            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.2 }} className="w-full"
+          >
+            <SystemEventsTimeline />
+          </motion.div>
+        ) : activeTab === 'crashes' ? (
+          <motion.div
+            key="crashes-tab"
+            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.2 }} className="w-full"
+          >
+            <CrashHangDoctor />
+          </motion.div>
+        ) : activeTab === 'hardware' ? (
+          <motion.div
+            key="hardware-tab"
+            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.2 }} className="w-full"
+          >
+            <HardwarePeripheralsHub />
+          </motion.div>
+        ) : activeTab === 'apple' ? (
+          <motion.div
+            key="apple-tab"
+            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.2 }} className="w-full"
+          >
+            <AppleServicesHub />
+          </motion.div>
+        ) : activeTab === 'performance' ? (
+          <motion.div
+            key="performance-tab"
+            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.2 }} className="w-full"
+          >
+            <PerformanceDoctorHub onNavigateTab={handleNavTab} />
+          </motion.div>
+        ) : activeTab === 'developer' ? (
+          <motion.div
+            key="developer-tab"
+            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.2 }} className="w-full"
+          >
+            <DeveloperDoctorHub />
+          </motion.div>
+        ) : activeTab === 'network' ? (
+          <motion.div
+            key="network-tab"
+            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.2 }} className="w-full"
+          >
+            <NetworkDoctorHub />
           </motion.div>
         ) : activeTab === 'diagnostics' ? (
           <motion.div
@@ -318,13 +380,13 @@ function MainApp() {
           >
             <DiagnosticsHub systemInfo={realSysInfo} onStartAction={handleStartWithMode} />
           </motion.div>
-        ) : activeTab === 'utilities' ? (
+        ) : activeTab === 'startup' ? (
           <motion.div
-            key="utilities-tab"
+            key="startup-tab"
             initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
             transition={{ duration: 0.2 }} className="w-full"
           >
-            <MacUtilitiesHub />
+            <StartupManager />
           </motion.div>
         ) : activeTab === 'security' ? (
           <motion.div
@@ -341,14 +403,6 @@ function MainApp() {
             transition={{ duration: 0.2 }} className="w-full"
           >
             <StorageHub systemInfo={realSysInfo} onClean={handleStartWithMode} />
-          </motion.div>
-        ) : activeTab === 'system' ? (
-          <motion.div
-            key="system-tab"
-            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.2 }} className="w-full"
-          >
-            <SystemAppsHub />
           </motion.div>
         ) : phase === 'landing' && activeTab === 'overview' ? (
           <motion.div

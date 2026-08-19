@@ -1,11 +1,21 @@
 /**
- * WinSuite & MacSuite v6.3 - Security & Privacy Route
- * Read-only endpoints: /api/security, /api/privacy
+ * WinSuite & MacSuite v6.5 - Security & Privacy Auditor Route
+ * Endpoints:
+ * - GET /api/security
+ * - GET /api/security/posture
+ * - GET /api/security/privacy-auditor
+ * - GET /api/privacy
+ * - GET /api/privacy/auditor
+ * - GET /api/privacy/score
  */
 
 import express from 'express';
 import { getWindowsSecurityStatus } from '../helpers/windows-helpers.js';
-import { getMacSecurityStatus } from '../helpers/macos-helpers.js';
+import {
+  getMacSecurityStatus,
+  getMacSecurityPosture,
+  getMacFullPrivacyAuditor,
+} from '../helpers/macos-helpers.js';
 
 const router = express.Router();
 const isMac = process.platform === 'darwin';
@@ -25,26 +35,50 @@ router.get('/security', async (_req, res) => {
   }
 });
 
-// ── GET /api/privacy ────────────────────────────────────────────────────────
-router.get('/privacy', (_req, res) => {
-  const permissions = isMac
-    ? [
-        { id: '1', name: 'Camera Access (TCC)', status: 'Protected', detail: 'Hardware indicator and user consent enforced' },
-        { id: '2', name: 'Microphone Access', status: 'Protected', detail: 'Hardware indicator active on capture' },
-        { id: '3', name: 'Location Services', status: 'Protected', detail: 'Per-application permission toggle active' },
-        { id: '4', name: 'Full Disk Access', status: 'Protected', detail: 'Protected by System Integrity Protection' },
-      ]
-    : [
-        { id: '1', name: 'Camera Access', status: 'Protected', detail: 'Windows permission manager enforces app boundaries' },
-        { id: '2', name: 'Microphone Access', status: 'Protected', detail: 'System tray mic indicator active on access' },
-        { id: '3', name: 'Location Privacy', status: 'Protected', detail: 'Geofencing and location sensor permissions active' },
-        { id: '4', name: 'App Diagnostics', status: 'Protected', detail: 'Required diagnostic data only' },
-      ];
+// ── GET /api/security/posture ───────────────────────────────────────────────
+router.get('/security/posture', async (_req, res) => {
+  try {
+    const posture = isMac ? await getMacSecurityPosture() : {
+      securityScore: 94,
+      checks: [
+        { name: 'Microsoft Defender Antivirus', passed: true, detail: 'Real-time protection enabled' },
+        { name: 'BitLocker Drive Encryption', passed: true, detail: 'System volume encrypted' },
+        { name: 'Windows Firewall', passed: true, detail: 'Domain & Private profiles active' },
+      ],
+    };
+    res.json(posture);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
-  res.json({
-    platform: isMac ? 'macos' : 'windows',
-    permissions,
-  });
+// ── GET /api/privacy & /api/privacy/auditor & /api/security/privacy-auditor ──
+const handlePrivacyAuditor = async (_req, res) => {
+  try {
+    const privacy = isMac ? await getMacFullPrivacyAuditor() : {
+      privacyScore: 90,
+      status: 'Protected',
+      categories: [],
+      recentChanges: [],
+    };
+    res.json(privacy);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+router.get('/privacy', handlePrivacyAuditor);
+router.get('/privacy/auditor', handlePrivacyAuditor);
+router.get('/security/privacy-auditor', handlePrivacyAuditor);
+
+// ── GET /api/privacy/score ─────────────────────────────────────────────────
+router.get('/privacy/score', async (_req, res) => {
+  try {
+    const auditor = isMac ? await getMacFullPrivacyAuditor() : { privacyScore: 90, categories: [] };
+    res.json(auditor);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 export default router;

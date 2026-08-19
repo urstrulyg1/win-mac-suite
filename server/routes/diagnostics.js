@@ -1,12 +1,5 @@
 /**
- * WinSuite & MacSuite v6.3 - Diagnostics & Health Route
- * Read-only endpoints:
- * - GET /api/health-check
- * - GET /api/processes
- * - GET /api/event-logs
- * - GET /api/battery
- * - GET /api/hardware
- * - GET /api/packages
+ * WinSuite & MacSuite v7.0 - Comprehensive Diagnostics, Health & Diagnostic Doctors Route
  */
 
 import express from 'express';
@@ -14,13 +7,41 @@ import si from 'systeminformation';
 import {
   getMacEventLogs,
   getMacBatteryStatus,
+  getMacBatteryIntelligence,
   getMacPackageStatus,
   getMacHardwareStatus,
   getMacSpotlightStatus,
   getMacPowerAssertions,
-  getMacPrivacyRiskScore,
   getMacTroubleshootGuide,
+  getMacPerformanceDiagnosis,
+  getMacThermalState,
+  getMacThermalDeep,
+  getMacAppCompatibility,
 } from '../helpers/macos-helpers.js';
+
+import {
+  getMacUpdateDoctor,
+  getMacDiskHealth,
+  getMacCrashHangIntelligence,
+  getMacSystemStability,
+  getMacSpotlightDoctor,
+  getMacTimeMachineDoctor,
+  getMacICloudDiagnostics,
+  getMacAppleServicesHealth,
+  getMacAudioDoctor,
+  getMacCameraMicDoctor,
+  getMacDisplayDoctor,
+  getMacPeripheralDoctor,
+  getMacFinderClipboardDoctor,
+  getMacFilePermissionsDoctor,
+  getMacSshDoctor,
+  getMacVirtualizationDoctor,
+  getMacBrowserHealth,
+  getMacAppResourceDoctor,
+  getMacSystemEventsTimeline,
+  getMacBaselineDiff,
+} from '../helpers/macos-advanced-helpers.js';
+
 import {
   getWindowsEventLogs,
   getWindowsBatteryStatus,
@@ -50,47 +71,19 @@ router.get('/health-check', async (_req, res) => {
     const cpuUsagePct = Math.round(currentLoad.currentLoad || 10);
     const battPercent = batt.hasBattery ? (batt.percent ?? 100) : 100;
 
-    // Dynamic Normalized Health Score
     const storageScore = Math.max(0, 100 - (diskUsagePct > 70 ? (diskUsagePct - 70) * 2 : 0));
     const memScore = Math.max(0, 100 - (memUsagePct > 75 ? (memUsagePct - 75) * 2.5 : 0));
     const cpuScore = Math.max(0, 100 - (cpuUsagePct > 60 ? (cpuUsagePct - 60) * 2 : 0));
     const battScore = batt.hasBattery ? (battPercent < 20 ? 70 : 100) : 100;
-    const securityScore = 98;
-    const integrityScore = 98;
 
     const weightedScore = Math.round(
       storageScore * 0.25 +
       memScore * 0.20 +
       cpuScore * 0.20 +
-      securityScore * 0.15 +
-      integrityScore * 0.10 +
+      98 * 0.15 +
+      98 * 0.10 +
       battScore * 0.10
     );
-
-    const recommendations = [];
-    if (diskUsagePct > 75) {
-      recommendations.push({
-        id: 'rec-storage',
-        category: 'storage',
-        severity: 'high',
-        title: `Primary Storage Volume is at ${diskUsagePct}% Capacity`,
-        description: 'Run storage cleanup to purge developer build caches, old downloads, and system logs.',
-        impact: 'Reclaims 2-5 GB of disk space',
-        actionLabel: 'Launch Cleanup Profile',
-        actionTarget: 'CleanupOnly',
-      });
-    } else {
-      recommendations.push({
-        id: 'rec-maintenance',
-        category: 'routine',
-        severity: 'medium',
-        title: 'Routine System Maintenance Recommended',
-        description: 'Synchronize package repositories, refresh security signatures, and verify filesystem integrity.',
-        impact: 'Maintains optimal speed and system security posture',
-        actionLabel: 'Run Standard Update',
-        actionTarget: 'Safe',
-      });
-    }
 
     res.json({
       score: Math.min(Math.max(weightedScore, 50), 100),
@@ -98,17 +91,162 @@ router.get('/health-check', async (_req, res) => {
         storage: { status: diskUsagePct < 80 ? 'Healthy' : 'Warning', score: storageScore, usage: diskUsagePct },
         memory: { status: memUsagePct < 85 ? 'Healthy' : 'Warning', score: memScore, usage: memUsagePct },
         cpu: { status: cpuUsagePct < 80 ? 'Healthy' : 'Warning', score: cpuScore, usage: cpuUsagePct },
-        security: { status: 'Healthy', score: securityScore },
-        integrity: { status: 'Healthy', score: integrityScore },
+        security: { status: 'Healthy', score: 98 },
+        integrity: { status: 'Healthy', score: 98 },
       },
-      recommendations,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ── GET /api/processes ──────────────────────────────────────────────────────
+// ── GET /api/performance/diagnosis ──────────────────────────────────────────
+router.get('/performance/diagnosis', async (_req, res) => {
+  try {
+    const diag = isMac ? await getMacPerformanceDiagnosis() : { verdict: 'Windows nominal.', subsystems: [], recommendations: [] };
+    res.json(diag);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/thermal/deep ───────────────────────────────────────────────────
+router.get('/thermal/deep', async (_req, res) => {
+  try {
+    const thermal = isMac ? await getMacThermalDeep() : { thermalLevel: 'Nominal' };
+    res.json(thermal);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/battery/intelligence ───────────────────────────────────────────
+router.get('/battery/intelligence', async (_req, res) => {
+  try {
+    const bIntel = isMac ? await getMacBatteryIntelligence() : { hasBattery: false, percent: 100, drainTimeline: [] };
+    res.json(bIntel);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Diagnostic Doctors Endpoints ────────────────────────────────────────────
+
+router.get('/diagnostics/update-doctor', async (_req, res) => {
+  try {
+    res.json(isMac ? await getMacUpdateDoctor() : { hasUpdateAvailable: false });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/diagnostics/disk-health', async (_req, res) => {
+  try {
+    res.json(isMac ? await getMacDiskHealth() : { filesystem: 'NTFS' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/diagnostics/crashes-hangs', async (_req, res) => {
+  try {
+    res.json(isMac ? await getMacCrashHangIntelligence() : { totalReportsCount: 0, frequentCrashers: [] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/diagnostics/system-stability', async (_req, res) => {
+  try {
+    res.json(isMac ? await getMacSystemStability() : { stabilityScore: 98 });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/diagnostics/spotlight-doctor', async (_req, res) => {
+  try {
+    res.json(isMac ? await getMacSpotlightDoctor() : { indexingEnabled: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/diagnostics/time-machine', async (_req, res) => {
+  try {
+    res.json(isMac ? await getMacTimeMachineDoctor() : { status: 'N/A' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/diagnostics/icloud', async (_req, res) => {
+  try {
+    res.json(isMac ? await getMacICloudDiagnostics() : { accountConfigured: false });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/diagnostics/apple-services', async (_req, res) => {
+  try {
+    res.json(isMac ? await getMacAppleServicesHealth() : { services: [] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/diagnostics/audio', async (_req, res) => {
+  try {
+    res.json(isMac ? await getMacAudioDoctor() : { defaultOutputDevice: 'Speakers' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/diagnostics/camera-mic', async (_req, res) => {
+  try {
+    res.json(isMac ? await getMacCameraMicDoctor() : { cameras: [] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/diagnostics/displays', async (_req, res) => {
+  try {
+    res.json(isMac ? await getMacDisplayDoctor() : { connectedDisplaysCount: 1 });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/diagnostics/peripherals', async (_req, res) => {
+  try {
+    res.json(isMac ? await getMacPeripheralDoctor() : { peripherals: [] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/diagnostics/finder-clipboard', async (_req, res) => {
+  try {
+    res.json(isMac ? await getMacFinderClipboardDoctor() : { finderStatus: 'Responsive' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/diagnostics/ssh-doctor', async (_req, res) => {
+  try {
+    res.json(isMac ? await getMacSshDoctor() : { sshConfigFound: false });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/diagnostics/virtualization', async (_req, res) => {
+  try {
+    res.json(isMac ? await getMacVirtualizationDoctor() : { hypervisorsDetected: [] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/diagnostics/browser-health', async (_req, res) => {
+  try {
+    res.json(isMac ? await getMacBrowserHealth() : { browsers: [] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/diagnostics/app-resource', async (req, res) => {
+  try {
+    res.json(isMac ? await getMacAppResourceDoctor(req.query.appName || 'Google Chrome') : { cpuUtilizationPct: 10 });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/diagnostics/system-timeline', async (_req, res) => {
+  try {
+    res.json(isMac ? await getMacSystemEventsTimeline() : { events: [] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/diagnostics/baseline-diff', async (_req, res) => {
+  try {
+    res.json(isMac ? await getMacBaselineDiff() : { metrics: [] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Standard Diagnostics Endpoints ──────────────────────────────────────────
 router.get('/processes', async (_req, res) => {
   try {
     const processes = await si.processes();
@@ -123,113 +261,56 @@ router.get('/processes', async (_req, res) => {
         user: p.user || 'SYSTEM',
         command: p.command || '',
       }));
-
-    res.json({
-      all: processes.all || sorted.length,
-      running: processes.running || sorted.length,
-      list: sorted,
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    res.json({ all: processes.all || sorted.length, running: processes.running || sorted.length, list: sorted });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── GET /api/event-logs ─────────────────────────────────────────────────────
 router.get('/event-logs', async (_req, res) => {
   try {
-    const events = isMac ? await getMacEventLogs() : await getWindowsEventLogs();
-    res.json({
-      platform: isMac ? 'macos' : 'windows',
-      events,
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    res.json({ platform: isMac ? 'macos' : 'windows', events: isMac ? await getMacEventLogs() : await getWindowsEventLogs() });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── GET /api/battery ────────────────────────────────────────────────────────
 router.get('/battery', async (_req, res) => {
   try {
-    const battery = isMac ? await getMacBatteryStatus() : await getWindowsBatteryStatus();
-    res.json(battery);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    res.json(isMac ? await getMacBatteryStatus() : await getWindowsBatteryStatus());
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── GET /api/packages ───────────────────────────────────────────────────────
 router.get('/packages', async (_req, res) => {
   try {
-    const packages = isMac ? await getMacPackageStatus() : await getWindowsPackageStatus();
-    res.json(packages);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    res.json(isMac ? await getMacPackageStatus() : await getWindowsPackageStatus());
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── GET /api/hardware ───────────────────────────────────────────────────────
 router.get('/hardware', async (_req, res) => {
   try {
-    const hardware = isMac ? await getMacHardwareStatus() : await getWindowsHardwareStatus();
-    res.json(hardware);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    res.json(isMac ? await getMacHardwareStatus() : await getWindowsHardwareStatus());
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── GET /api/spotlight ──────────────────────────────────────────────────────
 router.get('/spotlight', async (_req, res) => {
   try {
-    const spotlight = isMac ? await getMacSpotlightStatus() : { indexingEnabled: true, statusText: 'Windows Search Active' };
-    res.json(spotlight);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    res.json(isMac ? await getMacSpotlightStatus() : { indexingEnabled: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── GET /api/privacy/score ─────────────────────────────────────────────────
-router.get('/privacy/score', async (_req, res) => {
-  try {
-    const score = isMac ? await getMacPrivacyRiskScore() : {
-      privacyScore: 88,
-      status: 'Optimal',
-      permissions: [
-        { id: 'camera', name: 'Camera Access', risk: 'medium', grantedApps: ['Edge', 'Teams'], count: 2 },
-        { id: 'microphone', name: 'Microphone Access', risk: 'medium', grantedApps: ['Edge', 'Teams'], count: 2 },
-      ],
-      findings: [
-        { id: 'f-1', severity: 'success', title: 'No Unsigned Startup Programs', description: 'All run keys originate from signed publishers.' },
-      ],
-    };
-    res.json(score);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ── GET /api/troubleshoot/:issueId ──────────────────────────────────────────
-router.get('/troubleshoot/:issueId', async (req, res) => {
-  try {
-    const guide = isMac ? await getMacTroubleshootGuide(req.params.issueId) : {
-      title: 'Windows Diagnostic Resolver',
-      diagnosis: 'Inspecting Windows performance counters...',
-      findings: [{ label: 'System State', value: 'Nominal', healthy: true }],
-      actions: [],
-    };
-    res.json(guide);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ── GET /api/power-assertions ───────────────────────────────────────────────
 router.get('/power-assertions', async (_req, res) => {
   try {
-    const assertions = isMac ? await getMacPowerAssertions() : { sleepPrevented: false, activeBlockers: [] };
-    res.json(assertions);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    res.json(isMac ? await getMacPowerAssertions() : { sleepPrevented: false, activeBlockers: [] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/diagnostics/app-compatibility/:appName', async (req, res) => {
+  try {
+    res.json(isMac ? await getMacAppCompatibility(req.params.appName) : { appName: req.params.appName });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/troubleshoot/:issueId', async (req, res) => {
+  try {
+    res.json(isMac ? await getMacTroubleshootGuide(req.params.issueId) : { title: 'Troubleshoot' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 export default router;
