@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Package, ShieldCheck, Download, Store, Cpu, HardDrive,
@@ -12,13 +12,16 @@ const iconMap: Record<string, React.ComponentType<any>> = {
   FileCheck, FolderSync, Trash, Gauge,
 };
 
-const statusCfg: Record<SectionStatus, { icon: React.ComponentType<any>; color: string; bg: string; border: string; label: string }> = {
-  pending:  { icon: Clock,        color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.08)', border: 'rgba(148, 163, 184, 0.15)', label: 'Pending' },
-  running:  { icon: Loader2,      color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.14)', border: 'rgba(59, 130, 246, 0.3)', label: 'Running' },
-  success:  { icon: CheckCircle2, color: '#22c55e', bg: 'rgba(34, 197, 94, 0.12)', border: 'rgba(34, 197, 94, 0.25)', label: 'Done' },
-  warning:  { icon: AlertTriangle,color: '#eab308', bg: 'rgba(234, 179, 8, 0.12)', border: 'rgba(234, 179, 8, 0.25)', label: 'Warn' },
-  error:    { icon: XCircle,      color: '#ef4444', bg: 'rgba(239, 68, 68, 0.12)', border: 'rgba(239, 68, 68, 0.25)', label: 'Error' },
-  skipped:  { icon: SkipForward,  color: '#64748b', bg: 'rgba(100, 116, 139, 0.08)', border: 'rgba(100, 116, 139, 0.12)', label: 'Skip' },
+const statusCfg: Record<
+  SectionStatus,
+  { icon: React.ComponentType<any>; color: string; bg: string; border: string; label: string }
+> = {
+  pending:  { icon: Clock,         color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.08)', border: 'rgba(148, 163, 184, 0.15)', label: 'Pending' },
+  running:  { icon: Loader2,       color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.14)', border: 'rgba(59, 130, 246, 0.3)',  label: 'Running' },
+  success:  { icon: CheckCircle2,  color: '#22c55e', bg: 'rgba(34, 197, 94, 0.12)',  border: 'rgba(34, 197, 94, 0.25)',  label: 'Done' },
+  warning:  { icon: AlertTriangle, color: '#eab308', bg: 'rgba(234, 179, 8, 0.12)',  border: 'rgba(234, 179, 8, 0.25)',  label: 'Warn' },
+  error:    { icon: XCircle,       color: '#ef4444', bg: 'rgba(239, 68, 68, 0.12)',  border: 'rgba(239, 68, 68, 0.25)',   label: 'Error' },
+  skipped:  { icon: SkipForward,   color: '#64748b', bg: 'rgba(100, 116, 139, 0.08)', border: 'rgba(100, 116, 139, 0.12)', label: 'Skip' },
 };
 
 const logColors: Record<string, { badge: string; text: string; bg: string }> = {
@@ -31,9 +34,11 @@ const logColors: Record<string, { badge: string; text: string; bg: string }> = {
 interface Props {
   section: Section;
   index: number;
+  expandSignal?: number;
+  collapseSignal?: number;
 }
 
-export default function SectionCard({ section, index }: Props) {
+export default function SectionCard({ section, index, expandSignal = 0, collapseSignal = 0 }: Props) {
   const [open, setOpen] = useState(false);
   const Icon = iconMap[section.icon] || Package;
   const st = statusCfg[section.status];
@@ -42,11 +47,26 @@ export default function SectionCard({ section, index }: Props) {
   const isSkipped = section.status === 'skipped';
   const hasDetails = section.logs.length > 0 || (section.details && Object.keys(section.details).length > 0);
 
+  // Auto-open the currently running phase so users can watch its live log
+  useEffect(() => {
+    if (isRunning) setOpen(true);
+  }, [isRunning]);
+
+  useEffect(() => {
+    if (expandSignal > 0 && hasDetails) setOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expandSignal]);
+
+  useEffect(() => {
+    if (collapseSignal > 0) setOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collapseSignal]);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.035, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ delay: Math.min(index * 0.035, 0.3), duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
       className={`
         rounded-xl overflow-hidden transition-all duration-300
         ${isRunning
@@ -56,17 +76,16 @@ export default function SectionCard({ section, index }: Props) {
         ${isSkipped ? 'opacity-45 hover:opacity-75' : ''}
       `}
     >
-      {/* Main Header Bar */}
       <button
         onClick={() => hasDetails && setOpen(!open)}
         disabled={!hasDetails}
+        aria-expanded={open}
         className={`
           w-full flex items-center gap-3 p-3 sm:px-4 sm:py-3.5 text-left
           ${hasDetails ? 'cursor-pointer hover:bg-white/[0.025]' : 'cursor-default'}
-          transition-colors duration-150
+          transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-blue-500/60 outline-none
         `}
       >
-        {/* Step Badge */}
         <span
           className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg text-[11px] font-bold font-mono flex items-center justify-center shrink-0 border"
           style={{ backgroundColor: st.bg, color: st.color, borderColor: st.border }}
@@ -74,7 +93,6 @@ export default function SectionCard({ section, index }: Props) {
           {section.number}
         </span>
 
-        {/* Section Icon */}
         <span
           className="p-1.5 sm:p-2 rounded-lg shrink-0 border transition-transform duration-200"
           style={{ backgroundColor: st.bg, borderColor: st.border }}
@@ -82,16 +100,13 @@ export default function SectionCard({ section, index }: Props) {
           <Icon size={16} style={{ color: st.color }} />
         </span>
 
-        {/* Title and description - protected from overflow */}
         <div className="flex-1 min-w-0 pr-2">
-          <div className="flex items-center gap-2">
-            <p
-              title={section.title}
-              className="text-fluid-card-title font-semibold text-white truncate"
-            >
-              {section.title}
-            </p>
-          </div>
+          <p
+            title={section.title}
+            className="text-fluid-card-title font-semibold text-white truncate"
+          >
+            {section.title}
+          </p>
           <p
             title={section.description}
             className="text-fluid-card-desc text-slate-400 truncate mt-0.5"
@@ -100,7 +115,6 @@ export default function SectionCard({ section, index }: Props) {
           </p>
         </div>
 
-        {/* Right side status indicators */}
         <div className="flex items-center gap-2 shrink-0">
           {isRunning && (
             <span className="text-xs text-blue-400 font-mono font-medium tabular-nums w-9 text-right">
@@ -114,7 +128,6 @@ export default function SectionCard({ section, index }: Props) {
             </span>
           )}
 
-          {/* Status Badge */}
           <span
             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border"
             style={{ backgroundColor: st.bg, color: st.color, borderColor: st.border }}
@@ -123,7 +136,6 @@ export default function SectionCard({ section, index }: Props) {
             <span className="hidden xs:inline">{st.label}</span>
           </span>
 
-          {/* Chevron for expandable details */}
           {hasDetails ? (
             <motion.span
               animate={{ rotate: open ? 180 : 0 }}
@@ -138,13 +150,12 @@ export default function SectionCard({ section, index }: Props) {
         </div>
       </button>
 
-      {/* Progress Bar for Running Section */}
       {isRunning && (
         <div className="px-4 pb-3">
           <div className="h-1.5 bg-black/40 rounded-full overflow-hidden p-[1px]">
             <motion.div
               animate={{ width: `${section.progress}%` }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
               className="h-full rounded-full progress-stripe shadow-sm shadow-cyan-500/50"
               style={{ background: 'linear-gradient(90deg, #3b82f6, #06b6d4)' }}
             />
@@ -152,7 +163,6 @@ export default function SectionCard({ section, index }: Props) {
         </div>
       )}
 
-      {/* Finished Summary Pill when not running and result available */}
       {section.result && !isRunning && !open && (
         <div className="px-4 pb-3 flex items-center justify-between gap-2">
           <span
@@ -165,7 +175,7 @@ export default function SectionCard({ section, index }: Props) {
           {section.logs.length > 0 && (
             <button
               onClick={() => setOpen(true)}
-              className="text-[10px] text-blue-400 hover:text-blue-300 font-mono underline underline-offset-2 cursor-pointer shrink-0"
+              className="text-[10px] text-blue-400 hover:text-blue-300 font-mono underline underline-offset-2 cursor-pointer shrink-0 focus-visible:ring-2 focus-visible:ring-blue-500/60 rounded outline-none"
             >
               View logs ({section.logs.length})
             </button>
@@ -173,7 +183,6 @@ export default function SectionCard({ section, index }: Props) {
         </div>
       )}
 
-      {/* Smooth Accordion Body */}
       <AnimatePresence initial={false}>
         {open && (
           <motion.div
@@ -184,7 +193,6 @@ export default function SectionCard({ section, index }: Props) {
             className="overflow-hidden border-t border-white/[0.06]"
           >
             <div className="p-4 bg-black/25 space-y-3">
-              {/* Detailed Result Banner */}
               {section.result && (
                 <div
                   className="px-3 py-2 rounded-lg text-xs font-mono font-medium border flex items-center justify-between gap-2"
@@ -197,7 +205,6 @@ export default function SectionCard({ section, index }: Props) {
                 </div>
               )}
 
-              {/* Key Metrics / Details Grid */}
               {section.details && Object.keys(section.details).length > 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {Object.entries(section.details).map(([k, v]) => (
@@ -216,7 +223,6 @@ export default function SectionCard({ section, index }: Props) {
                 </div>
               )}
 
-              {/* Log Viewer with safe word wrapping and clean syntax colors */}
               {section.logs.length > 0 && (
                 <div className="rounded-lg bg-[#080c14] border border-white/[0.06] p-3 max-h-48 overflow-y-auto font-mono text-[11px] space-y-1">
                   {section.logs.map((l, i) => {
@@ -250,4 +256,3 @@ export default function SectionCard({ section, index }: Props) {
     </motion.div>
   );
 }
-

@@ -17,6 +17,8 @@
   --color-text-muted: #64748b;
   --color-border: #1e293b;
   --color-border-hover: #334155;
+
+  --breakpoint-xs: 420px;
 }
 
 * {
@@ -241,4 +243,57 @@ button {
   font-size: clamp(0.925rem, 0.5vw + 0.75rem, 1.125rem);
 }
 
+/* ── Form inputs (search / filter fields) ── */
+
+.glass-input {
+  background: rgba(11, 15, 26, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.glass-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.glass-input:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.glass-input:focus {
+  background: rgba(11, 15, 26, 0.8);
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* ── Extra animation utilities ── */
+
+.animate-spin-slow {
+  animation: spin 3s linear infinite;
+  will-change: transform;
+}
+
+/* ── Consistent keyboard focus ring for interactive elements ── */
+
+a:focus-visible,
+button:focus-visible,
+[role="checkbox"]:focus-visible,
+[role="button"]:focus-visible,
+summary:focus-visible {
+  outline: none;
+}
+
+/* ── Reduced motion: honor user OS preference ── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 

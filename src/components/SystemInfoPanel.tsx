@@ -1,10 +1,11 @@
 import { motion } from 'framer-motion';
-import { Monitor, Cpu, HardDrive, Wifi, WifiOff, Clock, MemoryStick, Activity, ShieldAlert, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Monitor, Cpu, HardDrive, Wifi, WifiOff, Clock, MemoryStick, Activity, Sparkles } from 'lucide-react';
 import type { SystemInfo, RunMode } from '../types';
 
 interface Props {
   systemInfo: SystemInfo;
   selectedMode?: RunMode;
+  live?: boolean;
 }
 
 function Bar({
@@ -40,7 +41,7 @@ function Bar({
   );
 }
 
-export default function SystemInfoPanel({ systemInfo, selectedMode }: Props) {
+export default function SystemInfoPanel({ systemInfo, selectedMode, live = false }: Props) {
   const rows = [
     { icon: Monitor, k: 'Host Computer', v: systemInfo.hostName },
     { icon: Cpu, k: 'CPU Processor', v: systemInfo.processor },
@@ -63,6 +64,15 @@ export default function SystemInfoPanel({ systemInfo, selectedMode }: Props) {
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
             System Telemetry &amp; Specs
           </h3>
+          {live && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider text-cyan-300 bg-cyan-500/10 border border-cyan-500/25">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-400" />
+              </span>
+              Live
+            </span>
+          )}
         </div>
 
         {/* Live Network Beacon */}
