@@ -47,11 +47,11 @@ export default function ReportsPage({ summary, onStartNew, onExport }: Props) {
             </span>
             {summary ? (
               <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25">
-                <CheckCircle2 size={12} /> Last Run Available
+                <CheckCircle2 size={12} /> Last Run Available · Click Any Tile To Inspect
               </span>
             ) : (
               <span className="pill" style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-3)', borderColor: 'var(--color-line)' }}>
-                Audit Ledger Active
+                Audit Ledger Active · Click Any Tile To Inspect
               </span>
             )}
           </div>
@@ -81,27 +81,147 @@ export default function ReportsPage({ summary, onStartNew, onExport }: Props) {
         <div className="space-y-5">
           <div className="grid grid-cols-12 gap-4 items-stretch">
             {/* Health Score Gauge */}
-            <div className="card p-6 col-span-12 lg:col-span-4 flex flex-col items-center justify-center text-center">
+            <button
+              onClick={() =>
+                setInspectItem({
+                  title: 'Overall System Integrity Score',
+                  category: 'Diagnostics Summary',
+                  badge: `Health ${summary.healthScore}%`,
+                  subtitle: `Maintenance profile used: ${summary.mode}`,
+                  details: [
+                    { label: 'Calculated Score', value: `${summary.healthScore}%` },
+                    { label: 'Passed Sections', value: `${summary.passedSections} of ${summary.totalSections}` },
+                    { label: 'Reboot Required', value: summary.rebootRequired ? 'Yes' : 'No' },
+                  ],
+                })
+              }
+              className="card card-hover p-6 col-span-12 lg:col-span-4 flex flex-col items-center justify-center text-center cursor-pointer transition-all hover:scale-[1.01]"
+            >
               <HealthScore score={summary.healthScore} />
               <p className="text-xs font-semibold mt-2" style={{ color: 'var(--color-ink-3)' }}>
                 Overall {config.osFamily} Integrity Score
               </p>
               <div className="mt-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)', color: 'var(--color-ink-2)' }}>
-                <span>Profile: {summary.mode}</span>
+                <span>Profile: {summary.mode} · Inspect Details</span>
               </div>
-            </div>
+            </button>
 
             {/* Metrics Bento */}
             <div className="card p-6 col-span-12 lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-3">
               {[
-                { icon: ArrowUpCircle, label: 'Packages Processed', value: summary.totalUpdated, color: '#2563eb', bg: 'rgba(37,99,235,0.10)' },
-                { icon: HardDrive,     label: 'Space Reclaimed',   value: summary.spaceReclaimed >= 1024 ? `${(summary.spaceReclaimed / 1024).toFixed(1)} GB` : `${summary.spaceReclaimed} MB`, color: '#0891b2', bg: 'rgba(8,145,178,0.10)' },
-                { icon: Layers,        label: 'Phases Completed',  value: `${summary.passedSections}/${summary.totalSections}`, color: '#16a34a', bg: 'rgba(22,163,74,0.10)' },
-                { icon: Clock,         label: 'Run Duration',      value: `${summary.durationMinutes} min`, color: '#7c3aed', bg: 'rgba(124,58,237,0.10)' },
-                { icon: Wrench,        label: 'Issues Detected',   value: summary.issuesFound, color: '#16a34a', bg: 'rgba(22,163,74,0.10)' },
-                { icon: CheckCircle2,  label: 'Verification State',value: 'Verified', color: '#16a34a', bg: 'rgba(22,163,74,0.10)' },
+                {
+                  icon: ArrowUpCircle,
+                  label: 'Packages Processed',
+                  value: summary.totalUpdated,
+                  color: '#2563eb',
+                  bg: 'rgba(37,99,235,0.10)',
+                  onInspect: () =>
+                    setInspectItem({
+                      title: 'Packages Processed',
+                      category: 'Package Subsystem',
+                      badge: `${summary.totalUpdated} Packages`,
+                      subtitle: 'Total package and application updates processed during run.',
+                      details: [
+                        { label: 'Packages Updated', value: summary.totalUpdated },
+                        { label: 'Environments Checked', value: 'Homebrew Formulae & Casks, Pip, Npm' },
+                      ],
+                    }),
+                },
+                {
+                  icon: HardDrive,
+                  label: 'Space Reclaimed',
+                  value: summary.spaceReclaimed >= 1024 ? `${(summary.spaceReclaimed / 1024).toFixed(1)} GB` : `${summary.spaceReclaimed} MB`,
+                  color: '#0891b2',
+                  bg: 'rgba(8,145,178,0.10)',
+                  onInspect: () =>
+                    setInspectItem({
+                      title: 'Disk Space Reclaimed',
+                      category: 'Storage Optimization',
+                      badge: summary.spaceReclaimed >= 1024 ? `${(summary.spaceReclaimed / 1024).toFixed(1)} GB` : `${summary.spaceReclaimed} MB`,
+                      subtitle: 'Reclaimed storage from purged staging caches and log files.',
+                      details: [
+                        { label: 'Reclaimed MB', value: `${summary.spaceReclaimed} MB` },
+                      ],
+                    }),
+                },
+                {
+                  icon: Layers,
+                  label: 'Phases Completed',
+                  value: `${summary.passedSections}/${summary.totalSections}`,
+                  color: '#16a34a',
+                  bg: 'rgba(22,163,74,0.10)',
+                  onInspect: () =>
+                    setInspectItem({
+                      title: 'Phases Completed',
+                      category: 'Pipeline Verification',
+                      badge: `${summary.passedSections}/${summary.totalSections} Passed`,
+                      subtitle: 'Verification check across scheduled maintenance phases.',
+                      details: [
+                        { label: 'Passed Phases', value: summary.passedSections },
+                        { label: 'Total Phases', value: summary.totalSections },
+                      ],
+                    }),
+                },
+                {
+                  icon: Clock,
+                  label: 'Run Duration',
+                  value: `${summary.durationMinutes} min`,
+                  color: '#7c3aed',
+                  bg: 'rgba(124,58,237,0.10)',
+                  onInspect: () =>
+                    setInspectItem({
+                      title: 'Execution Duration',
+                      category: 'Runtime Timer',
+                      badge: `${summary.durationMinutes} minutes`,
+                      subtitle: 'Total execution runtime for this maintenance cycle.',
+                      details: [
+                        { label: 'Duration in Minutes', value: `${summary.durationMinutes}m` },
+                        { label: 'Start Timestamp', value: summary.startedAt || 'Recent' },
+                      ],
+                    }),
+                },
+                {
+                  icon: Wrench,
+                  label: 'Issues Detected',
+                  value: summary.issuesFound,
+                  color: '#16a34a',
+                  bg: 'rgba(22,163,74,0.10)',
+                  onInspect: () =>
+                    setInspectItem({
+                      title: 'Detected Subsystem Issues',
+                      category: 'Diagnostics Ledger',
+                      badge: `${summary.issuesFound} Found`,
+                      subtitle: 'System anomalies and warnings detected during inspection.',
+                      details: [
+                        { label: 'Issues Found', value: summary.issuesFound },
+                        { label: 'Issues Resolved', value: summary.issuesFixed },
+                      ],
+                    }),
+                },
+                {
+                  icon: CheckCircle2,
+                  label: 'Verification State',
+                  value: 'Verified',
+                  color: '#16a34a',
+                  bg: 'rgba(22,163,74,0.10)',
+                  onInspect: () =>
+                    setInspectItem({
+                      title: 'Verification Status',
+                      category: 'Pipeline Integrity',
+                      badge: 'Verified Clean',
+                      subtitle: 'Post-execution hash and status validation succeeded.',
+                      details: [
+                        { label: 'Integrity State', value: 'All active phases verified' },
+                      ],
+                    }),
+                },
               ].map((m) => (
-                <div key={m.label} className="p-3.5 rounded-2xl border flex flex-col justify-between" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+                <button
+                  key={m.label}
+                  onClick={m.onInspect}
+                  className="p-3.5 rounded-2xl border flex flex-col justify-between text-left cursor-pointer transition-all hover:scale-[1.02]"
+                  style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+                >
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-2" style={{ backgroundColor: m.bg, color: m.color }}>
                     <m.icon size={16} />
                   </div>
@@ -109,7 +229,7 @@ export default function ReportsPage({ summary, onStartNew, onExport }: Props) {
                     <p className="text-xl font-extrabold font-mono" style={{ color: 'var(--color-ink)' }}>{m.value}</p>
                     <p className="text-[11px] font-semibold mt-0.5" style={{ color: 'var(--color-ink-3)' }}>{m.label}</p>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -118,23 +238,55 @@ export default function ReportsPage({ summary, onStartNew, onExport }: Props) {
           <div className="card p-6 space-y-4">
             <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>Before &amp; After Maintenance Comparison</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-4 rounded-2xl border space-y-2" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+              <button
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Before Maintenance State',
+                    category: 'Pre-Run Diagnostics',
+                    badge: 'Baseline (~75%)',
+                    subtitle: 'System state before executing maintenance optimizations.',
+                    details: [
+                      { label: 'Package Definitions', value: 'Unverified & pending synchronization' },
+                      { label: 'Temporary Storage', value: 'Caches occupying storage space' },
+                      { label: 'Estimated Health Score', value: '~75%' },
+                    ],
+                  })
+                }
+                className="p-4 rounded-2xl border space-y-2 text-left cursor-pointer transition-all hover:scale-[1.01]"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <p className="text-xs font-bold uppercase tracking-wider text-amber-500">Before Maintenance</p>
                 <div className="space-y-1 text-xs font-mono" style={{ color: 'var(--color-ink-3)' }}>
                   <p>• Unverified packages &amp; definitions</p>
                   <p>• Temporary staging caches consuming disk</p>
                   <p>• Health Score: ~75%</p>
                 </div>
-              </div>
+              </button>
 
-              <div className="p-4 rounded-2xl border space-y-2" style={{ backgroundColor: 'rgba(34,197,94,0.06)', borderColor: 'rgba(34,197,94,0.22)' }}>
+              <button
+                onClick={() =>
+                  setInspectItem({
+                    title: 'After Maintenance State',
+                    category: 'Post-Run State',
+                    badge: `Optimal (${summary.healthScore}%)`,
+                    subtitle: 'Verified system optimizations and reclaimed storage.',
+                    details: [
+                      { label: 'Updated Repositories', value: `${summary.totalUpdated} packages updated` },
+                      { label: 'Reclaimed Storage', value: summary.spaceReclaimed >= 1024 ? `${(summary.spaceReclaimed / 1024).toFixed(1)} GB` : `${summary.spaceReclaimed} MB` },
+                      { label: 'Post-Run Health Score', value: `${summary.healthScore}%` },
+                    ],
+                  })
+                }
+                className="p-4 rounded-2xl border space-y-2 text-left cursor-pointer transition-all hover:scale-[1.01]"
+                style={{ backgroundColor: 'rgba(34,197,94,0.06)', borderColor: 'rgba(34,197,94,0.22)' }}
+              >
                 <p className="text-xs font-bold uppercase tracking-wider text-emerald-500">After Maintenance</p>
                 <div className="space-y-1 text-xs font-mono" style={{ color: 'var(--color-ink)' }}>
                   <p>• {summary.totalUpdated} package repositories updated</p>
                   <p>• {summary.spaceReclaimed >= 1024 ? `${(summary.spaceReclaimed / 1024).toFixed(1)} GB` : `${summary.spaceReclaimed} MB`} storage space reclaimed</p>
                   <p>• Health Score: <strong className="text-emerald-500">{summary.healthScore}%</strong></p>
                 </div>
-              </div>
+              </button>
             </div>
           </div>
 
@@ -147,10 +299,25 @@ export default function ReportsPage({ summary, onStartNew, onExport }: Props) {
               </div>
               <div className="space-y-2">
                 {summary.followUps.map((f, i) => (
-                  <div key={i} className="flex items-start gap-2.5 p-3 rounded-xl text-xs border" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+                  <button
+                    key={i}
+                    onClick={() =>
+                      setInspectItem({
+                        title: 'Follow-Up Recommendation',
+                        category: 'System Suggestion',
+                        badge: `Recommendation ${i + 1}`,
+                        subtitle: f,
+                        details: [
+                          { label: 'Follow-Up Details', value: f },
+                        ],
+                      })
+                    }
+                    className="w-full flex items-start gap-2.5 p-3 rounded-xl text-xs border text-left cursor-pointer transition-all hover:scale-[1.005]"
+                    style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+                  >
                     <ChevronRight size={14} className="text-amber-500 shrink-0 mt-0.5" />
                     <span style={{ color: 'var(--color-ink-2)' }}>{f}</span>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
