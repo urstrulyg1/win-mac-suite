@@ -125,8 +125,11 @@ export async function executeMaintenancePlan(
       }
 
       let status: Section['status'] = 'success';
-      if (template.successResult.match(/FAIL|ERROR/i)) status = 'error';
-      else if (template.successResult.match(/WARN|ISSUES/i)) status = 'warning';
+      if (phaseLogs.some((l) => l.level === 'ERROR')) {
+        status = 'error';
+      } else if (phaseLogs.some((l) => l.level === 'WARNING')) {
+        status = 'warning';
+      }
 
       const roundedDur = Math.round(dur * 10) / 10;
       const verification = verifyPhaseExecution(template, status, phaseLogs);

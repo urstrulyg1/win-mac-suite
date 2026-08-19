@@ -213,13 +213,16 @@ function MainApp() {
       toast('Run cancelled — partial diagnostics saved', 'warning');
     } else {
       toast(`${config.productName} completed successfully`, 'success');
+      if (exportJson) {
+        downloadReport(sectionsRef.current, logsRef.current, finalSummary, mode);
+      }
     }
 
     setTimeout(() => {
       setActiveTab('reports');
       setPhase('reports');
     }, 600);
-  }, [config, mode, capabilities, createPlatformSections, patch, log, noReboot, toast]);
+  }, [config, mode, capabilities, createPlatformSections, patch, log, noReboot, exportJson, downloadReport, toast]);
 
   const cancelRun = useCallback(() => {
     cancelRef.current = true;
@@ -247,10 +250,10 @@ function MainApp() {
   }, [toast]);
 
   const handleManualExport = useCallback(() => {
-    const ok = downloadReport(sections, allLogs, summary, mode);
+    const ok = downloadReport(sectionsRef.current, logsRef.current, summary, mode);
     if (ok) toast('Diagnostics report downloaded', 'success');
     else toast('Export failed', 'error');
-  }, [downloadReport, sections, allLogs, summary, mode, toast]);
+  }, [downloadReport, summary, mode, toast]);
 
   const handleNavTab = useCallback((tab: string) => {
     if (isRunning) {
