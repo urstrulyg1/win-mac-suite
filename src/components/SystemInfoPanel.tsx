@@ -33,11 +33,11 @@ function Bar({
 
 export default function SystemInfoPanel({ systemInfo, selectedMode, live = false }: Props) {
   const rows = [
-    { icon: Monitor, k: 'Host', v: systemInfo.hostName },
-    { icon: Cpu, k: 'Processor', v: systemInfo.processor },
-    { icon: MemoryStick, k: 'Memory', v: `${systemInfo.ramGB} GB DDR5` },
-    { icon: HardDrive, k: 'Storage', v: `${systemInfo.freeDiskGB} GB free / ${systemInfo.totalDiskGB} GB` },
-    { icon: Clock, k: 'Uptime', v: systemInfo.uptime },
+    { icon: Monitor, k: 'Host', v: systemInfo.hostName || 'Local Host' },
+    { icon: Cpu, k: 'Processor', v: systemInfo.processor || 'System CPU' },
+    { icon: MemoryStick, k: 'Memory', v: systemInfo.ramGB > 0 ? `${systemInfo.ramGB} GB RAM` : '—' },
+    { icon: HardDrive, k: 'Storage', v: systemInfo.totalDiskGB > 0 ? `${systemInfo.freeDiskGB} GB free / ${systemInfo.totalDiskGB} GB` : '—' },
+    { icon: Clock, k: 'Uptime', v: systemInfo.uptime || '—' },
   ];
 
   return (

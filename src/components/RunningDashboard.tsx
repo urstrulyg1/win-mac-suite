@@ -188,9 +188,43 @@ export default function RunningDashboard({
                   <span className="relative z-10">Start Execution — {mode} Profile</span>
                 </motion.button>
               </div>
+
+              {/* Maintenance Phase Tiles (All Clickable) */}
+              <div className="card p-5 sm:p-6 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>Included Maintenance Phases</h3>
+                    <p className="text-xs font-medium mt-0.5" style={{ color: 'var(--color-ink-4)' }}>
+                      Click any phase tile below to view execution details and target tools
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setExpandSignal((n) => n + 1)}
+                      className="btn btn-ghost !py-1.5 !px-2.5 text-xs"
+                      title="Expand all"
+                    >
+                      <ChevronsDownUp size={13} /> <span>Expand All</span>
+                    </button>
+                    <button
+                      onClick={() => setCollapseSignal((n) => n + 1)}
+                      className="btn btn-ghost !py-1.5 !px-2.5 text-xs"
+                      title="Collapse all"
+                    >
+                      <ChevronsUpDown size={13} /> <span>Collapse All</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-1">
+                  {visibleSections.map((s, i) => (
+                    <SectionCard key={s.id} section={s} index={i} expandSignal={expandSignal} collapseSignal={collapseSignal} />
+                  ))}
+                </div>
+              </div>
             </div>
 
-            <div className="col-span-12 lg:col-span-4">
+            <div className="col-span-12 lg:col-span-4 space-y-5 lg:sticky lg:top-24">
               <SystemInfoPanel systemInfo={systemInfo} selectedMode={mode} live={false} />
             </div>
           </motion.div>

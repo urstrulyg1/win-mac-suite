@@ -71,7 +71,7 @@ export default function App() {
   const [overallProgress, setOverallProgress] = useState(0);
   const [currentSectionName, setCurrentSectionName] = useState('');
   const [noReboot, setNoReboot] = useState(false);
-  const [exportJson, setExportJson] = useState(true);
+  const [exportJson, setExportJson] = useState(false);
 
   // Real system telemetry — polled from /api/sysinfo every 3 s.
   // Falls back to SYSTEM_INFO constants when the backend is not running.
@@ -153,12 +153,16 @@ export default function App() {
     runStartedAtRef.current = new Date().toISOString();
     const ts = generateTimestamp;
 
+    const hostDisplay = realSysInfo.hostName || 'Local Computer';
+    const osDisplay = realSysInfo.os || 'Windows';
+    const buildDisplay = realSysInfo.build ? ` (${realSysInfo.build})` : '';
+
     await sleep(250);
     log({ time: ts(), level: 'INFO', message: `Suite v5.0.0 initialized — Execution Mode: ${mode}` });
     await sleep(120);
-    log({ time: ts(), level: 'INFO', message: `Host: ${SYSTEM_INFO.hostName} | OS: ${SYSTEM_INFO.os} (${SYSTEM_INFO.build})` });
+    log({ time: ts(), level: 'INFO', message: `Host: ${hostDisplay} | OS: ${osDisplay}${buildDisplay}` });
     await sleep(120);
-    log({ time: ts(), level: 'SUCCESS', message: '[OK] Network online · Administrator elevated credentials verified' });
+    log({ time: ts(), level: 'SUCCESS', message: '[OK] Network online · Elevated administrative privileges verified' });
     await sleep(120);
     log({ time: ts(), level: 'INFO', message: '─'.repeat(48) });
     await sleep(350);
@@ -235,6 +239,18 @@ export default function App() {
       await sleep(300);
     }
 
+    // Dynamic follow-up recommendations based on the executed profile
+    const followUps: string[] = [];
+    if (!noReboot && mode !== 'ScanOnly' && mode !== 'CleanupOnly') {
+      followUps.push('Restart system to finalize staged Windows component and driver updates.');
+    }
+    if (mode === 'ScanOnly' || mode === 'Safe' || mode === 'Aggressive') {
+      followUps.push('Review Windows CBS integrity logs at C:\\Windows\\Logs\\CBS\\CBS.log.');
+    }
+    if (followUps.length === 0) {
+      followUps.push('System is optimized and clean. All scheduled maintenance tasks completed.');
+    }
+
     // Reflect reclaimed disk space after cleanup-type operations
     const reclaimedDisk = mode === 'ScanOnly' ? 0 : 3.1;
     const finalSummary: RunSummary = {
@@ -244,13 +260,10 @@ export default function App() {
       durationMinutes: Math.round((3 + Math.random() * 4) * 10) / 10,
       totalUpdated: mode === 'ScanOnly' || mode === 'CleanupOnly' ? 0 : 15,
       spaceReclaimed: mode === 'ScanOnly' ? 0 : 3189,
-      issuesFound: 1,
+      issuesFound: 0,
       issuesFixed: 0,
       rebootRequired: !noReboot && mode !== 'ScanOnly' && mode !== 'CleanupOnly',
-      followUps: [
-        'Update Intel Dynamic Tuning Driver (ACPI\\INTC1041\\1)',
-        'Review DISM logs at C:\\Windows\\Logs\\DISM\\dism.log',
-      ],
+      followUps,
       cancelled,
       mode,
       startedAt: runStartedAtRef.current,
@@ -262,11 +275,6 @@ export default function App() {
     } else {
       setOverallProgress(100);
       log({ time: ts(), level: 'SUCCESS', message: '═ SYSTEM MAINTENANCE AND UPDATE COMPLETED SUCCESSFULLY' });
-      if (exportJson) {
-        const ok = downloadReport(sectionsRef.current, logsRef.current, finalSummary, mode);
-        if (ok) toast('Diagnostics report exported to JSON', 'success');
-        else toast('Could not export report automatically', 'warning');
-      }
       toast('Maintenance suite completed successfully', 'success');
     }
 

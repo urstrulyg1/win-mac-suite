@@ -299,9 +299,11 @@ export default function TopNav({ phase, activeTab, isRunning, dark, onToggleDark
           {/* Profile avatar */}
           <div ref={profileRef} className="relative">
             <button onClick={() => setShowProfile(v => !v)}
-              className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 ring-2 ring-[var(--color-surface)] shadow-md flex items-center justify-center text-white text-xs font-bold shrink-0 hover:scale-105 transition-transform"
-              title="Administrator"
-            >AD</button>
+              className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 ring-2 ring-[var(--color-surface)] shadow-md flex items-center justify-center text-white text-xs font-bold shrink-0 hover:scale-105 transition-transform"
+              title={systemInfo.user || 'User Profile'}
+            >
+              {systemInfo.user ? systemInfo.user.slice(0, 2).toUpperCase() : 'US'}
+            </button>
             <AnimatePresence>
               {showProfile && (
                 <motion.div initial={{ opacity: 0, y: 8, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.96 }}

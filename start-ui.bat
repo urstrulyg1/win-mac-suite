@@ -99,23 +99,30 @@ if not exist "node_modules\express" set "NEED_INSTALL=1"
 if not exist "node_modules\concurrently" set "NEED_INSTALL=1"
 if not exist "node_modules\vite" set "NEED_INSTALL=1"
 
-if "%NEED_INSTALL%"=="1" (
-    echo   [..] Installing all required project dependencies (express, systeminformation, vite, tailwind, etc.)...
-    call npm install --loglevel=error
-    if %errorlevel% neq 0 (
-        echo.
-        echo   [ERROR] npm install encountered an error. Attempting clean install...
-        call npm ci --loglevel=error || call npm install --loglevel=error
-        if %errorlevel% neq 0 (
-            echo   [FATAL] Dependency installation failed. Please inspect errors above.
-            pause
-            exit /b 1
-        )
+if not "%NEED_INSTALL%"=="1" goto :DEPS_READY
+
+echo   [..] Installing all required project dependencies...
+call npm install --loglevel=error
+if !errorlevel! neq 0 (
+    echo.
+    echo   [ERROR] npm install encountered an error. Attempting clean install...
+    call npm ci --loglevel=error
+    if !errorlevel! neq 0 (
+        call npm install --loglevel=error
     )
-    echo   [OK] Dependencies installed successfully.
-) else (
-    echo   [OK] Dependencies verified and ready.
+    if !errorlevel! neq 0 (
+        echo   [FATAL] Dependency installation failed. Please inspect errors above.
+        pause
+        exit /b 1
+    )
 )
+echo   [OK] Dependencies installed successfully.
+goto :LAUNCH_APP
+
+:DEPS_READY
+echo   [OK] Dependencies verified and ready.
+
+:LAUNCH_APP
 
 echo.
 echo   ========================================================

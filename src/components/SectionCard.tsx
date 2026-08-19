@@ -107,11 +107,10 @@ export default function SectionCard({ section, index, expandSignal = 0, collapse
       }}
     >
       <button
-        onClick={() => hasDetails && setOpen(!open)}
-        disabled={!hasDetails}
+        onClick={() => setOpen(!open)}
         aria-expanded={open}
-        className={`w-full flex items-center gap-3 p-3.5 sm:px-4 text-left transition-colors duration-150 outline-none ${hasDetails ? 'cursor-pointer' : 'cursor-default'}`}
-        onMouseEnter={e => { if (hasDetails) e.currentTarget.style.backgroundColor = 'var(--color-surface-2)'; }}
+        className="w-full flex items-center gap-3 p-3.5 sm:px-4 text-left transition-colors duration-150 outline-none cursor-pointer"
+        onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--color-surface-2)'; }}
         onMouseLeave={e => { e.currentTarget.style.backgroundColor = ''; }}
       >
         <span
@@ -155,18 +154,14 @@ export default function SectionCard({ section, index, expandSignal = 0, collapse
             <StIcon size={11} className={isRunning ? 'animate-spin-smooth' : ''} />
             <span className="hidden xs:inline">{st.label}</span>
           </span>
-          {hasDetails ? (
-            <motion.span
-              animate={{ rotate: open ? 180 : 0 }}
-              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="p-1 rounded-md"
-              style={{ color: 'var(--color-ink-4)' }}
-            >
-              <ChevronDown size={16} />
-            </motion.span>
-          ) : (
-            <span className="w-6" />
-          )}
+          <motion.span
+            animate={{ rotate: open ? 180 : 0 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="p-1 rounded-md"
+            style={{ color: 'var(--color-ink-4)' }}
+          >
+            <ChevronDown size={16} />
+          </motion.span>
         </div>
       </button>
 
@@ -192,14 +187,12 @@ export default function SectionCard({ section, index, expandSignal = 0, collapse
           >
             {section.result}
           </span>
-          {section.logs.length > 0 && (
-            <button
-              onClick={() => setOpen(true)}
-              className="text-[10.5px] text-blue-600 hover:text-blue-700 font-mono font-semibold underline underline-offset-2 cursor-pointer shrink-0"
-            >
-              View logs ({section.logs.length})
-            </button>
-          )}
+          <button
+            onClick={() => setOpen(true)}
+            className="text-[10.5px] text-blue-600 hover:text-blue-700 font-mono font-semibold underline underline-offset-2 cursor-pointer shrink-0"
+          >
+            {section.logs.length > 0 ? `View logs (${section.logs.length})` : 'View phase info'}
+          </button>
         </div>
       )}
 
@@ -210,10 +203,11 @@ export default function SectionCard({ section, index, expandSignal = 0, collapse
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-hidden border-t border-slate-100"
+            className="overflow-hidden border-t"
+            style={{ borderColor: 'var(--color-line)' }}
           >
             <div className="p-4 space-y-3" style={{ backgroundColor: 'var(--color-surface-2)' }}>
-              {section.result && (
+              {section.result ? (
                 <div
                   className="px-3 py-2 rounded-lg text-xs font-mono font-semibold border flex items-center justify-between gap-2"
                   style={{ backgroundColor: st.bg, color: st.color, borderColor: st.border }}
@@ -222,6 +216,16 @@ export default function SectionCard({ section, index, expandSignal = 0, collapse
                   {section.duration > 0 && (
                     <span className="text-[10px] opacity-80 shrink-0">Duration: {section.duration}s</span>
                   )}
+                </div>
+              ) : (
+                <div
+                  className="px-3 py-2 rounded-lg text-xs font-medium border flex items-center justify-between gap-2"
+                  style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-line)', color: 'var(--color-ink-3)' }}
+                >
+                  <span>Phase {section.number}: {section.description}</span>
+                  <span className="text-[10px] font-bold font-mono uppercase px-2 py-0.5 rounded border" style={{ backgroundColor: st.bg, color: st.color, borderColor: st.border }}>
+                    {st.label}
+                  </span>
                 </div>
               )}
 
@@ -236,7 +240,7 @@ export default function SectionCard({ section, index, expandSignal = 0, collapse
                 </div>
               )}
 
-              {section.logs.length > 0 && (
+              {section.logs.length > 0 ? (
                 <div className="rounded-lg p-3 max-h-52 overflow-y-auto font-mono text-[11px] space-y-1.5 border"
                   style={{ backgroundColor: isDark ? '#0b1017' : '#ffffff', borderColor: 'var(--color-line)' }}>
                   {section.logs.map((l, i) => {
@@ -258,6 +262,10 @@ export default function SectionCard({ section, index, expandSignal = 0, collapse
                       </div>
                     );
                   })}
+                </div>
+              ) : (
+                <div className="p-3 rounded-lg border text-center font-mono text-xs" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-line)', color: 'var(--color-ink-4)' }}>
+                  No execution logs yet. Logs will stream live once Phase {section.number} runs.
                 </div>
               )}
             </div>

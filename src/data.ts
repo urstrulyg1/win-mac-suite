@@ -1,18 +1,18 @@
 import type { Section, SystemInfo, RunMode, LogEntry } from './types';
 
 export const SYSTEM_INFO: SystemInfo = {
-  hostName: 'WORKSTATION-01',
-  user: 'Administrator',
-  os: 'Windows 11 Pro',
-  build: '10.0.22631 (Build 22631)',
-  processor: 'AMD Ryzen 9 7950X 16-Core Processor',
-  ramGB: 64,
-  freeDiskGB: 234.7,
-  totalDiskGB: 953.9,
+  hostName: 'Local Computer',
+  user: 'User',
+  os: 'Windows',
+  build: '',
+  processor: 'System Processor',
+  ramGB: 0,
+  freeDiskGB: 0,
+  totalDiskGB: 0,
   isOnline: true,
-  cpuUsage: 12,
-  memoryUsage: 38,
-  uptime: '4 days, 7 hours',
+  cpuUsage: 0,
+  memoryUsage: 0,
+  uptime: 'Calculating...',
 };
 
 export const MODE_DESCRIPTIONS: Record<RunMode, { label: string; description: string; icon: string; color: string }> = {

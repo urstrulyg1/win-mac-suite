@@ -99,8 +99,8 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
   const diskUsedPct = Math.round(((systemInfo.totalDiskGB - systemInfo.freeDiskGB) / Math.max(systemInfo.totalDiskGB, 1)) * 100);
   const diskUsedGB = (systemInfo.totalDiskGB - systemInfo.freeDiskGB).toFixed(1);
 
-  // Health sparkline: build from summary health score as a single endpoint; no historical data
-  const healthSparkData = healthScore !== null ? [50, 55, 58, 60, 65, 68, 72, 75, 78, 80, healthScore, healthScore] : [];
+  // Health sparkline: when available, display score
+  const healthSparkData = healthScore !== null ? [healthScore, healthScore] : [];
 
   // Space reclaimed display
   const spaceDisplay = spaceReclaimedMB >= 1024
@@ -226,7 +226,7 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
             </span>
           </div>
           <p className="text-xs font-medium mb-6" style={{ color: 'var(--color-ink-4)' }}>
-            {systemInfo.processor.split(' ').slice(0, 4).join(' ')}
+            {systemInfo.processor ? systemInfo.processor.split(' ').slice(0, 4).join(' ') : 'Processor'}
           </p>
 
           <div className="space-y-5">
