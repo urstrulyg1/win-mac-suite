@@ -1,84 +1,163 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Terminal, Minus, Plus, Copy, Check } from 'lucide-react';
+import { Terminal, Minus, Plus, Copy, Check, Trash2, Download, Search, ArrowDownToLine } from 'lucide-react';
 import type { LogEntry } from '../types';
 
 const logColors: Record<string, { badge: string; text: string; bg: string }> = {
-  INFO:    { badge: '#94a3b8', text: '#cbd5e1', bg: 'rgba(148, 163, 184, 0.1)' },
-  SUCCESS: { badge: '#22c55e', text: '#86efac', bg: 'rgba(34, 197, 94, 0.12)' },
-  WARNING: { badge: '#eab308', text: '#fde047', bg: 'rgba(234, 179, 8, 0.12)' },
-  ERROR:   { badge: '#ef4444', text: '#fca5a5', bg: 'rgba(239, 68, 68, 0.15)' },
+  INFO:    { badge: '#475569', text: '#334155', bg: '#f1f5f9' },
+  SUCCESS: { badge: '#15803d', text: '#166534', bg: '#dcfce7' },
+  WARNING: { badge: '#b45309', text: '#92400e', bg: '#fef3c7' },
+  ERROR:   { badge: '#b91c1c', text: '#991b1b', bg: '#fee2e2' },
 };
+
+type LevelFilter = 'ALL' | 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR';
+const LEVELS: LevelFilter[] = ['ALL', 'INFO', 'SUCCESS', 'WARNING', 'ERROR'];
 
 interface Props {
   logs: LogEntry[];
   isRunning: boolean;
+  onClear?: () => void;
+  onExport?: () => void;
 }
 
-export default function TerminalLog({ logs, isRunning }: Props) {
+export default function TerminalLog({ logs, isRunning, onClear, onExport }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [search, setSearch] = useState('');
+  const [level, setLevel] = useState<LevelFilter>('ALL');
+  const [showFilters, setShowFilters] = useState(false);
+  const stickToBottomRef = useRef(true);
+  const [atBottom, setAtBottom] = useState(true);
+
+  const levelCounts = useMemo(() => {
+    const c: Record<string, number> = { INFO: 0, SUCCESS: 0, WARNING: 0, ERROR: 0 };
+    for (const l of logs) c[l.level] = (c[l.level] ?? 0) + 1;
+    return c;
+  }, [logs]);
+
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return logs.filter((l) => {
+      if (level !== 'ALL' && l.level !== level) return false;
+      if (q && !`${l.message} ${l.level} ${l.time}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [logs, level, search]);
+
+  const handleScroll = () => {
+    const el = ref.current;
+    if (!el) return;
+    const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    stickToBottomRef.current = bottom;
+    setAtBottom(bottom);
+  };
 
   useEffect(() => {
-    if (ref.current) {
-      ref.current.scrollTo({
-        top: ref.current.scrollHeight,
-        behavior: 'smooth',
-      });
+    if (ref.current && stickToBottomRef.current) {
+      ref.current.scrollTo({ top: ref.current.scrollHeight, behavior: 'smooth' });
     }
-  }, [logs.length]);
+  }, [visible.length]);
 
   const copyLogs = () => {
-    const text = logs.map((l) => `[${l.time}] [${l.level}] ${l.message}`).join('\n');
+    const text = visible.map((l) => `[${l.time}] [${l.level}] ${l.message}`).join('\n');
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div className="glass rounded-xl overflow-hidden border border-white/[0.08] shadow-2xl">
-      {/* Terminal Title Bar */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-black/50 border-b border-white/[0.06]">
-        <div className="flex items-center gap-3">
-          {/* Window control dots */}
-          <div className="flex items-center gap-1.5" aria-hidden="true">
-            <div className="w-2.5 h-2.5 rounded-full bg-[#ef4444] shadow-sm shadow-red-500/50" />
-            <div className="w-2.5 h-2.5 rounded-full bg-[#eab308] shadow-sm shadow-yellow-500/50" />
-            <div className="w-2.5 h-2.5 rounded-full bg-[#22c55e] shadow-sm shadow-green-500/50" />
+    <div className="card overflow-hidden">
+      {/* Title bar */}
+      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200 gap-2">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-1.5 shrink-0" aria-hidden="true">
+            <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+            <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
           </div>
-
-          <div className="flex items-center gap-2">
-            <Terminal size={13} className="text-cyan-400" />
-            <span className="text-xs text-[var(--color-text-secondary)] font-mono font-medium">
+          <div className="flex items-center gap-2 min-w-0">
+            <Terminal size={13} className="text-blue-600 shrink-0" />
+            <span className="text-xs text-slate-600 font-mono font-semibold truncate">
               PowerShell 5.1 — UpdateAll v5.0
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 shrink-0">
           {logs.length > 0 && (
-            <button
-              onClick={copyLogs}
-              title="Copy terminal logs"
-              className="p-1.5 rounded-md hover:bg-white/10 text-[var(--color-text-muted)] hover:text-white transition-colors cursor-pointer flex items-center gap-1 text-[10px] font-mono"
-            >
-              {copied ? <Check size={12} className="text-green-400" /> : <Copy size={12} />}
-              <span className="hidden sm:inline">{copied ? 'Copied' : 'Copy'}</span>
-            </button>
+            <>
+              <IconBtn title="Copy logs" onClick={copyLogs}>
+                {copied ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+              </IconBtn>
+              {onExport && (
+                <IconBtn title="Download report" onClick={onExport}>
+                  <Download size={12} />
+                </IconBtn>
+              )}
+              {onClear && (
+                <IconBtn title="Clear terminal" onClick={onClear}>
+                  <Trash2 size={12} />
+                </IconBtn>
+              )}
+              <IconBtn title="Search & filter" onClick={() => setShowFilters((v) => !v)} active={showFilters}>
+                <Search size={12} />
+              </IconBtn>
+            </>
           )}
-
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            title={collapsed ? 'Expand terminal' : 'Minimize terminal'}
-            className="p-1.5 rounded-md hover:bg-white/10 text-[var(--color-text-muted)] hover:text-white transition-colors cursor-pointer"
-          >
+          <IconBtn title={collapsed ? 'Expand' : 'Minimize'} onClick={() => setCollapsed((c) => !c)}>
             {collapsed ? <Plus size={13} /> : <Minus size={13} />}
-          </button>
+          </IconBtn>
         </div>
       </div>
 
-      {/* Terminal Viewport */}
+      <AnimatePresence initial={false}>
+        {showFilters && !collapsed && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden border-b border-slate-200 bg-white"
+          >
+            <div className="p-3 space-y-2.5">
+              <div className="relative">
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Filter log output..."
+                  className="field pl-8 py-1.5 text-xs font-mono"
+                  aria-label="Filter logs"
+                />
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {LEVELS.map((lv) => {
+                  const active = level === lv;
+                  const count = lv === 'ALL' ? logs.length : levelCounts[lv] ?? 0;
+                  const col = lv === 'ALL' ? null : logColors[lv];
+                  return (
+                    <button
+                      key={lv}
+                      onClick={() => setLevel(lv)}
+                      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border transition-colors cursor-pointer ${
+                        active
+                          ? 'bg-slate-900 text-white border-slate-900'
+                          : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: col ? col.badge : '#64748b' }} />
+                      {lv}
+                      <span className="tabular-nums opacity-60">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence initial={false}>
         {!collapsed && (
           <motion.div
@@ -86,43 +165,47 @@ export default function TerminalLog({ logs, isRunning }: Props) {
             animate={{ height: 260 }}
             exit={{ height: 0 }}
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-hidden"
+            className="overflow-hidden relative bg-white"
           >
             <div
               ref={ref}
-              className="h-[260px] overflow-y-auto px-4 py-3 font-mono text-[11px] leading-relaxed bg-[#070b12]/95 selection:bg-blue-500/30 selection:text-white space-y-1"
+              onScroll={handleScroll}
+              className="h-[260px] overflow-y-auto px-4 py-3 font-mono text-[11.5px] leading-relaxed space-y-1"
             >
               {logs.length === 0 && (
-                <div className="flex items-center gap-2 text-[var(--color-text-muted)] py-1">
-                  <span className="text-[#22c55e] font-bold">PS C:\&gt;</span>
+                <div className="flex items-center gap-2 text-slate-400 py-1">
+                  <span className="text-emerald-600 font-bold">PS C:\&gt;</span>
                   <span>Session ready. Awaiting trigger...</span>
-                  <span className="animate-terminal-blink text-[#22c55e]">▋</span>
+                  <span className="animate-terminal-blink text-emerald-600">▋</span>
                 </div>
               )}
 
-              {logs.map((l, i) => {
+              {logs.length > 0 && visible.length === 0 && (
+                <div className="flex items-center justify-center h-full text-slate-400 text-xs">
+                  No log lines match the current filter.
+                </div>
+              )}
+
+              {visible.map((l, i) => {
                 const col = logColors[l.level] || logColors.INFO;
                 return (
                   <motion.div
-                    key={i}
+                    key={`${l.time}-${i}`}
                     initial={{ opacity: 0, x: -4 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.2 }}
                     className="flex items-start gap-2 min-w-0"
                   >
-                    <span className="text-[var(--color-text-muted)] opacity-50 shrink-0 text-[10px] select-none pt-0.5">
+                    <span className="text-slate-300 shrink-0 text-[10px] select-none pt-0.5">
                       {l.time ? `[${l.time}]` : ''}
                     </span>
                     <span
-                      className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase shrink-0 select-none mt-0.5"
+                      className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase shrink-0 select-none mt-0.5"
                       style={{ backgroundColor: col.bg, color: col.badge }}
                     >
                       {l.level}
                     </span>
-                    <span
-                      className="break-word-safe flex-1 text-xs"
-                      style={{ color: col.text }}
-                    >
+                    <span className="break-word-safe flex-1 text-xs" style={{ color: col.text }}>
                       {l.message}
                     </span>
                   </motion.div>
@@ -130,12 +213,27 @@ export default function TerminalLog({ logs, isRunning }: Props) {
               })}
 
               {isRunning && logs.length > 0 && (
-                <div className="flex items-center gap-2 text-[#22c55e] pt-1">
+                <div className="flex items-center gap-2 text-emerald-600 pt-1">
                   <span className="font-bold">PS C:\&gt;</span>
                   <span className="animate-terminal-blink">▋</span>
                 </div>
               )}
             </div>
+
+            {isRunning && !atBottom && (
+              <button
+                onClick={() => {
+                  stickToBottomRef.current = true;
+                  setAtBottom(true);
+                  if (ref.current) ref.current.scrollTo({ top: ref.current.scrollHeight, behavior: 'smooth' });
+                }}
+                title="Jump to latest"
+                className="absolute bottom-3 right-3 p-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg cursor-pointer"
+                aria-label="Jump to latest log"
+              >
+                <ArrowDownToLine size={14} />
+              </button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -143,3 +241,19 @@ export default function TerminalLog({ logs, isRunning }: Props) {
   );
 }
 
+function IconBtn({
+  children, onClick, title, active,
+}: { children: React.ReactNode; onClick: () => void; title: string; active?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      aria-label={title}
+      className={`p-1.5 rounded-md transition-colors cursor-pointer outline-none ${
+        active ? 'bg-slate-200 text-slate-700' : 'text-slate-400 hover:bg-slate-200/70 hover:text-slate-700'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}

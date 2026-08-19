@@ -48,6 +48,9 @@ export interface RunSummary {
   issuesFixed: number;
   rebootRequired: boolean;
   followUps: string[];
+  cancelled?: boolean;
+  mode?: RunMode;
+  startedAt?: string;
 }
 
 export type AppPhase = 'landing' | 'configuring' | 'running' | 'complete';

@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Shield, Zap, Flame, Search, Trash2, Check, Sparkles } from 'lucide-react';
+import { Shield, Zap, Flame, Search, Trash2, Check } from 'lucide-react';
 import type { RunMode } from '../types';
 import { MODE_DESCRIPTIONS } from '../data';
 
@@ -9,119 +9,81 @@ interface Props {
 }
 
 const iconMap: Record<string, React.ComponentType<any>> = { Shield, Zap, Flame, Search, Trash2 };
-const colorMap: Record<string, { solid: string; glow: string; bg: string; border: string }> = {
-  blue:   { solid: '#3b82f6', glow: 'rgba(59, 130, 246, 0.3)', bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.4)' },
-  cyan:   { solid: '#06b6d4', glow: 'rgba(6, 182, 212, 0.3)', bg: 'rgba(6, 182, 212, 0.15)', border: 'rgba(6, 182, 212, 0.4)' },
-  orange: { solid: '#f97316', glow: 'rgba(249, 115, 22, 0.3)', bg: 'rgba(249, 115, 22, 0.15)', border: 'rgba(249, 115, 22, 0.4)' },
-  purple: { solid: '#a855f7', glow: 'rgba(168, 85, 247, 0.3)', bg: 'rgba(168, 85, 247, 0.15)', border: 'rgba(168, 85, 247, 0.4)' },
-  green:  { solid: '#22c55e', glow: 'rgba(34, 197, 94, 0.3)', bg: 'rgba(34, 197, 94, 0.15)', border: 'rgba(34, 197, 94, 0.4)' },
+
+const tones: Record<string, { ring: string; soft: string; text: string; solid: string }> = {
+  blue:   { ring: '#2563eb', soft: 'rgba(37,99,235,0.10)',  text: '#2563eb', solid: '#2563eb' },
+  cyan:   { ring: '#0891b2', soft: 'rgba(8,145,178,0.10)',  text: '#0891b2', solid: '#06b6d4' },
+  orange: { ring: '#ea580c', soft: 'rgba(234,88,12,0.10)',  text: '#ea580c', solid: '#f97316' },
+  purple: { ring: '#7c3aed', soft: 'rgba(124,58,237,0.10)', text: '#7c3aed', solid: '#8b5cf6' },
+  green:  { ring: '#16a34a', soft: 'rgba(22,163,74,0.10)',  text: '#16a34a', solid: '#22c55e' },
 };
 
 export default function ModeSelector({ selectedMode, onSelect }: Props) {
   const modes = Object.entries(MODE_DESCRIPTIONS) as [RunMode, (typeof MODE_DESCRIPTIONS)[RunMode]][];
 
   return (
-    <div className="space-y-3.5">
-      <div className="flex items-center justify-between px-1 pb-1">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-          <Sparkles size={14} className="text-cyan-400" />
-          <span>Select Maintenance Profile</span>
-        </h3>
-        <span className="text-xs text-slate-400 font-mono">
-          {modes.length} Presets Available
+    <div className="card p-5 sm:p-6">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-base font-bold text-slate-900">Maintenance Profile</h3>
+          <p className="text-xs text-slate-400 font-medium mt-0.5">Choose how aggressively the suite runs</p>
+        </div>
+        <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg">
+          {modes.length} presets
         </span>
       </div>
 
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {modes.map(([mode, info], i) => {
           const Icon = iconMap[info.icon] || Shield;
-          const color = colorMap[info.color] || colorMap.blue;
+          const tone = tones[info.color] || tones.blue;
           const sel = selectedMode === mode;
 
           return (
             <motion.button
               key={mode}
-              initial={{ opacity: 0, x: -14 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.04, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-              whileHover={{ x: 4 }}
-              whileTap={{ scale: 0.992 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.04, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.99 }}
               onClick={() => onSelect(mode)}
-              className={`
-                w-full relative flex items-center gap-4 p-4 sm:p-4.5 rounded-2xl text-left cursor-pointer
-                transition-all duration-200 group overflow-hidden
-                ${sel
-                  ? 'bg-slate-800/80 border-2 border-blue-500 shadow-xl shadow-blue-500/15'
-                  : 'glass border border-white/[0.06] hover:bg-white/[0.04] hover:border-white/[0.12]'
-                }
-              `}
+              className={`relative text-left p-4 rounded-2xl border-2 transition-all cursor-pointer overflow-hidden ${
+                sel ? 'bg-white shadow-lg' : 'bg-slate-50/60 hover:bg-white border-transparent'
+              }`}
+              style={{
+                borderColor: sel ? tone.ring : 'transparent',
+                boxShadow: sel ? `0 12px 28px -14px ${tone.ring}66` : undefined,
+              }}
             >
-              {/* Left accent indicator */}
               {sel && (
                 <motion.div
-                  layoutId="active-mode-bar"
-                  className="absolute left-0 top-3 bottom-3 w-1.5 rounded-r-full"
-                  style={{ backgroundColor: color.solid, boxShadow: `0 0 12px ${color.solid}` }}
-                  transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                />
+                  layoutId="mode-check"
+                  className="absolute top-3 right-3 w-6 h-6 rounded-full flex items-center justify-center text-white"
+                  style={{ backgroundColor: tone.solid }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                >
+                  <Check size={13} strokeWidth={3} />
+                </motion.div>
               )}
 
-              {/* Icon */}
               <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 duration-200 border"
-                style={{
-                  backgroundColor: color.bg,
-                  color: color.solid,
-                  borderColor: sel ? color.border : 'transparent',
-                  boxShadow: sel ? `0 0 20px ${color.glow}` : 'none',
-                }}
+                className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
+                style={{ backgroundColor: tone.soft, color: tone.text }}
               >
-                <Icon size={22} className="stroke-[2.2]" />
+                <Icon size={20} />
               </div>
 
-              {/* Text Information */}
-              <div className="flex-1 min-w-0 pr-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-fluid-card-title font-bold text-white group-hover:text-blue-200 transition-colors">
-                    {info.label}
-                  </span>
-                  {mode === 'Safe' && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-400 font-bold border border-blue-500/35 uppercase tracking-wider">
-                      Recommended
-                    </span>
-                  )}
-                  {mode === 'Aggressive' && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-orange-500/20 text-orange-400 font-bold border border-orange-500/35 uppercase tracking-wider">
-                      Deep Clean
-                    </span>
-                  )}
-                  {mode === 'ScanOnly' && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-400 font-bold border border-purple-500/35 uppercase tracking-wider">
-                      Read Only
-                    </span>
-                  )}
-                </div>
-                <p className="text-fluid-card-desc text-slate-300 mt-1 leading-relaxed break-word-safe">
-                  {info.description}
-                </p>
+              <div className="flex items-center gap-2 pr-7">
+                <p className="text-[14px] font-bold text-slate-900 leading-tight">{info.label}</p>
               </div>
+              <p className="text-xs text-slate-500 mt-1.5 leading-relaxed pr-2">{info.description}</p>
 
-              {/* Radio Indicator */}
-              <div className="shrink-0 self-center pl-1">
-                {sel ? (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: "spring", stiffness: 450, damping: 22 }}
-                    className="w-7 h-7 rounded-full flex items-center justify-center shadow-md"
-                    style={{ backgroundColor: color.solid }}
-                  >
-                    <Check size={16} className="text-white stroke-[3]" />
-                  </motion.div>
-                ) : (
-                  <div className="w-7 h-7 rounded-full border-2 border-white/15 group-hover:border-white/30 transition-colors" />
-                )}
-              </div>
+              {mode === 'Safe' && (
+                <span className="inline-block mt-2 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100">
+                  Recommended
+                </span>
+              )}
             </motion.button>
           );
         })}
@@ -129,5 +91,3 @@ export default function ModeSelector({ selectedMode, onSelect }: Props) {
     </div>
   );
 }
-
-

@@ -1,52 +1,43 @@
 import { motion } from 'framer-motion';
-import { Monitor, Cpu, HardDrive, Wifi, WifiOff, Clock, MemoryStick, Activity, ShieldAlert, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Monitor, Cpu, HardDrive, Wifi, WifiOff, Clock, MemoryStick, Activity, Sparkles } from 'lucide-react';
 import type { SystemInfo, RunMode } from '../types';
 
 interface Props {
   systemInfo: SystemInfo;
   selectedMode?: RunMode;
+  live?: boolean;
 }
 
 function Bar({
   label, value, max, unit, color, delay = 0,
-}: {
-  label: string;
-  value: number;
-  max: number;
-  unit: string;
-  color: string;
-  delay?: number;
-}) {
+}: { label: string; value: number; max: number; unit: string; color: string; delay?: number }) {
   const pct = Math.min(Math.max((value / max) * 100, 0), 100);
-
   return (
-    <div className="space-y-2">
-      <div className="flex justify-between items-center text-xs sm:text-[13px]">
-        <span className="text-slate-300 font-semibold">{label}</span>
-        <span className="text-white font-mono font-bold tabular-nums">
-          {value}{unit}
-        </span>
+    <div className="space-y-1.5">
+      <div className="flex justify-between items-center text-[12px]">
+        <span className="text-slate-600 font-semibold">{label}</span>
+        <span className="text-slate-900 font-mono font-bold tabular-nums">{value}{unit}</span>
       </div>
-      <div className="h-2.5 bg-black/50 rounded-full overflow-hidden p-[1px] border border-white/[0.08]">
+      <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
-          transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: delay + 0.1 }}
-          className="h-full rounded-full shadow-md"
-          style={{ background: color }}
+          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay }}
+          className="h-full rounded-full"
+          style={{ background: `linear-gradient(90deg, ${color}, ${color}bb)` }}
         />
       </div>
     </div>
   );
 }
 
-export default function SystemInfoPanel({ systemInfo, selectedMode }: Props) {
+export default function SystemInfoPanel({ systemInfo, selectedMode, live = false }: Props) {
   const rows = [
-    { icon: Monitor, k: 'Host Computer', v: systemInfo.hostName },
-    { icon: Cpu, k: 'CPU Processor', v: systemInfo.processor },
-    { icon: MemoryStick, k: 'System Memory', v: `${systemInfo.ramGB} GB DDR5 RAM` },
-    { icon: HardDrive, k: 'Local Storage', v: `${systemInfo.freeDiskGB} GB Free / ${systemInfo.totalDiskGB} GB Total` },
-    { icon: Clock, k: 'System Uptime', v: systemInfo.uptime },
+    { icon: Monitor, k: 'Host', v: systemInfo.hostName },
+    { icon: Cpu, k: 'Processor', v: systemInfo.processor },
+    { icon: MemoryStick, k: 'Memory', v: `${systemInfo.ramGB} GB DDR5` },
+    { icon: HardDrive, k: 'Storage', v: `${systemInfo.freeDiskGB} GB free / ${systemInfo.totalDiskGB} GB` },
+    { icon: Clock, k: 'Uptime', v: systemInfo.uptime },
   ];
 
   return (
@@ -54,112 +45,88 @@ export default function SystemInfoPanel({ systemInfo, selectedMode }: Props) {
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-      className="glass rounded-2xl p-5 sm:p-6 space-y-5 border border-white/[0.08] shadow-2xl"
+      className="card p-5 sm:p-6"
     >
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
-        <div className="flex items-center gap-2.5">
-          <Activity size={16} className="text-cyan-400" />
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-            System Telemetry &amp; Specs
-          </h3>
+      <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+        <div className="flex items-center gap-2">
+          <Activity size={16} className="text-blue-600" />
+          <h3 className="text-[13px] font-bold uppercase tracking-wider text-slate-700">System Telemetry</h3>
+          {live && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider text-cyan-700 bg-cyan-50 border border-cyan-100">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-500 opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500" />
+              </span>
+              Live
+            </span>
+          )}
         </div>
 
-        {/* Live Network Beacon */}
         <div
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border shadow-sm"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border"
           style={{
-            backgroundColor: systemInfo.isOnline ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-            color: systemInfo.isOnline ? '#4ade80' : '#f87171',
-            borderColor: systemInfo.isOnline ? 'rgba(34, 197, 94, 0.35)' : 'rgba(239, 68, 68, 0.35)',
+            backgroundColor: systemInfo.isOnline ? 'rgba(22,163,74,0.10)' : 'rgba(220,38,38,0.10)',
+            color: systemInfo.isOnline ? '#15803d' : '#b91c1c',
+            borderColor: systemInfo.isOnline ? 'rgba(22,163,74,0.25)' : 'rgba(220,38,38,0.25)',
           }}
         >
-          <span className="relative flex h-2 w-2">
-            {systemInfo.isOnline && (
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-            )}
-            <span
-              className="relative inline-flex rounded-full h-2 w-2"
-              style={{ backgroundColor: systemInfo.isOnline ? '#22c55e' : '#ef4444' }}
-            />
-          </span>
-          <span>{systemInfo.isOnline ? 'Online' : 'Offline'}</span>
-          {systemInfo.isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
+          <span
+            className="w-1.5 h-1.5 rounded-full"
+            style={{ backgroundColor: systemInfo.isOnline ? '#16a34a' : '#dc2626' }}
+          />
+          {systemInfo.isOnline ? 'Online' : 'Offline'}
+          {systemInfo.isOnline ? <Wifi size={11} /> : <WifiOff size={11} />}
         </div>
       </div>
 
-      {/* Hardware Telemetry List */}
-      <div className="space-y-3">
+      <div className="space-y-2">
         {rows.map((r, i) => (
           <motion.div
             key={r.k}
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.15 + i * 0.04, duration: 0.3 }}
-            className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04] text-xs sm:text-[13px] min-w-0"
+            className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50/70 border border-slate-100 text-[12.5px] min-w-0"
           >
-            <div className="p-2 rounded-lg bg-blue-500/10 text-cyan-400 shrink-0">
-              <r.icon size={16} />
+            <div className="p-1.5 rounded-lg bg-white text-blue-600 border border-slate-100 shrink-0 shadow-sm">
+              <r.icon size={15} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{r.k}</p>
-              <p title={r.v} className="text-white font-medium truncate mt-0.5">
-                {r.v}
-              </p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{r.k}</p>
+              <p title={r.v} className="text-slate-800 font-semibold truncate mt-px">{r.v}</p>
             </div>
           </motion.div>
         ))}
       </div>
 
-      {/* Realtime Resource Utilization Meters */}
-      <div className="space-y-4 pt-4 border-t border-white/[0.08]">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-          Resource Utilization
-        </h4>
+      <div className="space-y-3.5 pt-4 mt-4 border-t border-slate-100">
+        <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Resource Utilization</h4>
+        <Bar label="CPU" value={systemInfo.cpuUsage} max={100} unit="%" color="#2563eb" />
+        <Bar label="Memory" value={systemInfo.memoryUsage} max={100} unit="%" color="#7c3aed" />
         <Bar
-          label="Processor Load"
-          value={systemInfo.cpuUsage}
-          max={100}
-          unit="%"
-          color="linear-gradient(90deg, #3b82f6, #60a5fa)"
-          delay={0}
-        />
-        <Bar
-          label="Physical RAM Allocated"
-          value={systemInfo.memoryUsage}
-          max={100}
-          unit="%"
-          color="linear-gradient(90deg, #8b5cf6, #c084fc)"
-          delay={0.06}
-        />
-        <Bar
-          label="Primary Storage Volume"
+          label="Disk"
           value={Math.round(((systemInfo.totalDiskGB - systemInfo.freeDiskGB) / systemInfo.totalDiskGB) * 100)}
           max={100}
           unit="%"
-          color="linear-gradient(90deg, #06b6d4, #38bdf8)"
-          delay={0.12}
+          color="#0891b2"
         />
       </div>
 
-      {/* Profile Insights Banner */}
       {selectedMode && (
-        <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/25 space-y-1.5">
-          <div className="flex items-center gap-2 text-xs font-bold text-cyan-400 uppercase tracking-wider">
-            <Sparkles size={14} />
-            <span>Profile Scope: {selectedMode}</span>
+        <div className="mt-5 p-3.5 rounded-xl bg-blue-50 border border-blue-100">
+          <div className="flex items-center gap-1.5 text-[11px] font-bold text-blue-700 uppercase tracking-wider mb-1">
+            <Sparkles size={12} />
+            <span>Profile: {selectedMode}</span>
           </div>
-          <p className="text-xs text-slate-300 leading-relaxed">
-            {selectedMode === 'Safe' && 'Applies full security & software updates with standard component verification.'}
-            {selectedMode === 'Quick' && 'Fast-track update for apps, Store, and Defender. Skips deep integrity scans.'}
-            {selectedMode === 'Aggressive' && 'Deep component cleanup with ResetBase compaction, Prefetch flush, and Storage Sense.'}
-            {selectedMode === 'ScanOnly' && 'Performs non-destructive hardware diagnostics, SFC integrity, and DISM checks.'}
-            {selectedMode === 'CleanupOnly' && 'Reclaims gigabytes of temporary update caches, crash dumps, and system files.'}
+          <p className="text-[11.5px] text-slate-600 leading-relaxed">
+            {selectedMode === 'Safe' && 'Full security & software updates with standard component verification.'}
+            {selectedMode === 'Quick' && 'Fast-track updates for apps, Store and Defender. Skips deep integrity scans.'}
+            {selectedMode === 'Aggressive' && 'Deep component cleanup with ResetBase, Prefetch flush and Storage Sense.'}
+            {selectedMode === 'ScanOnly' && 'Non-destructive hardware diagnostics plus SFC & DISM integrity checks.'}
+            {selectedMode === 'CleanupOnly' && 'Reclaims temporary update caches, crash dumps and system files.'}
           </p>
         </div>
       )}
     </motion.div>
   );
 }
-
-
