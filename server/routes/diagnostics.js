@@ -16,6 +16,8 @@ import {
   getMacBatteryStatus,
   getMacPackageStatus,
   getMacHardwareStatus,
+  getMacSpotlightStatus,
+  getMacPowerAssertions,
 } from '../helpers/macos-helpers.js';
 import {
   getWindowsEventLogs,
@@ -163,11 +165,21 @@ router.get('/packages', async (_req, res) => {
   }
 });
 
-// ── GET /api/hardware ───────────────────────────────────────────────────────
-router.get('/hardware', async (_req, res) => {
+// ── GET /api/spotlight ──────────────────────────────────────────────────────
+router.get('/spotlight', async (_req, res) => {
   try {
-    const hardware = isMac ? await getMacHardwareStatus() : await getWindowsHardwareStatus();
-    res.json(hardware);
+    const spotlight = isMac ? await getMacSpotlightStatus() : { indexingEnabled: true, statusText: 'Windows Search Active' };
+    res.json(spotlight);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/power-assertions ───────────────────────────────────────────────
+router.get('/power-assertions', async (_req, res) => {
+  try {
+    const assertions = isMac ? await getMacPowerAssertions() : { sleepPrevented: false, activeBlockers: [] };
+    res.json(assertions);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
