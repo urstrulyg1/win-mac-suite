@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import type { RunMode, AppPhase, Section, LogEntry, RunSummary, SystemInfo } from './types';
 import { SYSTEM_INFO, createSections, getSectionSimData, shouldSkipSection, generateTimestamp } from './data';
 import { useToast } from './components/Toast';
-import ParticleBackground from './components/ParticleBackground';
+import TopNav from './components/TopNav';
 import LandingHero from './components/LandingHero';
 import RunningDashboard from './components/RunningDashboard';
 
@@ -319,8 +319,21 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] antialiased selection:bg-blue-500/30 selection:text-white">
-      <ParticleBackground />
+    <div className="min-h-screen app-bg text-slate-900 antialiased selection:bg-blue-200 selection:text-blue-900">
+      <TopNav
+        phase={phase}
+        isRunning={isRunning}
+        onHome={() => {
+          if (isRunning) {
+            toast('Stop the current run before returning home', 'warning');
+            return;
+          }
+          cancelRef.current = true;
+          setPhase('landing');
+        }}
+        onReset={reset}
+        onBack={phase === 'configuring' ? () => setPhase('landing') : undefined}
+      />
       <AnimatePresence mode="wait">
         {phase === 'landing' ? (
           <motion.div
@@ -364,7 +377,6 @@ export default function App() {
               onCancel={cancelRun}
               onClearLogs={clearLogs}
               onExport={handleManualExport}
-              onBack={() => setPhase('landing')}
             />
           </motion.div>
         )}

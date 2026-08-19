@@ -4,10 +4,10 @@ import { Terminal, Minus, Plus, Copy, Check, Trash2, Download, Search, ArrowDown
 import type { LogEntry } from '../types';
 
 const logColors: Record<string, { badge: string; text: string; bg: string }> = {
-  INFO:    { badge: '#94a3b8', text: '#cbd5e1', bg: 'rgba(148, 163, 184, 0.1)' },
-  SUCCESS: { badge: '#22c55e', text: '#86efac', bg: 'rgba(34, 197, 94, 0.12)' },
-  WARNING: { badge: '#eab308', text: '#fde047', bg: 'rgba(234, 179, 8, 0.12)' },
-  ERROR:   { badge: '#ef4444', text: '#fca5a5', bg: 'rgba(239, 68, 68, 0.15)' },
+  INFO:    { badge: '#475569', text: '#334155', bg: '#f1f5f9' },
+  SUCCESS: { badge: '#15803d', text: '#166534', bg: '#dcfce7' },
+  WARNING: { badge: '#b45309', text: '#92400e', bg: '#fef3c7' },
+  ERROR:   { badge: '#b91c1c', text: '#991b1b', bg: '#fee2e2' },
 };
 
 type LevelFilter = 'ALL' | 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR';
@@ -26,9 +26,9 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
   const [copied, setCopied] = useState(false);
   const [search, setSearch] = useState('');
   const [level, setLevel] = useState<LevelFilter>('ALL');
-  const [autoscroll, setAutoscroll] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const stickToBottomRef = useRef(true);
+  const [atBottom, setAtBottom] = useState(true);
 
   const levelCounts = useMemo(() => {
     const c: Record<string, number> = { INFO: 0, SUCCESS: 0, WARNING: 0, ERROR: 0 };
@@ -45,12 +45,12 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
     });
   }, [logs, level, search]);
 
-  // Track whether the user has scrolled away from the bottom
   const handleScroll = () => {
     const el = ref.current;
     if (!el) return;
-    stickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
-    setAutoscroll(stickToBottomRef.current);
+    const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    stickToBottomRef.current = bottom;
+    setAtBottom(bottom);
   };
 
   useEffect(() => {
@@ -66,21 +66,19 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const toggleCollapse = () => setCollapsed((c) => !c);
-
   return (
-    <div className="glass rounded-xl overflow-hidden border border-white/[0.08] shadow-2xl">
+    <div className="card overflow-hidden">
       {/* Title bar */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-black/50 border-b border-white/[0.06] gap-2">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200 gap-2">
         <div className="flex items-center gap-3 min-w-0">
           <div className="flex items-center gap-1.5 shrink-0" aria-hidden="true">
-            <div className="w-2.5 h-2.5 rounded-full bg-[#ef4444] shadow-sm shadow-red-500/50" />
-            <div className="w-2.5 h-2.5 rounded-full bg-[#eab308] shadow-sm shadow-yellow-500/50" />
-            <div className="w-2.5 h-2.5 rounded-full bg-[#22c55e] shadow-sm shadow-green-500/50" />
+            <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+            <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
           </div>
           <div className="flex items-center gap-2 min-w-0">
-            <Terminal size={13} className="text-cyan-400 shrink-0" />
-            <span className="text-xs text-[var(--color-text-secondary)] font-mono font-medium truncate">
+            <Terminal size={13} className="text-blue-600 shrink-0" />
+            <span className="text-xs text-slate-600 font-mono font-semibold truncate">
               PowerShell 5.1 — UpdateAll v5.0
             </span>
           </div>
@@ -89,8 +87,8 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
         <div className="flex items-center gap-1 shrink-0">
           {logs.length > 0 && (
             <>
-              <IconBtn title="Copy visible logs" onClick={copyLogs}>
-                {copied ? <Check size={12} className="text-green-400" /> : <Copy size={12} />}
+              <IconBtn title="Copy logs" onClick={copyLogs}>
+                {copied ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
               </IconBtn>
               {onExport && (
                 <IconBtn title="Download report" onClick={onExport}>
@@ -102,22 +100,17 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
                   <Trash2 size={12} />
                 </IconBtn>
               )}
-              <IconBtn
-                title={showFilters ? 'Hide filters' : 'Search & filter'}
-                onClick={() => setShowFilters((v) => !v)}
-                active={showFilters}
-              >
+              <IconBtn title="Search & filter" onClick={() => setShowFilters((v) => !v)} active={showFilters}>
                 <Search size={12} />
               </IconBtn>
             </>
           )}
-          <IconBtn title={collapsed ? 'Expand' : 'Minimize'} onClick={toggleCollapse}>
+          <IconBtn title={collapsed ? 'Expand' : 'Minimize'} onClick={() => setCollapsed((c) => !c)}>
             {collapsed ? <Plus size={13} /> : <Minus size={13} />}
           </IconBtn>
         </div>
       </div>
 
-      {/* Search / level filters */}
       <AnimatePresence initial={false}>
         {showFilters && !collapsed && (
           <motion.div
@@ -125,16 +118,16 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-hidden border-b border-white/[0.06] bg-black/30"
+            className="overflow-hidden border-b border-slate-200 bg-white"
           >
             <div className="p-3 space-y-2.5">
               <div className="relative">
-                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Filter log output..."
-                  className="glass-input w-full pl-8 pr-3 py-2 rounded-lg text-xs text-white placeholder-slate-500 font-mono focus-visible:ring-2 focus-visible:ring-blue-500/60 outline-none"
+                  className="field pl-8 py-1.5 text-xs font-mono"
                   aria-label="Filter logs"
                 />
               </div>
@@ -147,16 +140,13 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
                     <button
                       key={lv}
                       onClick={() => setLevel(lv)}
-                      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-blue-500/60 outline-none ${
+                      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border transition-colors cursor-pointer ${
                         active
-                          ? 'bg-white/10 text-white border-white/25'
-                          : 'bg-white/[0.02] text-slate-400 border-white/[0.07] hover:text-white hover:bg-white/[0.05]'
+                          ? 'bg-slate-900 text-white border-slate-900'
+                          : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
                       }`}
                     >
-                      <span
-                        className="w-1.5 h-1.5 rounded-full"
-                        style={{ backgroundColor: col ? col.badge : '#94a3b8' }}
-                      />
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: col ? col.badge : '#64748b' }} />
                       {lv}
                       <span className="tabular-nums opacity-60">{count}</span>
                     </button>
@@ -168,7 +158,6 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
         )}
       </AnimatePresence>
 
-      {/* Viewport */}
       <AnimatePresence initial={false}>
         {!collapsed && (
           <motion.div
@@ -176,23 +165,23 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
             animate={{ height: 260 }}
             exit={{ height: 0 }}
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-hidden relative"
+            className="overflow-hidden relative bg-white"
           >
             <div
               ref={ref}
               onScroll={handleScroll}
-              className="h-[260px] overflow-y-auto px-4 py-3 font-mono text-[11px] leading-relaxed bg-[#070b12]/95 selection:bg-blue-500/30 selection:text-white space-y-1"
+              className="h-[260px] overflow-y-auto px-4 py-3 font-mono text-[11.5px] leading-relaxed space-y-1"
             >
               {logs.length === 0 && (
-                <div className="flex items-center gap-2 text-[var(--color-text-muted)] py-1">
-                  <span className="text-[#22c55e] font-bold">PS C:\&gt;</span>
+                <div className="flex items-center gap-2 text-slate-400 py-1">
+                  <span className="text-emerald-600 font-bold">PS C:\&gt;</span>
                   <span>Session ready. Awaiting trigger...</span>
-                  <span className="animate-terminal-blink text-[#22c55e]">▋</span>
+                  <span className="animate-terminal-blink text-emerald-600">▋</span>
                 </div>
               )}
 
               {logs.length > 0 && visible.length === 0 && (
-                <div className="flex items-center justify-center h-full text-[var(--color-text-muted)] text-xs">
+                <div className="flex items-center justify-center h-full text-slate-400 text-xs">
                   No log lines match the current filter.
                 </div>
               )}
@@ -207,11 +196,11 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
                     transition={{ duration: 0.2 }}
                     className="flex items-start gap-2 min-w-0"
                   >
-                    <span className="text-[var(--color-text-muted)] opacity-50 shrink-0 text-[10px] select-none pt-0.5">
+                    <span className="text-slate-300 shrink-0 text-[10px] select-none pt-0.5">
                       {l.time ? `[${l.time}]` : ''}
                     </span>
                     <span
-                      className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase shrink-0 select-none mt-0.5"
+                      className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase shrink-0 select-none mt-0.5"
                       style={{ backgroundColor: col.bg, color: col.badge }}
                     >
                       {l.level}
@@ -224,23 +213,22 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
               })}
 
               {isRunning && logs.length > 0 && (
-                <div className="flex items-center gap-2 text-[#22c55e] pt-1">
+                <div className="flex items-center gap-2 text-emerald-600 pt-1">
                   <span className="font-bold">PS C:\&gt;</span>
                   <span className="animate-terminal-blink">▋</span>
                 </div>
               )}
             </div>
 
-            {/* Jump-to-bottom button when scrolled away during a run */}
-            {isRunning && !autoscroll && (
+            {isRunning && !atBottom && (
               <button
                 onClick={() => {
                   stickToBottomRef.current = true;
-                  setAutoscroll(true);
+                  setAtBottom(true);
                   if (ref.current) ref.current.scrollTo({ top: ref.current.scrollHeight, behavior: 'smooth' });
                 }}
-                title="Jump to latest output"
-                className="absolute bottom-3 right-3 p-2 rounded-full bg-blue-500/80 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/40 border border-white/20 cursor-pointer transition-colors"
+                title="Jump to latest"
+                className="absolute bottom-3 right-3 p-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg cursor-pointer"
                 aria-label="Jump to latest log"
               >
                 <ArrowDownToLine size={14} />
@@ -261,8 +249,8 @@ function IconBtn({
       onClick={onClick}
       title={title}
       aria-label={title}
-      className={`p-1.5 rounded-md transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 ${
-        active ? 'bg-white/15 text-white' : 'text-[var(--color-text-muted)] hover:bg-white/10 hover:text-white'
+      className={`p-1.5 rounded-md transition-colors cursor-pointer outline-none ${
+        active ? 'bg-slate-200 text-slate-700' : 'text-slate-400 hover:bg-slate-200/70 hover:text-slate-700'
       }`}
     >
       {children}
