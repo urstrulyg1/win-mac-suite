@@ -3,12 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Activity, Cpu, HardDrive, Shield,
   Wifi, Battery, FileText, RefreshCw,
-  CheckCircle2, Wrench, Zap, ArrowRight, ZapOff,
+  CheckCircle2, Wrench, Zap, ArrowRight, ZapOff, ChevronRight,
 } from 'lucide-react';
 import type { SystemInfo, RunMode } from '../types';
 import { usePlatform } from '../platform';
 import HealthScore from './HealthScore';
 import ProcessMonitor from './ProcessMonitor';
+import InspectorModal, { type InspectorData } from './InspectorModal';
 
 interface Props {
   systemInfo: SystemInfo;
@@ -27,6 +28,7 @@ export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
   const [networkInfo, setNetworkInfo] = useState<any>(null);
   const [batteryInfo, setBatteryInfo] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [inspectItem, setInspectItem] = useState<InspectorData | null>(null);
 
   const fetchDiagnostics = async () => {
     setLoading(true);
@@ -79,6 +81,8 @@ export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
 
   return (
     <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+      <InspectorModal data={inspectItem} onClose={() => setInspectItem(null)} />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
@@ -87,7 +91,7 @@ export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
               <Activity size={12} /> Diagnostics &amp; Health Center
             </span>
             <span className="pill" style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-3)', borderColor: 'var(--color-line)' }}>
-              Live Telemetry Probes Active
+              Live Telemetry Probes Active · Click Any Tile To Inspect
             </span>
           </div>
           <h1 className="text-hero font-extrabold tracking-tight" style={{ color: 'var(--color-ink)' }}>
@@ -98,7 +102,7 @@ export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
           </p>
         </div>
 
-        <button onClick={fetchDiagnostics} disabled={loading} className="btn btn-ghost text-xs">
+        <button onClick={fetchDiagnostics} disabled={loading} className="btn btn-ghost text-xs cursor-pointer">
           <RefreshCw size={13} className={loading ? 'animate-spin-smooth' : ''} />
           <span>Re-scan Telemetry</span>
         </button>
@@ -136,7 +140,7 @@ export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
                 <p className="text-xs font-semibold mt-2" style={{ color: 'var(--color-ink-3)' }}>
                   Dynamic Normalized Score
                 </p>
-                <button onClick={() => onStartAction('ScanOnly')} className="btn btn-primary text-xs w-full mt-4">
+                <button onClick={() => onStartAction('ScanOnly')} className="btn btn-primary text-xs w-full mt-4 cursor-pointer">
                   <Zap size={13} className="fill-white" />
                   Run Non-Destructive Health Scan
                 </button>
@@ -157,7 +161,7 @@ export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
                           <p className="text-[11px]" style={{ color: 'var(--color-ink-3)' }}>{rec.description}</p>
                         </div>
                       </div>
-                      <button onClick={() => onStartAction((rec.actionTarget as RunMode) || 'Safe')} className="btn btn-primary text-xs shrink-0 !py-1.5 !px-3">
+                      <button onClick={() => onStartAction((rec.actionTarget as RunMode) || 'Safe')} className="btn btn-primary text-xs shrink-0 !py-1.5 !px-3 cursor-pointer">
                         <span>{rec.actionLabel}</span>
                         <ArrowRight size={11} />
                       </button>
@@ -169,34 +173,102 @@ export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
 
             {/* Matrix Status Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="card p-4 space-y-1">
+              <button
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Storage Health Subsystem',
+                    category: 'Volume Allocation',
+                    badge: `${healthMetrics?.storage?.usage ?? 50}% Used`,
+                    subtitle: 'Primary APFS / NTFS volume space allocation.',
+                    details: [
+                      { label: 'Total Volume Size', value: `${systemInfo.totalDiskGB} GB` },
+                      { label: 'Available Free Space', value: `${systemInfo.freeDiskGB} GB` },
+                      { label: 'Calculated Storage Score', value: `${healthMetrics?.storage?.score ?? 90} / 100` },
+                    ],
+                    command: isMac ? 'df -h /System/Volumes/Data' : 'Get-PSDrive C',
+                  })
+                }
+                className="card card-hover p-4 space-y-1 text-left cursor-pointer transition-all"
+              >
                 <span className="text-[11px] font-bold uppercase tracking-wider opacity-60">Storage Load</span>
                 <p className="text-lg font-extrabold font-mono" style={{ color: 'var(--color-ink)' }}>
                   {healthMetrics?.storage?.usage ?? Math.round(((systemInfo.totalDiskGB - systemInfo.freeDiskGB) / Math.max(systemInfo.totalDiskGB, 1)) * 100)}% Used
                 </p>
-                <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-[10px]">Healthy</span>
-              </div>
-              <div className="card p-4 space-y-1">
+                <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-[10px]">Inspect Details</span>
+              </button>
+
+              <button
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Memory Subsystem Health',
+                    category: 'System RAM',
+                    badge: `${systemInfo.memoryUsage || healthMetrics?.memory?.usage || 55}% Active`,
+                    subtitle: 'Physical and virtual memory allocation.',
+                    details: [
+                      { label: 'Total Installed RAM', value: `${systemInfo.ramGB} GB` },
+                      { label: 'Active Memory Load', value: `${systemInfo.memoryUsage || 55}%` },
+                      { label: 'Memory Health Score', value: `${healthMetrics?.memory?.score ?? 95} / 100` },
+                    ],
+                    command: isMac ? 'vm_stat' : 'Get-CimInstance Win32_OperatingSystem',
+                  })
+                }
+                className="card card-hover p-4 space-y-1 text-left cursor-pointer transition-all"
+              >
                 <span className="text-[11px] font-bold uppercase tracking-wider opacity-60">Memory Usage</span>
                 <p className="text-lg font-extrabold font-mono" style={{ color: 'var(--color-ink)' }}>
                   {systemInfo.memoryUsage || healthMetrics?.memory?.usage || 55}% Active
                 </p>
-                <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-[10px]">Optimal</span>
-              </div>
-              <div className="card p-4 space-y-1">
+                <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-[10px]">Inspect Details</span>
+              </button>
+
+              <button
+                onClick={() =>
+                  setInspectItem({
+                    title: 'CPU Compute Engine',
+                    category: 'Processor Health',
+                    badge: `${systemInfo.cpuUsage || 12}% Load`,
+                    subtitle: 'Multi-core processing activity and scheduling.',
+                    details: [
+                      { label: 'Processor Name', value: systemInfo.processor },
+                      { label: 'Live Core Activity', value: `${systemInfo.cpuUsage || 12}%` },
+                      { label: 'Processor Health Score', value: `${healthMetrics?.cpu?.score ?? 98} / 100` },
+                    ],
+                    command: isMac ? 'top -l 1 | head -n 10' : 'Get-Counter "\\Processor(_Total)\\% Processor Time"',
+                  })
+                }
+                className="card card-hover p-4 space-y-1 text-left cursor-pointer transition-all"
+              >
                 <span className="text-[11px] font-bold uppercase tracking-wider opacity-60">CPU Activity</span>
                 <p className="text-lg font-extrabold font-mono" style={{ color: 'var(--color-ink)' }}>
                   {systemInfo.cpuUsage || healthMetrics?.cpu?.usage || 12}% Load
                 </p>
-                <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-[10px]">Nominal</span>
-              </div>
-              <div className="card p-4 space-y-1">
+                <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-[10px]">Inspect Details</span>
+              </button>
+
+              <button
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Power & Battery Telemetry',
+                    category: 'Power Subsystem',
+                    badge: `${batteryInfo?.percent ?? 100}% Level`,
+                    subtitle: 'Battery health, cycle count, and charging state.',
+                    details: [
+                      { label: 'Battery Percentage', value: `${batteryInfo?.percent ?? 100}%` },
+                      { label: 'Condition & Health', value: `${batteryInfo?.healthPct ?? 100}%` },
+                      { label: 'Battery Cycle Count', value: batteryInfo?.cycleCount || 0 },
+                      { label: 'Power Source', value: batteryInfo?.acConnected ? 'Connected to AC Power' : 'Battery Power' },
+                    ],
+                    command: isMac ? 'pmset -g batt' : 'powercfg /batteryreport',
+                  })
+                }
+                className="card card-hover p-4 space-y-1 text-left cursor-pointer transition-all"
+              >
                 <span className="text-[11px] font-bold uppercase tracking-wider opacity-60">Battery State</span>
                 <p className="text-lg font-extrabold font-mono" style={{ color: 'var(--color-ink)' }}>
                   {batteryInfo?.percent ?? 100}% {batteryInfo?.isCharging ? '(Charging)' : batteryInfo?.acConnected ? '(AC Power)' : '(Battery)'}
                 </p>
-                <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-[10px]">Normal</span>
-              </div>
+                <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-[10px]">Inspect Details</span>
+              </button>
             </div>
           </motion.div>
         )}
@@ -219,18 +291,41 @@ export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
             </div>
             <div className="space-y-3">
               {events.map((evt) => (
-                <div key={evt.id} className="p-4 rounded-2xl border space-y-1.5" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+                <button
+                  key={evt.id}
+                  onClick={() =>
+                    setInspectItem({
+                      title: evt.source,
+                      category: 'System Event Log',
+                      badge: evt.level || 'Warning',
+                      badgeType: evt.level === 'Error' ? 'error' : 'warning',
+                      subtitle: `Reported at ${evt.time}`,
+                      details: [
+                        { label: 'Log Source', value: evt.source, isCode: true },
+                        { label: 'Event Timestamp', value: evt.time },
+                        { label: 'Event Message', value: evt.message },
+                        { label: 'Subsystem / Cause', value: evt.probableCause || 'Kernel Telemetry' },
+                      ],
+                      output: evt.message,
+                    })
+                  }
+                  className="w-full p-4 rounded-2xl border space-y-1.5 text-left transition-all hover:scale-[1.005] cursor-pointer"
+                  style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+                >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-blue-500 font-mono">{evt.source}</span>
                     <span className="text-[10px] font-mono opacity-60" style={{ color: 'var(--color-ink-4)' }}>{evt.time}</span>
                   </div>
                   <p className="text-xs font-semibold" style={{ color: 'var(--color-ink)' }}>{evt.message}</p>
-                  {evt.probableCause && (
-                    <p className="text-[11px] text-amber-500 font-medium">
+                  <div className="flex items-center justify-between pt-1">
+                    <p className="text-[11px] text-amber-500 font-medium truncate">
                       Subsystem: {evt.probableCause}
                     </p>
-                  )}
-                </div>
+                    <span className="text-[10px] text-blue-500 font-bold flex items-center gap-1 shrink-0">
+                      View Event <ChevronRight size={10} />
+                    </span>
+                  </div>
+                </button>
               ))}
             </div>
           </motion.div>
@@ -240,22 +335,90 @@ export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
           <motion.div key="network" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-5">
             <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>Network Diagnostics &amp; Latency</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="p-3.5 rounded-2xl border" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+              <button
+                onClick={() =>
+                  setInspectItem({
+                    title: 'DNS Resolution Latency',
+                    category: 'Name Resolution',
+                    badge: `${networkInfo?.dnsResolutionTimeMs || 12} ms`,
+                    subtitle: 'Round-trip DNS resolver resolution time.',
+                    details: [
+                      { label: 'Resolver Speed', value: `${networkInfo?.dnsResolutionTimeMs || 12} ms` },
+                      { label: 'DNS Target', value: isMac ? 'apple.com' : 'microsoft.com' },
+                    ],
+                  })
+                }
+                className="p-3.5 rounded-2xl border text-left cursor-pointer transition-all hover:scale-[1.01]"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <p className="text-[10px] uppercase font-bold" style={{ color: 'var(--color-ink-4)' }}>DNS Resolution</p>
                 <p className="text-xl font-extrabold font-mono mt-1" style={{ color: 'var(--color-ink)' }}>{networkInfo?.dnsResolutionTimeMs || 12} ms</p>
-              </div>
-              <div className="p-3.5 rounded-2xl border" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+                <span className="text-[10px] text-blue-500 font-bold">Inspect</span>
+              </button>
+
+              <button
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Gateway Ping Latency',
+                    category: 'Local Link',
+                    badge: `${networkInfo?.gatewayLatencyMs || 1.8} ms`,
+                    subtitle: 'Local subnet router response latency.',
+                    details: [
+                      { label: 'Gateway Ping', value: `${networkInfo?.gatewayLatencyMs || 1.8} ms` },
+                      { label: 'Default Gateway IP', value: networkInfo?.defaultGateway || '192.168.1.1' },
+                    ],
+                  })
+                }
+                className="p-3.5 rounded-2xl border text-left cursor-pointer transition-all hover:scale-[1.01]"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <p className="text-[10px] uppercase font-bold" style={{ color: 'var(--color-ink-4)' }}>Gateway Ping</p>
                 <p className="text-xl font-extrabold font-mono mt-1" style={{ color: 'var(--color-ink)' }}>{networkInfo?.gatewayLatencyMs || 1.8} ms</p>
-              </div>
-              <div className="p-3.5 rounded-2xl border" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+                <span className="text-[10px] text-blue-500 font-bold">Inspect</span>
+              </button>
+
+              <button
+                onClick={() =>
+                  setInspectItem({
+                    title: 'External Internet Latency',
+                    category: 'Wide Area Network',
+                    badge: `${networkInfo?.externalLatencyMs || 22.4} ms`,
+                    subtitle: 'Public CDN round-trip latency.',
+                    details: [
+                      { label: 'WAN Latency', value: `${networkInfo?.externalLatencyMs || 22.4} ms` },
+                      { label: 'Packet Loss Pct', value: '0%' },
+                    ],
+                  })
+                }
+                className="p-3.5 rounded-2xl border text-left cursor-pointer transition-all hover:scale-[1.01]"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <p className="text-[10px] uppercase font-bold" style={{ color: 'var(--color-ink-4)' }}>External Latency</p>
                 <p className="text-xl font-extrabold font-mono mt-1 text-emerald-500">{networkInfo?.externalLatencyMs || 22.4} ms</p>
-              </div>
-              <div className="p-3.5 rounded-2xl border" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+                <span className="text-[10px] text-blue-500 font-bold">Inspect</span>
+              </button>
+
+              <button
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Default Network Gateway',
+                    category: 'Router Interface',
+                    badge: networkInfo?.defaultGateway || '192.168.1.1',
+                    subtitle: 'Configured local gateway address.',
+                    details: [
+                      { label: 'Gateway Address', value: networkInfo?.defaultGateway || '192.168.1.1' },
+                      { label: 'Adapter Name', value: networkInfo?.activeAdapter?.name || 'en0' },
+                      { label: 'Local IPv4', value: networkInfo?.activeAdapter?.ip || '192.168.1.50' },
+                    ],
+                  })
+                }
+                className="p-3.5 rounded-2xl border text-left cursor-pointer transition-all hover:scale-[1.01]"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <p className="text-[10px] uppercase font-bold" style={{ color: 'var(--color-ink-4)' }}>Default Gateway</p>
                 <p className="text-sm font-extrabold font-mono mt-1 truncate" style={{ color: 'var(--color-ink)' }}>{networkInfo?.defaultGateway || '192.168.1.1'}</p>
-              </div>
+                <span className="text-[10px] text-blue-500 font-bold">Inspect</span>
+              </button>
             </div>
             <div className="p-3.5 rounded-xl border flex items-center justify-between text-xs" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
               <span>Active Adapter: <strong style={{ color: 'var(--color-ink)' }}>{networkInfo?.activeAdapter?.name || 'en0'}</strong> ({networkInfo?.activeAdapter?.ip || '192.168.1.50'})</span>
@@ -269,35 +432,84 @@ export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
             <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>Power &amp; Battery Telemetry</h3>
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="p-4 rounded-2xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+              <button
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Battery Charge State',
+                    category: 'Power Subsystem',
+                    badge: `${batteryInfo?.percent ?? 100}% Level`,
+                    subtitle: 'Real-time battery charge percentage and AC state.',
+                    details: [
+                      { label: 'Charge Percentage', value: `${batteryInfo?.percent ?? 100}%` },
+                      { label: 'Charging State', value: batteryInfo?.isCharging ? 'Charging' : 'Idle / Discharging' },
+                      { label: 'AC Connected', value: batteryInfo?.acConnected ? 'Yes' : 'No' },
+                    ],
+                    command: 'pmset -g batt',
+                  })
+                }
+                className="p-4 rounded-2xl border space-y-1 text-left cursor-pointer transition-all hover:scale-[1.01]"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <span className="text-[10px] uppercase font-bold" style={{ color: 'var(--color-ink-4)' }}>Battery Charge</span>
                 <p className="text-2xl font-extrabold font-mono" style={{ color: 'var(--color-ink)' }}>
                   {batteryInfo?.percent ?? 100}%
                 </p>
                 <span className="text-xs" style={{ color: 'var(--color-ink-3)' }}>
-                  {batteryInfo?.isCharging ? 'Charging Active' : batteryInfo?.acConnected ? 'Connected to AC Power' : 'Discharging on Battery'}
+                  {batteryInfo?.isCharging ? 'Charging Active' : batteryInfo?.acConnected ? 'Connected to AC Power' : 'Discharging on Battery'} · Inspect
                 </span>
-              </div>
+              </button>
 
-              <div className="p-4 rounded-2xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+              <button
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Battery Health Condition',
+                    category: 'Health Diagnostics',
+                    badge: `${batteryInfo?.healthPct ?? 100}% Health`,
+                    subtitle: 'Designed vs maximum capacity degradation assessment.',
+                    details: [
+                      { label: 'Health Percentage', value: `${batteryInfo?.healthPct ?? 100}%` },
+                      { label: 'Total Cycle Count', value: `${batteryInfo?.cycleCount || 48} cycles` },
+                    ],
+                    command: 'ioreg -r -c "AppleSmartBattery"',
+                  })
+                }
+                className="p-4 rounded-2xl border space-y-1 text-left cursor-pointer transition-all hover:scale-[1.01]"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <span className="text-[10px] uppercase font-bold" style={{ color: 'var(--color-ink-4)' }}>Battery Health</span>
                 <p className="text-2xl font-extrabold font-mono text-emerald-500">
                   {batteryInfo?.healthPct ?? 100}%
                 </p>
                 <span className="text-xs" style={{ color: 'var(--color-ink-3)' }}>
-                  Cycle Count: {batteryInfo?.cycleCount || 48} cycles
+                  Cycle Count: {batteryInfo?.cycleCount || 48} cycles · Inspect
                 </span>
-              </div>
+              </button>
 
-              <div className="p-4 rounded-2xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+              <button
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Battery Hardware Model',
+                    category: 'Hardware Specification',
+                    badge: batteryInfo?.type || 'Li-ion',
+                    subtitle: 'Internal battery serial and chemical composition.',
+                    details: [
+                      { label: 'Hardware Model', value: batteryInfo?.model || 'Apple Battery Subsystem' },
+                      { label: 'Battery Chemistry', value: batteryInfo?.type || 'Li-ion' },
+                    ],
+                    command: 'system_profiler SPPowerDataType',
+                  })
+                }
+                className="p-4 rounded-2xl border space-y-1 text-left cursor-pointer transition-all hover:scale-[1.01]"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <span className="text-[10px] uppercase font-bold" style={{ color: 'var(--color-ink-4)' }}>Power Hardware</span>
                 <p className="text-sm font-extrabold font-mono truncate" style={{ color: 'var(--color-ink)' }}>
                   {batteryInfo?.model || 'Apple Battery Subsystem'}
                 </p>
                 <span className="text-xs" style={{ color: 'var(--color-ink-3)' }}>
-                  Chemistry: {batteryInfo?.type || 'Li-ion'}
+                  Chemistry: {batteryInfo?.type || 'Li-ion'} · Inspect
                 </span>
-              </div>
+              </button>
             </div>
           </motion.div>
         )}

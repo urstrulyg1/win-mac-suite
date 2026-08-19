@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sparkles, Layers, Package, Cpu, RefreshCw,
-  CheckCircle2, HardDrive, ShieldCheck,
+  CheckCircle2, HardDrive, ShieldCheck, ChevronRight, Terminal,
 } from 'lucide-react';
 import { usePlatform } from '../platform';
 import StartupManager from './StartupManager';
+import InspectorModal, { type InspectorData } from './InspectorModal';
 
 type AppTab = 'startup' | 'services' | 'packages' | 'hardware';
 
@@ -16,6 +17,7 @@ export default function SystemAppsHub() {
   const [packageInfo, setPackageInfo] = useState<any>(null);
   const [hardwareInfo, setHardwareInfo] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [inspectItem, setInspectItem] = useState<InspectorData | null>(null);
 
   const fetchHubData = async () => {
     setLoading(true);
@@ -52,6 +54,8 @@ export default function SystemAppsHub() {
 
   return (
     <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+      <InspectorModal data={inspectItem} onClose={() => setInspectItem(null)} />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
@@ -60,7 +64,7 @@ export default function SystemAppsHub() {
               <Layers size={12} /> System, Apps &amp; Services
             </span>
             <span className="pill" style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-3)', borderColor: 'var(--color-line)' }}>
-              Live System Subsystems
+              Live Subsystems Active · Click Any Tile To Inspect
             </span>
           </div>
           <h1 className="text-hero font-extrabold tracking-tight" style={{ color: 'var(--color-ink)' }}>
@@ -126,7 +130,26 @@ export default function SystemAppsHub() {
             </div>
             <div className="space-y-3">
               {services.map((svc) => (
-                <div key={svc.id} className="p-4 rounded-2xl border space-y-1.5" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+                <button
+                  key={svc.id}
+                  onClick={() =>
+                    setInspectItem({
+                      title: svc.displayName || svc.name,
+                      category: 'System Service',
+                      badge: svc.status,
+                      subtitle: svc.description,
+                      details: [
+                        { label: 'Service Identifier', value: svc.name, isCode: true },
+                        { label: 'Runtime Status', value: svc.status },
+                        { label: 'Startup Schedule', value: svc.startupType },
+                        { label: 'Execution Context', value: svc.user },
+                      ],
+                      command: isMac ? `launchctl list | grep ${svc.name.slice(0, 15)}` : `Get-Service -Name ${svc.name}`,
+                    })
+                  }
+                  className="w-full p-4 rounded-2xl border space-y-1.5 text-left transition-all hover:scale-[1.005] cursor-pointer"
+                  style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+                >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold font-mono" style={{ color: 'var(--color-ink)' }}>
                       {svc.displayName || svc.name}
@@ -136,10 +159,15 @@ export default function SystemAppsHub() {
                     </span>
                   </div>
                   <p className="text-xs" style={{ color: 'var(--color-ink-3)' }}>{svc.description}</p>
-                  <p className="text-[11px] font-mono opacity-70" style={{ color: 'var(--color-ink-4)' }}>
-                    Schedule: {svc.startupType} · Context: {svc.user}
-                  </p>
-                </div>
+                  <div className="flex items-center justify-between pt-1">
+                    <p className="text-[11px] font-mono opacity-70" style={{ color: 'var(--color-ink-4)' }}>
+                      Schedule: {svc.startupType} · Context: {svc.user}
+                    </p>
+                    <span className="text-[10px] text-blue-500 font-bold flex items-center gap-1">
+                      Inspect <ChevronRight size={10} />
+                    </span>
+                  </div>
+                </button>
               ))}
             </div>
           </motion.div>
@@ -157,29 +185,79 @@ export default function SystemAppsHub() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="p-4 rounded-2xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+              <button
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Homebrew CLI Formulae',
+                    category: 'Package Manager',
+                    badge: `${packageInfo?.formulaCount ?? 125} Installed`,
+                    subtitle: 'Command-line utilities and dependency libraries.',
+                    details: [
+                      { label: 'Package Type', value: 'CLI Formulae' },
+                      { label: 'Formulae Count', value: packageInfo?.formulaCount ?? 125 },
+                      { label: 'Target Prefix', value: isMac ? '/opt/homebrew/Cellar' : 'C:\\ProgramData\\winget' },
+                    ],
+                    command: 'brew list --formula',
+                  })
+                }
+                className="p-4 rounded-2xl border space-y-1 text-left cursor-pointer transition-all hover:scale-[1.01]"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <span className="text-[10px] uppercase font-bold" style={{ color: 'var(--color-ink-4)' }}>Installed Formulae</span>
                 <p className="text-2xl font-extrabold font-mono" style={{ color: 'var(--color-ink)' }}>
                   {packageInfo?.formulaCount ?? (isMac ? 125 : 24)}
                 </p>
-                <span className="text-xs" style={{ color: 'var(--color-ink-3)' }}>CLI binaries & libraries</span>
-              </div>
+                <span className="text-xs" style={{ color: 'var(--color-ink-3)' }}>CLI binaries & libraries · Click to inspect</span>
+              </button>
 
-              <div className="p-4 rounded-2xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+              <button
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Homebrew GUI Casks',
+                    category: 'Application Bundles',
+                    badge: `${packageInfo?.caskCount ?? 6} Installed`,
+                    subtitle: 'GUI applications managed via Homebrew cask taps.',
+                    details: [
+                      { label: 'Package Type', value: 'macOS GUI Casks' },
+                      { label: 'Cask Count', value: packageInfo?.caskCount ?? 6 },
+                      { label: 'Target Destination', value: '/Applications' },
+                    ],
+                    command: 'brew list --cask',
+                  })
+                }
+                className="p-4 rounded-2xl border space-y-1 text-left cursor-pointer transition-all hover:scale-[1.01]"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <span className="text-[10px] uppercase font-bold" style={{ color: 'var(--color-ink-4)' }}>GUI Casks</span>
                 <p className="text-2xl font-extrabold font-mono" style={{ color: 'var(--color-ink)' }}>
                   {packageInfo?.caskCount ?? (isMac ? 6 : 0)}
                 </p>
-                <span className="text-xs" style={{ color: 'var(--color-ink-3)' }}>Managed macOS app bundles</span>
-              </div>
+                <span className="text-xs" style={{ color: 'var(--color-ink-3)' }}>Managed macOS app bundles · Click to inspect</span>
+              </button>
 
-              <div className="p-4 rounded-2xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+              <button
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Outdated Packages Status',
+                    category: 'Update Inventory',
+                    badge: `${packageInfo?.outdatedCount ?? 0} Pending`,
+                    subtitle: 'Outdated package check against Homebrew API catalog.',
+                    details: [
+                      { label: 'Upgrade Status', value: packageInfo?.status || 'Synchronized' },
+                      { label: 'Pending Updates', value: packageInfo?.outdatedCount ?? 0 },
+                    ],
+                    command: 'brew outdated',
+                  })
+                }
+                className="p-4 rounded-2xl border space-y-1 text-left cursor-pointer transition-all hover:scale-[1.01]"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <span className="text-[10px] uppercase font-bold" style={{ color: 'var(--color-ink-4)' }}>Outdated Packages</span>
                 <p className="text-2xl font-extrabold font-mono text-emerald-500">
                   {packageInfo?.outdatedCount ?? 0}
                 </p>
-                <span className="text-xs" style={{ color: 'var(--color-ink-3)' }}>Pending upgrade</span>
-              </div>
+                <span className="text-xs" style={{ color: 'var(--color-ink-3)' }}>Pending upgrade · Click to inspect</span>
+              </button>
             </div>
           </motion.div>
         )}
@@ -196,39 +274,106 @@ export default function SystemAppsHub() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              <div className="p-4 rounded-2xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+              <button
+                onClick={() =>
+                  setInspectItem({
+                    title: hardwareInfo?.chip || 'Apple M1 Processor',
+                    category: 'Central Processing Unit',
+                    badge: `${hardwareInfo?.cores || 8} Cores`,
+                    subtitle: 'Apple Silicon System-on-Chip unified compute engine.',
+                    details: [
+                      { label: 'Processor Name', value: hardwareInfo?.chip || 'Apple M1' },
+                      { label: 'Architecture', value: hardwareInfo?.arch || 'arm64' },
+                      { label: 'Total Cores', value: hardwareInfo?.cores || 8 },
+                      { label: 'Physical Cores', value: hardwareInfo?.physicalCores || 8 },
+                      { label: 'Clock Speed', value: hardwareInfo?.speed || '3.2 GHz' },
+                    ],
+                    command: 'sysctl -n machdep.cpu.brand_string',
+                  })
+                }
+                className="p-4 rounded-2xl border space-y-1 text-left cursor-pointer transition-all hover:scale-[1.01]"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <span className="text-[10px] uppercase font-bold" style={{ color: 'var(--color-ink-4)' }}>Processor Chip</span>
                 <p className="text-base font-extrabold truncate" style={{ color: 'var(--color-ink)' }}>
                   {hardwareInfo?.chip || 'Apple M1'}
                 </p>
                 <span className="text-xs font-mono" style={{ color: 'var(--color-ink-3)' }}>
-                  {hardwareInfo?.cores || 8} Cores ({hardwareInfo?.arch || 'arm64'})
+                  {hardwareInfo?.cores || 8} Cores ({hardwareInfo?.arch || 'arm64'}) · Inspect
                 </span>
-              </div>
+              </button>
 
-              <div className="p-4 rounded-2xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+              <button
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Unified Memory Architecture',
+                    category: 'System RAM',
+                    badge: `${hardwareInfo?.ramGB || 8} GB LPDDR`,
+                    subtitle: 'High-bandwidth, low-latency unified memory pool.',
+                    details: [
+                      { label: 'Memory Capacity', value: `${hardwareInfo?.ramGB || 8} GB` },
+                      { label: 'Architecture', value: 'Unified Unified Pool (CPU & GPU Shared)' },
+                    ],
+                    command: 'sysctl -n hw.memsize',
+                  })
+                }
+                className="p-4 rounded-2xl border space-y-1 text-left cursor-pointer transition-all hover:scale-[1.01]"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <span className="text-[10px] uppercase font-bold" style={{ color: 'var(--color-ink-4)' }}>Unified Memory</span>
                 <p className="text-base font-extrabold truncate" style={{ color: 'var(--color-ink)' }}>
                   {hardwareInfo?.ramGB || 8} GB LPDDR
                 </p>
-                <span className="text-xs" style={{ color: 'var(--color-ink-3)' }}>Unified Architecture</span>
-              </div>
+                <span className="text-xs" style={{ color: 'var(--color-ink-3)' }}>Unified Architecture · Inspect</span>
+              </button>
 
-              <div className="p-4 rounded-2xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+              <button
+                onClick={() =>
+                  setInspectItem({
+                    title: hardwareInfo?.gpu || 'Apple Silicon GPU Engine',
+                    category: 'Graphics Subsystem',
+                    badge: 'Metal Active',
+                    subtitle: 'Integrated GPU with Metal hardware acceleration.',
+                    details: [
+                      { label: 'GPU Controller', value: hardwareInfo?.gpu || 'Apple M1 GPU' },
+                      { label: 'API Support', value: 'Apple Metal 3 / OpenGL' },
+                    ],
+                    command: 'system_profiler SPDisplaysDataType',
+                  })
+                }
+                className="p-4 rounded-2xl border space-y-1 text-left cursor-pointer transition-all hover:scale-[1.01]"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <span className="text-[10px] uppercase font-bold" style={{ color: 'var(--color-ink-4)' }}>Graphics Engine</span>
                 <p className="text-base font-extrabold truncate" style={{ color: 'var(--color-ink)' }}>
                   {hardwareInfo?.gpu || 'Apple M1 GPU'}
                 </p>
-                <span className="text-xs" style={{ color: 'var(--color-ink-3)' }}>Metal Hardware Acceleration</span>
-              </div>
+                <span className="text-xs" style={{ color: 'var(--color-ink-3)' }}>Metal Hardware Acceleration · Inspect</span>
+              </button>
 
-              <div className="p-4 rounded-2xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+              <button
+                onClick={() =>
+                  setInspectItem({
+                    title: hardwareInfo?.os || 'macOS Operating System',
+                    category: 'System Platform',
+                    badge: 'Sealed Snapshot',
+                    subtitle: 'Cryptographically signed and sealed system volume.',
+                    details: [
+                      { label: 'OS Distribution', value: hardwareInfo?.os || 'macOS' },
+                      { label: 'Root Volume', value: 'Signed System Volume (SSV)' },
+                    ],
+                    command: 'sw_vers',
+                  })
+                }
+                className="p-4 rounded-2xl border space-y-1 text-left cursor-pointer transition-all hover:scale-[1.01]"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <span className="text-[10px] uppercase font-bold" style={{ color: 'var(--color-ink-4)' }}>Operating System</span>
                 <p className="text-base font-extrabold truncate" style={{ color: 'var(--color-ink)' }}>
                   {hardwareInfo?.os || 'macOS'}
                 </p>
-                <span className="text-xs" style={{ color: 'var(--color-ink-3)' }}>Sealed System Volume</span>
-              </div>
+                <span className="text-xs" style={{ color: 'var(--color-ink-3)' }}>Sealed System Volume · Inspect</span>
+              </button>
             </div>
           </motion.div>
         )}

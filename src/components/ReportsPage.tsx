@@ -8,6 +8,7 @@ import {
 import type { RunSummary, RunMode } from '../types';
 import HealthScore from './HealthScore';
 import { usePlatform } from '../platform';
+import InspectorModal, { type InspectorData } from './InspectorModal';
 
 interface Props {
   summary: RunSummary | null;
@@ -20,6 +21,7 @@ const ease = [0.16, 1, 0.3, 1] as const;
 export default function ReportsPage({ summary, onStartNew, onExport }: Props) {
   const { config } = usePlatform();
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [inspectItem, setInspectItem] = useState<InspectorData | null>(null);
 
   useEffect(() => {
     fetch('http://127.0.0.1:3131/api/actions/audit-history')
@@ -30,6 +32,8 @@ export default function ReportsPage({ summary, onStartNew, onExport }: Props) {
 
   return (
     <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+      <InspectorModal data={inspectItem} onClose={() => setInspectItem(null)} />
+
       {/* Page header */}
       <motion.div
         initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
@@ -61,11 +65,11 @@ export default function ReportsPage({ summary, onStartNew, onExport }: Props) {
 
         <div className="flex items-center gap-2 shrink-0">
           {summary && onExport && (
-            <button onClick={onExport} className="btn btn-ghost">
+            <button onClick={onExport} className="btn btn-ghost cursor-pointer">
               <Download size={15} /> Export JSON Report
             </button>
           )}
-          <button onClick={() => onStartNew('Safe')} className="btn btn-primary">
+          <button onClick={() => onStartNew('Safe')} className="btn btn-primary cursor-pointer">
             <Play size={15} className="fill-white" />
             {summary ? 'Run Again' : 'Launch Maintenance'}
           </button>
@@ -156,11 +160,16 @@ export default function ReportsPage({ summary, onStartNew, onExport }: Props) {
 
       {/* Operation Audit History Ledger */}
       <div className="card p-6 space-y-4">
-        <div className="flex items-center gap-2">
-          <History size={16} className="text-blue-500" />
-          <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
-            Operation Audit History ({auditLogs.length})
-          </h3>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <History size={16} className="text-blue-500" />
+            <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
+              Operation Audit History ({auditLogs.length})
+            </h3>
+          </div>
+          <span className="text-[11px] font-medium" style={{ color: 'var(--color-ink-4)' }}>
+            Click any entry to view full execution log
+          </span>
         </div>
 
         {auditLogs.length === 0 ? (
@@ -170,7 +179,27 @@ export default function ReportsPage({ summary, onStartNew, onExport }: Props) {
         ) : (
           <div className="space-y-2.5">
             {auditLogs.map((entry) => (
-              <div key={entry.id} className="p-3.5 rounded-2xl border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+              <button
+                key={entry.id}
+                onClick={() =>
+                  setInspectItem({
+                    title: entry.operation,
+                    category: `Audit ID: ${entry.id}`,
+                    badge: entry.result,
+                    subtitle: `Executed at ${new Date(entry.timestamp).toLocaleString()} by ${entry.user}`,
+                    details: [
+                      { label: 'Operation', value: entry.operation },
+                      { label: 'Security Risk Level', value: entry.risk },
+                      { label: 'Permission Context', value: entry.permissionLevel || 'Administrator' },
+                      { label: 'Execution Duration', value: `${entry.durationSeconds} seconds` },
+                      { label: 'Audit Timestamp', value: new Date(entry.timestamp).toLocaleString() },
+                    ],
+                    output: entry.outputLogSnippet || 'Operation completed with exit code 0.',
+                  })
+                }
+                className="w-full p-3.5 rounded-2xl border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-left transition-all hover:scale-[1.005] cursor-pointer"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-bold" style={{ color: 'var(--color-ink)' }}>{entry.operation}</span>
@@ -182,10 +211,13 @@ export default function ReportsPage({ summary, onStartNew, onExport }: Props) {
                     User: {entry.user} · Risk: {entry.risk} · Duration: {entry.durationSeconds}s
                   </p>
                 </div>
-                <span className="text-[10px] font-mono shrink-0" style={{ color: 'var(--color-ink-4)' }}>
-                  {new Date(entry.timestamp).toLocaleTimeString()}
-                </span>
-              </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[10px] font-mono" style={{ color: 'var(--color-ink-4)' }}>
+                    {new Date(entry.timestamp).toLocaleTimeString()}
+                  </span>
+                  <ChevronRight size={14} className="text-slate-400" />
+                </div>
+              </button>
             ))}
           </div>
         )}

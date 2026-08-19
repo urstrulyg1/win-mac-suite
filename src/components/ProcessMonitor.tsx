@@ -1,13 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Activity, Search, RefreshCw, Cpu, MemoryStick, Filter, ShieldAlert } from 'lucide-react';
+import { Activity, Search, RefreshCw, Cpu, MemoryStick, Filter, ShieldAlert, ChevronRight } from 'lucide-react';
 import type { SystemProcess } from '../platform/types';
+import InspectorModal, { type InspectorData } from './InspectorModal';
 
 export default function ProcessMonitor() {
   const [processes, setProcesses] = useState<SystemProcess[]>([]);
   const [search, setSearch] = useState('');
   const [filterMode, setFilterMode] = useState<'all' | 'cpu' | 'mem'>('cpu');
   const [loading, setLoading] = useState(false);
+  const [inspectItem, setInspectItem] = useState<InspectorData | null>(null);
 
   const fetchProcesses = async () => {
     setLoading(true);
@@ -53,12 +55,17 @@ export default function ProcessMonitor() {
 
   return (
     <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+      <InspectorModal data={inspectItem} onClose={() => setInspectItem(null)} />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <div className="inline-flex items-center gap-2 mb-2">
             <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25">
               <Activity size={12} /> Resource Monitor
+            </span>
+            <span className="pill" style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-3)', borderColor: 'var(--color-line)' }}>
+              Click Any Process Row To Inspect
             </span>
           </div>
           <h1 className="text-hero font-extrabold tracking-tight" style={{ color: 'var(--color-ink)' }}>
@@ -72,7 +79,7 @@ export default function ProcessMonitor() {
         <button
           onClick={fetchProcesses}
           disabled={loading}
-          className="btn btn-ghost text-xs"
+          className="btn btn-ghost text-xs cursor-pointer"
         >
           <RefreshCw size={13} className={loading ? 'animate-spin-smooth' : ''} />
           <span>Refresh</span>
@@ -137,7 +144,27 @@ export default function ProcessMonitor() {
             </thead>
             <tbody className="divide-y" style={{ borderColor: 'var(--color-line)' }}>
               {sortedList.map((p) => (
-                <tr key={p.pid} className="transition-colors hover:bg-slate-500/5">
+                <tr
+                  key={p.pid}
+                  onClick={() =>
+                    setInspectItem({
+                      title: p.name,
+                      category: `PID ${p.pid}`,
+                      badge: `${p.cpu}% CPU · ${p.mem}% RAM`,
+                      subtitle: `Executing under user account: ${p.user}`,
+                      details: [
+                        { label: 'Process Identifier (PID)', value: p.pid },
+                        { label: 'Process Name', value: p.name },
+                        { label: 'User Context', value: p.user },
+                        { label: 'CPU Allocation', value: `${p.cpu}%` },
+                        { label: 'Memory Allocation', value: `${p.mem}%` },
+                        { label: 'Command Invocation', value: p.command || p.name, isCode: true },
+                      ],
+                      command: `ps -p ${p.pid} -o pid,user,%cpu,%mem,command`,
+                    })
+                  }
+                  className="transition-colors hover:bg-slate-500/10 cursor-pointer"
+                >
                   <td className="p-3.5 pl-5 font-mono text-[11px]" style={{ color: 'var(--color-ink-4)' }}>{p.pid}</td>
                   <td className="p-3.5 font-bold" style={{ color: 'var(--color-ink)' }}>{p.name}</td>
                   <td className="p-3.5 font-mono text-[11px]" style={{ color: 'var(--color-ink-3)' }}>{p.user}</td>
