@@ -6,7 +6,7 @@ import assert from 'assert';
 import os from 'os';
 import path from 'path';
 import fs from 'fs';
-import { classifyPath, validateDeletionTarget, PATH_CLASSIFICATION } from '../security/protected-paths.js';
+import { classifyPath, validateDeletionTarget, releaseGuard, PATH_CLASSIFICATION } from '../security/protected-paths.js';
 import { CorrelationEngine } from '../engine/correlation-engine.js';
 import { BaselineForecaster } from '../engine/baseline-forecaster.js';
 import { calculateConfidence } from '../models/finding.js';
@@ -30,11 +30,24 @@ function runSafetyTests() {
   console.log('✓ Test 2 Passed: Deletion of ~/Documents blocked with SAFETY POLICY VIOLATION');
 
   // Test 3: Allow Safe Reclaimable Cache Path
+  //
+  // v10.1: the policy engine now resolves paths PHYSICALLY, so a target must actually
+  // exist to be validated (we refuse to act on paths we cannot inspect). The fixture is
+  // therefore created on disk rather than asserted hypothetically, and the guard's
+  // pinned descriptor is released afterwards.
   const safeCache = path.join(HOME, 'Library/Caches/Google/Chrome');
+  fs.mkdirSync(safeCache, { recursive: true });
   const result = validateDeletionTarget(safeCache);
   assert.strictEqual(result.allowed, true);
   assert.strictEqual(result.classification, PATH_CLASSIFICATION.SAFE_RECLAIMABLE);
+  releaseGuard(result.guard);
   console.log('✓ Test 3 Passed: Safe cache path allowed for reclamation');
+
+  // Test 4 (v10.1): a nonexistent path is NOT assumed safe.
+  assert.throws(() => {
+    validateDeletionTarget(path.join(HOME, 'Library/Caches/DoesNotExist-zzz'));
+  }, /does not exist/);
+  console.log('✓ Test 4 Passed: Nonexistent path rejected rather than assumed safe');
 }
 
 function runCorrelationEngineTests() {

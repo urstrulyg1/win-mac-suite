@@ -1,5 +1,5 @@
 /**
- * WinSuite & MacSuite v6.3 Production Architecture
+ * WinSuite & MacSuite v10.0 Production Architecture
  * Local Telemetry, Secure Command Allowlist & Operations Server (:3131).
  *
  * Modular Route Organization:
@@ -11,6 +11,8 @@
  * - /api/network/diagnostics                          -> routes/network.js
  * - /api/reports, /api/audit-history                  -> routes/reports.js
  * - /api/actions/*                                    -> routes/actions.js
+ * - /api/v10/*  (health contract, permission matrix, operations ledger,
+ *                calibration, chaos, privacy, API contracts) -> routes/v10.js
  */
 
 import express from 'express';
@@ -25,15 +27,50 @@ import servicesRouter from './server/routes/services.js';
 import networkRouter from './server/routes/network.js';
 import reportsRouter from './server/routes/reports.js';
 import actionsRouter from './server/routes/actions.js';
+import v10Router from './server/routes/v10.js';
+import intelligenceRouter from './server/routes/intelligence.js';
 
 import { localhostOnlyGuard, concurrencyGuard } from './server/security/request-guard.js';
+import { createErrorResponse } from './server/contracts/api-schemas.js';
+import { getDegradedModeStatus } from './server/runtime/degraded-mode.js';
 
 const PORT = 3131;
 const app = express();
 
 // Local origin and security configuration
 app.use(cors({ origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3131', 'http://127.0.0.1:3131'] }));
-app.use(express.json());
+/**
+ * SECURITY (P1-C #14 — unbounded request body).
+ *
+ * v10.0 used a bare `express.json()`, whose default 100kb limit was never stated and
+ * whose rejection produced an unstructured HTML error. A local API is still an API: a
+ * malfunctioning client (or anything that reaches the port) could previously push
+ * arbitrarily large payloads through the JSON parser before any route logic ran.
+ *
+ * The limit is now explicit and deliberately small — no legitimate request this server
+ * accepts is larger than a few kilobytes of parameters.
+ */
+app.use(express.json({ limit: '64kb', strict: true }));
+
+/** Turn body-parser failures into the same contract envelope as every other error. */
+app.use((err, _req, res, next) => {
+  if (!err) return next();
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json(createErrorResponse({
+      code: 'REQUEST_BODY_TOO_LARGE',
+      error: 'Request body exceeds the 64kb limit.',
+      remediation: 'Send a smaller payload. No supported endpoint requires a body this large.',
+    }));
+  }
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json(createErrorResponse({
+      code: 'MALFORMED_JSON',
+      error: 'Request body is not valid JSON.',
+      remediation: 'Send a well-formed JSON object with Content-Type: application/json.',
+    }));
+  }
+  return next(err);
+});
 app.use(localhostOnlyGuard);
 app.use(concurrencyGuard);
 
@@ -46,13 +83,42 @@ app.use('/api', servicesRouter);
 app.use('/api', reportsRouter);
 app.use('/api/network', networkRouter);
 app.use('/api/actions', actionsRouter);
+app.use('/api/v10', v10Router);
+app.use('/api/intelligence', intelligenceRouter);
+
+// ── v10 P0 #6: nothing leaves this server without a well-formed error envelope ──
+app.use((req, res) => {
+  res.status(404).json(createErrorResponse({
+    code: 'ROUTE_NOT_FOUND',
+    error: `No route matches ${req.method} ${req.originalUrl}.`,
+    recoverable: false,
+    remediation: 'See GET /api/v10/contracts/schemas for the published API contract.',
+  }));
+});
+
+// eslint-disable-next-line no-unused-vars
+app.use((err, _req, res, _next) => {
+  console.error('[v10] Unhandled error:', err);
+  res.status(500).json(createErrorResponse({
+    code: 'UNEXPECTED_ERROR',
+    error: 'The request failed unexpectedly and was stopped before making changes.',
+    recoverable: true,
+    remediation: 'The system was left in its previous state. Other subsystems are unaffected.',
+    details: process.env.NODE_ENV === 'development' ? { message: err?.message } : null,
+  }));
+});
 
 const isMac = process.platform === 'darwin';
 const isWin = process.platform === 'win32';
 const detectedPlatform = isMac ? 'macos' : isWin ? 'windows' : 'unsupported';
 const brand = isMac ? 'MacSuite' : 'WinSuite';
 
-app.listen(PORT, '127.0.0.1', () => {
-  console.log(`✅  ${brand} (v6.3) telemetry & operations server listening on http://127.0.0.1:${PORT}`);
+app.listen(PORT, '127.0.0.1', async () => {
+  console.log(`✅  ${brand} (v10.0) telemetry & operations server listening on http://127.0.0.1:${PORT}`);
   console.log(`    Platform: ${detectedPlatform.toUpperCase()} | Host: ${os.hostname()} (${os.arch()})`);
+
+  // v10 P0 #9 — announce offline-first posture at boot so degraded mode is never a surprise.
+  const runtime = await getDegradedModeStatus();
+  console.log(`    Runtime: ${runtime.online ? 'ONLINE' : 'OFFLINE'} | ${runtime.message}`);
+  console.log(`    Contract: GET /api/v10/health · /api/v10/permissions/matrix · /api/v10/contracts/schemas`);
 });

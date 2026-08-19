@@ -17,6 +17,9 @@ import CrashHangDoctor from './components/CrashHangDoctor';
 import HardwarePeripheralsHub from './components/HardwarePeripheralsHub';
 import AppleServicesHub from './components/AppleServicesHub';
 import UnsupportedPlatformView from './components/UnsupportedPlatformView';
+import CausalReasoningHub from './components/intelligence/CausalReasoningHub';
+import IncidentIntelligenceHub from './components/intelligence/IncidentIntelligenceHub';
+import ExperimentCenterHub from './components/intelligence/ExperimentCenterHub';
 import { useDarkMode } from './hooks/useDarkMode';
 import { useToast } from './components/Toast';
 import type { Section, RunMode, LogEntry, RunSummary, AppPhase, SystemInfo } from './types';
@@ -32,7 +35,7 @@ export function buildExportReport(
 ): string {
   const report = {
     suite: platform === 'macos' ? 'MacSuite' : 'WinSuite',
-    version: '7.0.0',
+    version: '10.1.0',
     exportTimestamp: new Date().toISOString(),
     mode,
     summary,
@@ -312,7 +315,31 @@ function MainApp() {
       />
 
       <AnimatePresence mode="wait">
-        {activeTab === 'ask' ? (
+        {activeTab === 'whynot' ? (
+          <motion.div
+            key="whynot-tab"
+            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.2 }} className="w-full"
+          >
+            <CausalReasoningHub />
+          </motion.div>
+        ) : activeTab === 'incidents' ? (
+          <motion.div
+            key="incidents-tab"
+            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.2 }} className="w-full"
+          >
+            <IncidentIntelligenceHub />
+          </motion.div>
+        ) : activeTab === 'experiments' ? (
+          <motion.div
+            key="experiments-tab"
+            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.2 }} className="w-full"
+          >
+            <ExperimentCenterHub />
+          </motion.div>
+        ) : activeTab === 'ask' ? (
           <motion.div
             key="ask-tab"
             initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}

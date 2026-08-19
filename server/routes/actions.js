@@ -28,7 +28,11 @@
 
 import express from 'express';
 import { executeAllowlistedCommand, cancelActiveExecution } from '../security/exec-guard.js';
+import { runGuardedOperation } from '../runtime/operation-executor.js';
+import { operationRegistry } from '../runtime/operations.js';
+import { validateRequest, createErrorResponse } from '../contracts/api-schemas.js';
 import { COMMAND_ALLOWLIST } from '../security/allowlist.js';
+import { validateDeletionTarget, assertUnchanged, releaseGuard } from '../security/protected-paths.js';
 import { logAuditEntry } from '../audit/audit-logger.js';
 import {
   recordCleanupTransaction,
@@ -39,6 +43,7 @@ import {
   askMacAssistantQuery,
   runSafeCommand,
   killPortProcess,
+  getMacListeningPorts,
 } from '../helpers/macos-helpers.js';
 
 const router = express.Router();
@@ -187,62 +192,129 @@ router.post('/cleanup-plan', async (_req, res) => {
 });
 
 // ── POST /api/actions/execute-cleanup (Execute Safe Cleanup with Manifest) ──
-router.post('/execute-cleanup', async (req, res) => {
-  const { selectedItemIds = [], confirmed } = req.body;
+// v10: guarded operation with a MEASURED reclaim figure (the old hardcoded 11.8 GB
+// is gone), a 10s cooldown, a storage lock, and before/after disk verification.
+router.post('/execute-cleanup', validateRequest('POST /api/actions/execute-cleanup'), async (req, res) => {
+  const { selectedItemIds = [], confirmed, idempotencyKey = null, dryRun = false } = req.body;
 
   if (!confirmed) {
-    return res.status(400).json({
-      error: 'Safe cleanup execution requires user confirmation.',
-      requiresConfirmation: true,
-    });
+    return res.status(400).json(createErrorResponse({
+      code: 'CONFIRMATION_REQUIRED',
+      error: 'Safe cleanup execution requires explicit user confirmation.',
+      recoverable: true,
+      remediation: 'Re-send the request with { "confirmed": true } after the user approves the plan.',
+      details: { requiresConfirmation: true },
+    }));
   }
 
-  const startTime = Date.now();
   const isDarwin = process.platform === 'darwin';
 
-  try {
-    if (isDarwin) {
-      await runSafeCommand('/usr/bin/purge', [], 3000).catch(() => {});
-    }
+  const outcome = await runGuardedOperation({
+    actionId: 'storage.executeCleanup',
+    params: { selectedItemIds, itemCount: selectedItemIds.length },
+    idempotencyKey,
+    dryRun,
+    requestId: req.headers['x-request-id'] || null,
+    source: 'api:/api/actions/execute-cleanup',
+    snapshot: async () => {
+      const { statfs } = await import('fs/promises');
+      try {
+        const st = await statfs('/');
+        return { freeBytes: st.bavail * st.bsize, sampledAt: new Date().toISOString() };
+      } catch {
+        return { freeBytes: null, sampledAt: new Date().toISOString(), note: 'Free space could not be sampled on this platform.' };
+      }
+    },
+    assertVerified: (before, after) =>
+      before.freeBytes !== null && after.freeBytes !== null && after.freeBytes >= before.freeBytes,
+    execute: async () => {
+      if (isDarwin) await runSafeCommand('/usr/bin/purge', [], 3000).catch(() => {});
+      return { itemsProcessed: selectedItemIds.length, platform: isDarwin ? 'macos' : process.platform };
+    },
+  });
 
-    const reclaimedBytes = 1024 * 1024 * 1024 * 11.8;
-    const durationSeconds = +( (Date.now() - startTime) / 1000 ).toFixed(1);
-
-    // Record in Transaction Manifest Ledger
-    const transaction = recordCleanupTransaction({
-      itemsCount: selectedItemIds.length || 5,
-      reclaimedBytes,
-      reclaimedFormatted: '11.8 GB',
-      reversible: true,
-      items: selectedItemIds,
-      status: 'completed',
-    });
-
-    const audit = logAuditEntry({
-      operation: 'Safe Cleanup Transaction Executed',
-      commandId: 'cleanup.execute.safe',
-      risk: 'safe',
-      permissionLevel: 'Standard User',
-      result: 'success',
-      durationSeconds,
-      changesMade: [
-        `Purged APFS snapshots, Xcode DerivedData, browser buffers, and package caches`,
-        `Created recovery manifest transaction #${transaction.id}`,
-      ],
-      reclaimedBytes,
-    });
-
-    res.json({
-      success: true,
-      reclaimedMB: 11800,
-      reclaimedGB: 11.8,
-      transaction,
-      audit,
-      message: 'Cleanup completed successfully. Recovery transaction manifest saved.',
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  if (!outcome.ok) {
+    return res.status(outcome.httpStatus || 500).json(createErrorResponse({
+      code: outcome.code,
+      error: outcome.error,
+      recoverable: outcome.recoverable ?? true,
+      remediation: outcome.remediation || null,
+      operationId: outcome.operationId,
+      details: outcome.retryAfterMs ? { retryAfterMs: outcome.retryAfterMs } : null,
+    }));
   }
+
+  if (outcome.deduplicated) {
+    return res.json({
+      success: true, ok: true, operationId: outcome.operationId, deduplicated: true,
+      message: outcome.message, result: outcome.result,
+    });
+  }
+
+  const beforeFree = outcome.verification?.beforeState?.freeBytes ?? null;
+  const afterFree = outcome.verification?.afterState?.freeBytes ?? null;
+  const reclaimedBytes = beforeFree !== null && afterFree !== null ? Math.max(0, afterFree - beforeFree) : null;
+  const measurable = reclaimedBytes !== null;
+
+  const transaction = recordCleanupTransaction({
+    operationId: outcome.operationId,
+    itemsCount: selectedItemIds.length,
+    reclaimedBytes: reclaimedBytes ?? 0,
+    reclaimedFormatted: measurable ? `${(reclaimedBytes / 1024 / 1024 / 1024).toFixed(2)} GB` : 'Not measurable',
+    reversible: true,
+    items: selectedItemIds,
+    status: 'completed',
+  });
+
+  const audit = logAuditEntry({
+    operation: `[${outcome.operationId}] Safe Cleanup Transaction Executed`,
+    commandId: 'cleanup.execute.safe',
+    risk: 'safe',
+    permissionLevel: 'Standard User',
+    result: 'success',
+    durationSeconds: +(((outcome.operation?.durationMs || 0) / 1000).toFixed(2)),
+    changesMade: [
+      `Processed ${selectedItemIds.length} selected cleanup item(s)`,
+      `Created recovery manifest transaction #${transaction.id}`,
+    ],
+    reclaimedBytes: reclaimedBytes ?? 0,
+  });
+
+  res.json({
+    success: true,
+    ok: true,
+    operationId: outcome.operationId,
+    actionId: 'storage.executeCleanup',
+    // Measured, quality-tagged. We do not invent a reclaim figure.
+    reclaimedBytes,
+    reclaimedMB: measurable ? Math.round(reclaimedBytes / 1024 / 1024) : null,
+    reclaimedGB: measurable ? +(reclaimedBytes / 1024 / 1024 / 1024).toFixed(2) : null,
+    measurement: measurable ? 'observed' : 'unavailable',
+    measurementNote: measurable
+      ? 'Reclaimed space is the observed difference in free bytes before and after the operation.'
+      : 'Free space could not be sampled on this platform, so no reclaim figure is reported rather than guessing one.',
+    transaction,
+    verification: outcome.verification,
+    timeline: outcome.operation?.timeline,
+    audit,
+    message: 'Cleanup completed. Recovery transaction manifest saved.',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// ── GET /api/actions/operations/:operationId ────────────────────────────────
+// v10 P0 #7: every action is traceable by its operation ID.
+router.get('/operations/:operationId', (req, res) => {
+  const op = operationRegistry.get(req.params.operationId);
+  if (!op) {
+    return res.status(404).json(createErrorResponse({
+      code: 'OPERATION_NOT_FOUND',
+      error: `No operation with ID ${req.params.operationId}.`,
+      recoverable: false,
+      remediation: 'The most recent 500 operations are retained.',
+    }));
+  }
+  res.json(op);
 });
 
 // ── POST /api/actions/undo-cleanup ──────────────────────────────────────────
@@ -322,14 +394,64 @@ router.post('/eject-drive', async (req, res) => {
 });
 
 // ── POST /api/actions/clean-docker ──────────────────────────────────────────
+/**
+ * Parse the "Total reclaimed space: 1.234GB" line docker prune prints.
+ *
+ * Returns null when the line is absent or unparseable. Null means "we do not know how
+ * much was freed" and must be reported as such — the previous implementation returned a
+ * hardcoded 6200 MB regardless of what Docker actually did, which is precisely the kind
+ * of fabricated metric the evidence model exists to prevent.
+ */
+function parseDockerReclaimed(output) {
+  const m = /Total reclaimed space:\s*([\d.]+)\s*([KMGT]?B)/i.exec(output || '');
+  if (!m) return null;
+  const value = Number(m[1]);
+  if (!Number.isFinite(value)) return null;
+  const unit = m[2].toUpperCase();
+  const toMB = { B: 1 / (1024 * 1024), KB: 1 / 1024, MB: 1, GB: 1024, TB: 1024 * 1024 };
+  const mb = value * (toMB[unit] ?? 0);
+  return Math.round(mb * 10) / 10;
+}
+
 router.post('/clean-docker', async (req, res) => {
   const { pruneImages, pruneBuildCache, pruneContainers } = req.body;
   const dockerPath = fs.existsSync('/usr/local/bin/docker') ? '/usr/local/bin/docker' : 'docker';
 
   try {
-    if (pruneBuildCache) await runSafeCommand(dockerPath, ['builder', 'prune', '-f'], 6000);
-    if (pruneImages) await runSafeCommand(dockerPath, ['image', 'prune', '-f'], 6000);
-    if (pruneContainers) await runSafeCommand(dockerPath, ['container', 'prune', '-f'], 6000);
+    // Each prune reports its own reclaimed total; we sum only the ones we could read.
+    const steps = [];
+    if (pruneBuildCache) steps.push(['build cache', ['builder', 'prune', '-f']]);
+    if (pruneImages) steps.push(['images', ['image', 'prune', '-f']]);
+    if (pruneContainers) steps.push(['containers', ['container', 'prune', '-f']]);
+
+    if (steps.length === 0) {
+      return res.status(400).json(createErrorResponse({
+        code: 'NOTHING_SELECTED',
+        error: 'No Docker prune target was selected.',
+        remediation: 'Set at least one of pruneImages, pruneBuildCache or pruneContainers.',
+      }));
+    }
+
+    const changesMade = [];
+    let reclaimedMB = 0;
+    let unmeasured = 0;
+
+    for (const [label, args] of steps) {
+      const out = await runSafeCommand(dockerPath, args, 6000);
+      const mb = parseDockerReclaimed(out);
+      if (mb === null) {
+        unmeasured += 1;
+        changesMade.push(`Pruned Docker ${label} — reclaimed space not reported by Docker.`);
+      } else {
+        reclaimedMB += mb;
+        changesMade.push(`Pruned Docker ${label} — reclaimed ${mb} MB (reported by Docker).`);
+      }
+    }
+
+    // If Docker reported nothing for any step, we do not know the total. Say so.
+    const measurement = unmeasured === 0 ? 'observed'
+      : unmeasured === steps.length ? 'unavailable'
+      : 'partial';
 
     const audit = logAuditEntry({
       operation: 'Selective Docker Storage Pruning',
@@ -337,24 +459,93 @@ router.post('/clean-docker', async (req, res) => {
       risk: 'moderate',
       permissionLevel: 'Standard User',
       result: 'success',
-      durationSeconds: 1.4,
-      changesMade: ['Pruned dangling Docker images, stopped containers, and build cache buffers.'],
-      reclaimedBytes: 1024 * 1024 * 1024 * 6.2,
+      changesMade,
+      reclaimedBytes: measurement === 'unavailable' ? null : Math.round(reclaimedMB * 1024 * 1024),
     });
 
-    res.json({ success: true, reclaimedMB: 6200, audit, message: 'Docker storage cleaned successfully.' });
+    res.json({
+      success: true,
+      reclaimedMB: measurement === 'unavailable' ? null : Math.round(reclaimedMB * 10) / 10,
+      measurement,
+      unmeasuredSteps: unmeasured,
+      audit,
+      message: measurement === 'unavailable'
+        ? 'Docker prune completed, but Docker did not report how much space was reclaimed.'
+        : measurement === 'partial'
+          ? `Docker storage cleaned. ${unmeasured} step(s) did not report a reclaimed total, so this figure is a lower bound.`
+          : 'Docker storage cleaned successfully.',
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json(createErrorResponse({
+      code: 'DOCKER_PRUNE_FAILED',
+      error: err.message,
+      remediation: 'Confirm Docker Desktop is running and the docker CLI is on the expected path.',
+    }));
   }
 });
 
 // ── POST /api/actions/clean-xcode ───────────────────────────────────────────
-router.post('/clean-xcode', async (_req, res) => {
-  try {
-    const derivedPath = path.join(os.homedir(), 'Library/Developer/Xcode/DerivedData');
-    if (fs.existsSync(derivedPath)) {
-      await runSafeCommand('/bin/rm', ['-rf', derivedPath], 5000).catch(() => {});
+/**
+ * Sum the on-disk size of a directory tree without following symlinks.
+ *
+ * Uses lstat so a link inside the tree contributes the size of the link, never the
+ * size of whatever it points at — otherwise a link into /System would be counted as
+ * reclaimable space we are about to "free".
+ */
+function measureDirectorySize(root) {
+  let total = 0;
+  const stack = [root];
+  while (stack.length) {
+    const current = stack.pop();
+    let st;
+    try { st = fs.lstatSync(current); } catch { continue; }
+    if (st.isSymbolicLink()) { total += st.size; continue; }
+    if (st.isDirectory()) {
+      let entries = [];
+      try { entries = fs.readdirSync(current); } catch { continue; }
+      for (const e of entries) stack.push(path.join(current, e));
+    } else {
+      total += st.size;
     }
+  }
+  return total;
+}
+
+/**
+ * SECURITY (P1-C #15/#16). This endpoint previously ran `rm -rf` on a path built from
+ * homedir() with NO protected-path validation and NO re-check before the delete, and
+ * then reported a hardcoded 4800 MB whether or not anything was removed.
+ *
+ * It now goes through the full guard chain:
+ *   validateDeletionTarget → (classification + symlink/traversal screening + open fd)
+ *   assertUnchanged        → (target not swapped/unlinked between check and delete)
+ *   releaseGuard           → (always, in finally)
+ * and it reports the size it actually measured, or reports nothing to reclaim.
+ */
+router.post('/clean-xcode', async (_req, res) => {
+  const derivedPath = path.join(os.homedir(), 'Library', 'Developer', 'Xcode', 'DerivedData');
+  let guard = null;
+  try {
+    let validation;
+    try {
+      validation = validateDeletionTarget(derivedPath);
+      guard = validation.guard;
+    } catch (err) {
+      // A refused path is a policy outcome, not a server fault. Never report success.
+      return res.status(409).json(createErrorResponse({
+        code: 'CLEANUP_TARGET_REJECTED',
+        error: err.message,
+        remediation: 'DerivedData was not removed. If this path is a symlink or is missing, resolve that before retrying.',
+      }));
+    }
+
+    // Measure before deleting so the reclaimed figure is observed, not invented.
+    const reclaimedBytes = measureDirectorySize(validation.realPath);
+
+    // Last-moment re-verification: the window between validation and rm is the
+    // TOCTOU window this call closes.
+    assertUnchanged(guard, { maxAgeMs: 30_000 });
+    await runSafeCommand('/bin/rm', ['-rf', validation.realPath], 5000);
 
     const audit = logAuditEntry({
       operation: 'Purge Xcode DerivedData & Build Caches',
@@ -362,14 +553,32 @@ router.post('/clean-xcode', async (_req, res) => {
       risk: 'safe',
       permissionLevel: 'Standard User',
       result: 'success',
-      durationSeconds: 0.6,
-      changesMade: ['Purged Xcode DerivedData build artifacts and indexed module cache.'],
-      reclaimedBytes: 1024 * 1024 * 1024 * 4.8,
+      durationSeconds: 0,
+      changesMade: [`Purged Xcode DerivedData at ${validation.realPath}.`],
+      reclaimedBytes,
     });
 
-    res.json({ success: true, reclaimedMB: 4800, audit, message: 'Xcode DerivedData purged successfully.' });
+    res.json({
+      success: true,
+      reclaimedMB: Math.round(reclaimedBytes / (1024 * 1024)),
+      measurement: 'observed',
+      path: validation.realPath,
+      audit,
+      message: reclaimedBytes > 0
+        ? 'Xcode DerivedData purged successfully.'
+        : 'DerivedData was already empty; nothing was reclaimed.',
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    const toctou = /^\[TOCTOU\]/.test(err.message);
+    res.status(toctou ? 409 : 500).json(createErrorResponse({
+      code: toctou ? 'TARGET_CHANGED_DURING_OPERATION' : 'CLEANUP_FAILED',
+      error: err.message,
+      remediation: toctou
+        ? 'The directory changed between validation and deletion, so nothing was deleted. Re-run the scan.'
+        : 'No cleanup was performed. Check disk permissions and retry.',
+    }));
+  } finally {
+    releaseGuard(guard);
   }
 });
 
@@ -600,25 +809,73 @@ router.post('/thin-snapshots', async (req, res) => {
 });
 
 // ── POST /api/actions/purge-ram ─────────────────────────────────────────────
-router.post('/purge-ram', async (_req, res) => {
+// v10: 15s cooldown + memory lock so repeated clicks cannot thrash the page cache,
+// and the reclaimed figure is now MEASURED rather than the old hardcoded 512 MB.
+router.post('/purge-ram', validateRequest('POST /api/actions/purge-ram'), async (req, res) => {
   const isMacOs = process.platform === 'darwin';
   const commandId = isMacOs ? 'mac.purge.ram' : 'win.flushdns';
-  try {
-    const result = await executeAllowlistedCommand(commandId, {});
-    const audit = logAuditEntry({
-      operation: isMacOs ? 'Purge Inactive RAM & Memory Cache' : 'Trim Inactive System Memory',
-      commandId,
-      risk: 'safe',
-      permissionLevel: 'Standard User',
-      result: result.success ? 'success' : 'warning',
-      durationSeconds: result.durationSeconds,
-      changesMade: ['Inactive unified memory caches flushed to boost available memory.'],
-      reclaimedBytes: 1024 * 1024 * 512,
-    });
-    res.json({ success: true, reclaimedMB: 512, result, audit });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  const { idempotencyKey = null, dryRun = false } = req.body || {};
+
+  const outcome = await runGuardedOperation({
+    actionId: 'storage.purgeRam',
+    params: {},
+    idempotencyKey,
+    dryRun,
+    requestId: req.headers['x-request-id'] || null,
+    source: 'api:/api/actions/purge-ram',
+    snapshot: async () => {
+      const os = await import('os');
+      return { freeBytes: os.freemem(), totalBytes: os.totalmem(), sampledAt: new Date().toISOString() };
+    },
+    assertVerified: (before, after) => after.freeBytes >= before.freeBytes,
+    execute: async () => executeAllowlistedCommand(commandId, {}),
+  });
+
+  if (!outcome.ok) {
+    return res.status(outcome.httpStatus || 500).json(createErrorResponse({
+      code: outcome.code,
+      error: outcome.error,
+      recoverable: outcome.recoverable ?? true,
+      remediation: outcome.remediation || null,
+      operationId: outcome.operationId,
+      details: outcome.retryAfterMs ? { retryAfterMs: outcome.retryAfterMs } : null,
+    }));
   }
+
+  if (outcome.deduplicated) {
+    return res.json({ success: true, ok: true, operationId: outcome.operationId, deduplicated: true, message: outcome.message, result: outcome.result });
+  }
+
+  const before = outcome.verification?.beforeState?.freeBytes ?? 0;
+  const after = outcome.verification?.afterState?.freeBytes ?? 0;
+  const reclaimedBytes = Math.max(0, after - before);
+
+  const audit = logAuditEntry({
+    operation: `[${outcome.operationId}] ${isMacOs ? 'Purge Inactive RAM & Memory Cache' : 'Trim Inactive System Memory'}`,
+    commandId,
+    risk: 'safe',
+    permissionLevel: 'Standard User',
+    result: 'success',
+    durationSeconds: +(((outcome.operation?.durationMs || 0) / 1000).toFixed(2)),
+    changesMade: ['Inactive unified memory caches flushed to boost available memory.'],
+    reclaimedBytes,
+  });
+
+  res.json({
+    success: true,
+    ok: true,
+    operationId: outcome.operationId,
+    actionId: 'storage.purgeRam',
+    // Measured from real before/after telemetry — 0 is an honest answer.
+    reclaimedMB: Math.round(reclaimedBytes / 1024 / 1024),
+    reclaimedBytes,
+    measurement: 'observed',
+    result: outcome.result,
+    verification: outcome.verification,
+    timeline: outcome.operation?.timeline,
+    audit,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // ── POST /api/actions/restart-audio ─────────────────────────────────────────
@@ -664,30 +921,79 @@ router.post('/rebuild-icon-cache', async (_req, res) => {
 });
 
 // ── POST /api/actions/kill-port ─────────────────────────────────────────────
-router.post('/kill-port', async (req, res) => {
-  const { port } = req.body;
-  if (!port) return res.status(400).json({ error: 'Port number required.' });
+// v10: fully guarded. Operation ID (P0 #7), idempotency key + lock + cooldown +
+// rate limit (P0 #8), chaos hook (P0 #5), before/after verification.
+// A double-clicked button can no longer kill twenty processes.
+router.post('/kill-port', validateRequest('POST /api/actions/kill-port'), async (req, res) => {
+  const { port, idempotencyKey = null, dryRun = false } = req.body;
 
-  try {
-    const result = isMac
-      ? await killPortProcess(port)
-      : { success: true, killedPids: [] };
+  const outcome = await runGuardedOperation({
+    actionId: 'process.killPort',
+    params: { port: Number(port) },
+    idempotencyKey,
+    dryRun,
+    requestId: req.headers['x-request-id'] || null,
+    source: 'api:/api/actions/kill-port',
+    // BEFORE/AFTER proof: is the port still bound?
+    snapshot: async () => {
+      const ports = isMac ? await getMacListeningPorts().catch(() => []) : [];
+      const match = (Array.isArray(ports) ? ports : []).filter((p) => String(p.port) === String(port));
+      return { port: Number(port), boundBy: match, isBound: match.length > 0, sampledAt: new Date().toISOString() };
+    },
+    assertVerified: (before, after) => before.isBound === true && after.isBound === false,
+    execute: async () => {
+      const result = isMac ? await killPortProcess(port) : { success: true, killedPids: [] };
+      if (!result.success && result.error) throw new Error(result.error);
+      return { killedPids: result.killedPids || [], port: Number(port) };
+    },
+  });
 
-    const audit = logAuditEntry({
-      operation: `Terminate Process Listening on Port ${port}`,
-      commandId: 'net.kill.port',
-      risk: 'moderate',
-      permissionLevel: 'Standard User',
-      result: result.success ? 'success' : 'error',
-      durationSeconds: 0.2,
-      changesMade: [`Terminated process holding TCP port ${port}`],
-      outputLogSnippet: result.error || `Successfully freed port ${port}`,
-    });
-
-    res.json({ success: result.success, error: result.error, audit });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  if (!outcome.ok) {
+    return res.status(outcome.httpStatus || 500).json(createErrorResponse({
+      code: outcome.code,
+      error: outcome.error,
+      recoverable: outcome.recoverable ?? true,
+      remediation: outcome.remediation || null,
+      operationId: outcome.operationId,
+      details: outcome.retryAfterMs ? { retryAfterMs: outcome.retryAfterMs } : null,
+    }));
   }
+
+  if (outcome.deduplicated) {
+    return res.json({
+      success: true,
+      ok: true,
+      operationId: outcome.operationId,
+      deduplicated: true,
+      message: outcome.message,
+      result: outcome.result,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  const audit = logAuditEntry({
+    operation: `[${outcome.operationId}] Terminate Process Listening on Port ${port}`,
+    commandId: 'net.kill.port',
+    risk: 'moderate',
+    permissionLevel: 'Standard User',
+    result: outcome.verification?.status === 'FAILED' ? 'warning' : 'success',
+    durationSeconds: +(((outcome.operation?.durationMs || 0) / 1000).toFixed(2)),
+    changesMade: [`Terminated process holding TCP port ${port}`],
+    outputLogSnippet: outcome.verification?.verdict,
+  });
+
+  res.json({
+    success: true,
+    ok: true,
+    operationId: outcome.operationId,
+    actionId: 'process.killPort',
+    result: outcome.result,
+    // Proof, not a claim: the port was bound before and is not bound after.
+    verification: outcome.verification,
+    timeline: outcome.operation?.timeline,
+    audit,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // ── POST /api/actions/cancel ────────────────────────────────────────────────
