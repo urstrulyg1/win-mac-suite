@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   /* ── Light "zentra" surface palette ── */
   --color-bg-app: #e9ecf2;
@@ -33,6 +35,36 @@
 
   --font-sans: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* ── Dark mode overrides ── */
+.dark {
+  --color-bg-app: #0d1117;
+  --color-bg-app-2: #0f1420;
+  --color-surface: #161b27;
+  --color-surface-2: #1c2233;
+  --color-surface-3: #1a2030;
+  --color-surface-hover: #1e2638;
+
+  --color-ink: #f0f4ff;
+  --color-ink-2: #c9d1e0;
+  --color-ink-3: #8892a4;
+  --color-ink-4: #5a6478;
+  --color-line: #2a3347;
+  --color-line-strong: #35415a;
+
+  --color-brand: #3b82f6;
+  --color-brand-2: #60a5fa;
+  --color-brand-3: #93c5fd;
+  --color-cyan: #22d3ee;
+  --color-violet: #8b5cf6;
+  --color-pink: #f472b6;
+  --color-green: #22c55e;
+  --color-green-2: #4ade80;
+  --color-amber: #f59e0b;
+  --color-amber-2: #fbbf24;
+  --color-red: #f87171;
+  --color-orange: #fb923c;
 }
 
 *, *::before, *::after {
@@ -69,6 +101,13 @@ code, kbd, samp, pre, .font-mono {
     linear-gradient(180deg, var(--color-bg-app-2) 0%, var(--color-bg-app) 100%);
 }
 
+.dark .app-bg {
+  background:
+    radial-gradient(1100px 520px at 78% -8%, rgba(59, 130, 246, 0.12), transparent 60%),
+    radial-gradient(900px 480px at 12% -4%, rgba(139, 92, 246, 0.10), transparent 55%),
+    linear-gradient(180deg, var(--color-bg-app-2) 0%, var(--color-bg-app) 100%);
+}
+
 .app-bg::before {
   content: '';
   position: fixed;
@@ -80,6 +119,11 @@ code, kbd, samp, pre, .font-mono {
   background-size: 28px 28px;
   mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 80%);
   z-index: -1;
+}
+
+.dark .app-bg::before {
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px);
 }
 
 /* ── Surfaces & cards ── */
@@ -94,11 +138,23 @@ code, kbd, samp, pre, .font-mono {
   transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
 }
 
+.dark .card {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.2),
+    0 8px 24px -12px rgba(0, 0, 0, 0.4);
+}
+
 .card-hover:hover {
   border-color: var(--color-line-strong);
   box-shadow:
     0 2px 4px rgba(16, 24, 40, 0.05),
     0 18px 40px -16px rgba(37, 99, 235, 0.18);
+}
+
+.dark .card-hover:hover {
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.25),
+    0 18px 40px -16px rgba(59, 130, 246, 0.22);
 }
 
 .card-soft {
@@ -134,6 +190,10 @@ code, kbd, samp, pre, .font-mono {
   color: #fff;
   border-color: var(--color-ink);
   box-shadow: 0 6px 16px -6px rgba(15, 23, 42, 0.45);
+}
+
+.dark .chip-active {
+  box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.6);
 }
 
 .pill {
@@ -199,8 +259,18 @@ code, kbd, samp, pre, .font-mono {
   border-color: #fecaca;
 }
 
+.dark .btn-danger {
+  background: rgba(185, 28, 28, 0.18);
+  color: #fca5a5;
+  border-color: rgba(185, 28, 28, 0.35);
+}
+
 .btn-danger:hover {
   background: #fee2e2;
+}
+
+.dark .btn-danger:hover {
+  background: rgba(185, 28, 28, 0.28);
 }
 
 /* ── Inputs ── */
@@ -224,6 +294,10 @@ code, kbd, samp, pre, .font-mono {
   box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.14);
 }
 
+.dark .field:focus {
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.20);
+}
+
 /* ── Scrollbars ── */
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -233,6 +307,13 @@ code, kbd, samp, pre, .font-mono {
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.50); }
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.20);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.35);
+}
 
 /* ── Keyframes ── */
 

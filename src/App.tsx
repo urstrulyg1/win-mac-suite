@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import type { RunMode, AppPhase, Section, LogEntry, RunSummary, SystemInfo } from './types';
 import { SYSTEM_INFO, createSections, getSectionSimData, shouldSkipSection, generateTimestamp } from './data';
 import { useToast } from './components/Toast';
+import { useDarkMode } from './hooks/useDarkMode';
 import TopNav from './components/TopNav';
 import LandingHero from './components/LandingHero';
 import RunningDashboard from './components/RunningDashboard';
@@ -59,6 +60,7 @@ function buildExportReport(
 
 export default function App() {
   const { toast } = useToast();
+  const { dark, toggle: toggleDark } = useDarkMode();
   const [phase, setPhase] = useState<AppPhase>('landing');
   const [mode, setMode] = useState<RunMode>('Safe');
   const [activeTab, setActiveTab] = useState<string>('overview');
@@ -346,11 +348,15 @@ export default function App() {
   const liveSystem: SystemInfo = backendOnline ? realSysInfo : SYSTEM_INFO;
 
   return (
-    <div className="min-h-screen app-bg text-slate-900 antialiased selection:bg-blue-200 selection:text-blue-900 overflow-x-hidden">
+    <div className="min-h-screen app-bg antialiased selection:bg-blue-200 selection:text-blue-900 overflow-x-hidden">
       <TopNav
         phase={phase}
         activeTab={activeTab}
         isRunning={isRunning}
+        dark={dark}
+        onToggleDark={toggleDark}
+        summary={summary}
+        systemInfo={liveSystem}
         onHome={() => handleNavTab('overview')}
         onReset={reset}
         onBack={phase === 'configuring' ? () => { setActiveTab('overview'); setPhase('landing'); } : undefined}
@@ -367,7 +373,12 @@ export default function App() {
             className="relative z-10 w-full"
             style={{ pointerEvents: 'auto' }}
           >
-            <LandingHero onStart={handleStartWithMode} />
+            <LandingHero
+              onStart={handleStartWithMode}
+              systemInfo={liveSystem}
+              summary={summary}
+              backendOnline={backendOnline}
+            />
           </motion.div>
         ) : phase === 'reports' ? (
           <motion.div

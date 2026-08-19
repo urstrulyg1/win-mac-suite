@@ -27,21 +27,21 @@ export default function ReportsPage({ summary, onStartNew, onExport }: Props) {
       >
         <div>
           <div className="inline-flex items-center gap-2 mb-2">
-            <span className="pill bg-slate-100 text-slate-600 border-slate-200">
+            <span className="pill" style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-2)', borderColor: 'var(--color-line)' }}>
               <FileText size={12} /> Reports
             </span>
             {summary ? (
-              <span className="pill bg-emerald-50 text-emerald-700 border-emerald-200">
+              <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25">
                 <CheckCircle2 size={12} /> Last run available
               </span>
             ) : (
-              <span className="pill bg-slate-100 text-slate-500 border-slate-200">
+              <span className="pill" style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-3)', borderColor: 'var(--color-line)' }}>
                 No runs yet
               </span>
             )}
           </div>
-          <h1 className="text-hero font-extrabold text-slate-900 tracking-tight">Reports</h1>
-          <p className="text-slate-500 mt-1.5 text-[15px] max-w-xl">
+          <h1 className="text-hero font-extrabold tracking-tight" style={{ color: 'var(--color-ink)' }}>Reports</h1>
+          <p className="mt-1.5 text-[15px] max-w-xl" style={{ color: 'var(--color-ink-3)' }}>
             {summary
               ? 'Results and diagnostics from your last maintenance run.'
               : 'Run the maintenance suite to generate your first report.'}
@@ -68,12 +68,12 @@ export default function ReportsPage({ summary, onStartNew, onExport }: Props) {
           transition={{ duration: 0.45, ease }}
           className="card p-12 flex flex-col items-center justify-center text-center gap-5 min-h-[420px]"
         >
-          <div className="w-20 h-20 rounded-3xl bg-slate-50 border border-slate-100 flex items-center justify-center">
-            <BarChart3 size={36} className="text-slate-300" />
+          <div className="w-20 h-20 rounded-3xl border flex items-center justify-center" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+            <BarChart3 size={36} style={{ color: 'var(--color-line-strong)' }} />
           </div>
           <div className="space-y-2 max-w-sm">
-            <h2 className="text-xl font-bold text-slate-900">No reports yet</h2>
-            <p className="text-sm text-slate-500 leading-relaxed">
+            <h2 className="text-xl font-bold" style={{ color: 'var(--color-ink)' }}>No reports yet</h2>
+            <p className="text-sm leading-relaxed" style={{ color: 'var(--color-ink-3)' }}>
               Complete a maintenance run to see your system health score, packages updated,
               space reclaimed, and follow-up recommendations here.
             </p>
@@ -88,15 +88,15 @@ export default function ReportsPage({ summary, onStartNew, onExport }: Props) {
               Run Health Scan Only
             </button>
           </div>
-          <div className="grid grid-cols-3 gap-4 pt-4 border-t border-slate-100 w-full max-w-md">
+          <div className="grid grid-cols-3 gap-4 pt-4 w-full max-w-md border-t" style={{ borderColor: 'var(--color-line)' }}>
             {[
-              { label: 'Health Score',     value: '—',   color: 'text-slate-300' },
-              { label: 'Packages Updated', value: '—',   color: 'text-slate-300' },
-              { label: 'Space Reclaimed',  value: '—',   color: 'text-slate-300' },
+              { label: 'Health Score',     value: '—' },
+              { label: 'Packages Updated', value: '—' },
+              { label: 'Space Reclaimed',  value: '—' },
             ].map(s => (
               <div key={s.label} className="text-center">
-                <p className={`text-2xl font-extrabold font-mono ${s.color}`}>{s.value}</p>
-                <p className="text-[11px] text-slate-400 font-medium mt-0.5">{s.label}</p>
+                <p className="text-2xl font-extrabold font-mono" style={{ color: 'var(--color-line-strong)' }}>{s.value}</p>
+                <p className="text-[11px] font-medium mt-0.5" style={{ color: 'var(--color-ink-4)' }}>{s.label}</p>
               </div>
             ))}
           </div>
@@ -106,7 +106,7 @@ export default function ReportsPage({ summary, onStartNew, onExport }: Props) {
       {/* ── Summary available ── */}
       {summary && <SummaryReport summary={summary} onStartNew={onStartNew} onExport={onExport} />}
 
-      <p className="text-center text-[11px] text-slate-400 font-mono mt-8 tracking-wide">
+      <p className="text-center text-[11px] font-mono mt-8 tracking-wide" style={{ color: 'var(--color-ink-4)' }}>
         WinSuite Diagnostics Engine · Version 5.0.0
       </p>
     </div>
@@ -139,21 +139,21 @@ function SummaryReport({
         <motion.span
           initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 350, damping: 20, delay: 0.1 }}
-          className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold shadow-sm border ${
-            cancelled
-              ? 'bg-amber-50 border-amber-200 text-amber-700'
-              : 'bg-emerald-50 border-emerald-200 text-emerald-700'
-          }`}
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold shadow-sm border"
+          style={cancelled
+            ? { backgroundColor: 'rgba(245,158,11,0.12)', borderColor: 'rgba(245,158,11,0.30)', color: '#f59e0b' }
+            : { backgroundColor: 'rgba(34,197,94,0.12)', borderColor: 'rgba(34,197,94,0.30)', color: '#22c55e' }
+          }
         >
           {cancelled ? <Ban size={14} strokeWidth={2.5} /> : <CheckCircle2 size={14} strokeWidth={2.5} />}
           {cancelled ? 'Run Cancelled — Partial Report' : 'Maintenance Suite Complete'}
         </motion.span>
-        <h2 className="text-h2 font-extrabold text-slate-900 tracking-tight">
+        <h2 className="text-h2 font-extrabold tracking-tight" style={{ color: 'var(--color-ink)' }}>
           Optimization &amp; Health Report
         </h2>
         {summary.mode && (
-          <p className="text-xs text-slate-500 font-mono">
-            Profile: <span className="text-blue-700 font-bold">{summary.mode}</span>
+          <p className="text-xs font-mono" style={{ color: 'var(--color-ink-3)' }}>
+            Profile: <span className="text-blue-500 font-bold">{summary.mode}</span>
             {summary.startedAt && <> · {new Date(summary.startedAt).toLocaleString()}</>}
           </p>
         )}
@@ -181,10 +181,10 @@ function SummaryReport({
               style={{ backgroundColor: s.bg, color: s.color }}>
               <s.icon size={17} />
             </div>
-            <p className="text-2xl font-extrabold font-mono text-slate-900 tabular-nums w-full text-center leading-tight">
+            <p className="text-2xl font-extrabold font-mono tabular-nums w-full text-center leading-tight" style={{ color: 'var(--color-ink)' }}>
               {s.node}
             </p>
-            <p className="text-[11.5px] text-slate-500 font-semibold mt-1 w-full text-center" title={s.label}>
+            <p className="text-[11.5px] font-semibold mt-1 w-full text-center" title={s.label} style={{ color: 'var(--color-ink-3)' }}>
               {s.label}
             </p>
           </motion.div>
@@ -196,14 +196,15 @@ function SummaryReport({
         <motion.div
           initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5, ease }}
-          className="flex items-start sm:items-center gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800"
+          className="flex items-start sm:items-center gap-3 p-4 rounded-2xl border"
+          style={{ backgroundColor: 'rgba(245,158,11,0.10)', borderColor: 'rgba(245,158,11,0.28)', color: '#d97706' }}
         >
-          <div className="p-2 rounded-xl bg-amber-100 text-amber-700 shrink-0">
+          <div className="p-2 rounded-xl shrink-0" style={{ backgroundColor: 'rgba(245,158,11,0.18)', color: '#f59e0b' }}>
             <RotateCcw size={18} className="animate-spin-slow" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-amber-800">System Restart Recommended</p>
-            <p className="text-xs text-amber-700/80 mt-0.5 leading-relaxed">
+            <p className="text-sm font-bold">System Restart Recommended</p>
+            <p className="text-xs mt-0.5 leading-relaxed opacity-80">
               Windows updates and driver components are staged to finish installation upon next reboot.
             </p>
           </div>
@@ -223,9 +224,10 @@ function SummaryReport({
           </div>
           <div className="space-y-2">
             {summary.followUps.map((f, i) => (
-              <div key={i} className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs min-w-0">
+              <div key={i} className="flex items-start gap-2.5 p-2.5 rounded-xl text-xs min-w-0 border"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
                 <ChevronRight size={14} className="text-amber-500 shrink-0 mt-0.5" />
-                <span className="text-slate-600 break-word-safe leading-relaxed flex-1">{f}</span>
+                <span className="break-word-safe leading-relaxed flex-1" style={{ color: 'var(--color-ink-2)' }}>{f}</span>
               </div>
             ))}
           </div>

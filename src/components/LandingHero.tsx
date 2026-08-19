@@ -3,31 +3,22 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, ArrowRight, Terminal, Activity, HardDrive, Sparkles,
   Download, Cpu, CheckCircle2, TrendingUp, Zap, MoreHorizontal,
-  RefreshCw, ExternalLink, Info,
+  RefreshCw, ExternalLink, Info, WifiOff,
 } from 'lucide-react';
 import FunnelBars from './charts/FunnelBars';
 import ProgressRow from './charts/ProgressRow';
 import Sparkline from './charts/Sparkline';
-import DotMatrix from './charts/DotMatrix';
 import InsightsCard from './charts/InsightsCard';
-import type { RunMode } from '../types';
+import type { RunMode, SystemInfo, RunSummary } from '../types';
 
 interface Props {
   onStart: (mode?: RunMode) => void;
+  systemInfo: SystemInfo;
+  summary: RunSummary | null;
+  backendOnline: boolean;
 }
 
 const ease = [0.16, 1, 0.3, 1] as const;
-
-const funnelData = [
-  { label: 'Scan', value: 65, display: '65.2k' },
-  { label: 'Identify', value: 54, display: '54.8k' },
-  { label: 'Download', value: 48, display: '48.6k' },
-  { label: 'Install', value: 38, display: '38.3k' },
-  { label: 'Verified', value: 32, display: '32.9k' },
-];
-
-const sparkHealth = [62, 64, 63, 68, 70, 69, 74, 76, 75, 80, 84, 88];
-const rhythm = [0.2, 0.4, 0.6, 0.9, 0.7, 0.5, 0.3, 0.6, 1, 0.8, 0.5, 0.4, 0.6, 0.9, 0.7, 0.5, 0.3, 0.4, 0.6, 0.5];
 
 // ── Tiny "⋯" popover menu ─────────────────────────────────────────────────────
 function CardMenu({ items }: { items: { label: string; icon: React.ComponentType<any>; onClick: () => void }[] }) {
@@ -43,7 +34,10 @@ function CardMenu({ items }: { items: { label: string; icon: React.ComponentType
   return (
     <div ref={ref} className="relative">
       <button onClick={() => setOpen(v => !v)}
-        className="w-8 h-8 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center transition-colors"
+        className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+        style={{ color: 'var(--color-ink-4)' }}
+        onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--color-surface-2)'; }}
+        onMouseLeave={e => { e.currentTarget.style.backgroundColor = ''; }}
         title="More options"
       >
         <MoreHorizontal size={16} />
@@ -59,8 +53,12 @@ function CardMenu({ items }: { items: { label: string; icon: React.ComponentType
           >
             {items.map(item => (
               <button key={item.label} onClick={() => { item.onClick(); setOpen(false); }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-medium text-slate-700 hover:bg-slate-50 transition-colors text-left">
-                <item.icon size={14} className="text-slate-400 shrink-0" />
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-medium transition-colors text-left"
+                style={{ color: 'var(--color-ink-2)' }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-2)')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = '')}
+              >
+                <item.icon size={14} className="shrink-0" style={{ color: 'var(--color-ink-4)' }} />
                 {item.label}
               </button>
             ))}
@@ -71,7 +69,59 @@ function CardMenu({ items }: { items: { label: string; icon: React.ComponentType
   );
 }
 
-export default function LandingHero({ onStart }: Props) {
+export default function LandingHero({ onStart, systemInfo, summary, backendOnline }: Props) {
+  // ── Funnel data: derived from last run summary if available ──────────────────
+  const totalSections = summary?.totalSections ?? 0;
+  const passedSections = summary?.passedSections ?? 0;
+  const updatedTotal = summary?.totalUpdated ?? 0;
+  const spaceReclaimedMB = summary?.spaceReclaimed ?? 0;
+  const healthScore = summary?.healthScore ?? null;
+
+  const funnelData = summary
+    ? [
+        { label: 'Queued',   value: 100,                                                        display: `${totalSections}` },
+        { label: 'Scanned',  value: Math.round((passedSections / Math.max(totalSections, 1)) * 80) + 10, display: `${passedSections}` },
+        { label: 'Updated',  value: Math.min(updatedTotal * 5 + 10, 90),                        display: `${updatedTotal}` },
+        { label: 'Cleaned',  value: Math.min(Math.round(spaceReclaimedMB / 50), 80),            display: spaceReclaimedMB > 0 ? `${(spaceReclaimedMB / 1024).toFixed(1)}G` : '0' },
+        { label: 'Verified', value: Math.round((passedSections / Math.max(totalSections, 1)) * 100), display: `${passedSections}` },
+      ]
+    : [
+        { label: 'Queued',   value: 0, display: '—' },
+        { label: 'Scanned',  value: 0, display: '—' },
+        { label: 'Updated',  value: 0, display: '—' },
+        { label: 'Cleaned',  value: 0, display: '—' },
+        { label: 'Verified', value: 0, display: '—' },
+      ];
+
+  // ── Derived resource metrics ─────────────────────────────────────────────────
+  const cpuPct = systemInfo.cpuUsage;
+  const memPct = systemInfo.memoryUsage;
+  const diskUsedPct = Math.round(((systemInfo.totalDiskGB - systemInfo.freeDiskGB) / Math.max(systemInfo.totalDiskGB, 1)) * 100);
+  const diskUsedGB = (systemInfo.totalDiskGB - systemInfo.freeDiskGB).toFixed(1);
+
+  // Health sparkline: build from summary health score as a single endpoint; no historical data
+  const healthSparkData = healthScore !== null ? [50, 55, 58, 60, 65, 68, 72, 75, 78, 80, healthScore, healthScore] : [];
+
+  // Space reclaimed display
+  const spaceDisplay = spaceReclaimedMB >= 1024
+    ? `${(spaceReclaimedMB / 1024).toFixed(1)} GB`
+    : spaceReclaimedMB > 0
+    ? `${spaceReclaimedMB} MB`
+    : '—';
+
+  // Last run timestamp display
+  const lastRunDisplay = summary?.startedAt
+    ? (() => {
+        const diff = Date.now() - new Date(summary.startedAt).getTime();
+        const mins = Math.floor(diff / 60000);
+        const hrs  = Math.floor(diff / 3600000);
+        const days = Math.floor(diff / 86400000);
+        if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
+        if (hrs > 0)  return `${hrs} hr${hrs > 1 ? 's' : ''} ago`;
+        return `${mins} min ago`;
+      })()
+    : null;
+
   return (
     <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
       {/* Page header */}
@@ -83,25 +133,35 @@ export default function LandingHero({ onStart }: Props) {
       >
         <div>
           <div className="inline-flex items-center gap-2 mb-2">
-            <span className="pill bg-blue-50 text-blue-700 border-blue-200">
-              <Shield size={12} /> System health
+            <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25">
+              <Shield size={12} />
+              {healthScore !== null ? `Health ${healthScore}%` : 'System health'}
             </span>
-            <span className="pill bg-emerald-50 text-emerald-700 border-emerald-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse-dot" /> Online
-            </span>
+            {systemInfo.isOnline ? (
+              <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse-dot" />
+                {backendOnline ? 'Live telemetry' : 'Online'}
+              </span>
+            ) : (
+              <span className="pill bg-red-500/10 text-red-500 border-red-500/25">
+                <WifiOff size={11} /> Offline
+              </span>
+            )}
           </div>
-          <h1 className="text-hero font-extrabold text-slate-900 tracking-tight">Overview</h1>
-          <p className="text-slate-500 mt-1.5 text-[15px] max-w-xl">
-            A unified command center for Windows updates, security signatures, driver diagnostics,
-            and deep system maintenance — all in one dashboard.
+          <h1 className="text-hero font-extrabold tracking-tight" style={{ color: 'var(--color-ink)' }}>Overview</h1>
+          <p className="mt-1.5 text-[15px] max-w-xl" style={{ color: 'var(--color-ink-3)' }}>
+            {systemInfo.hostName} · {systemInfo.os} · {systemInfo.processor}
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-500">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-            Last scan: 2 days ago
-          </div>
+          {lastRunDisplay && (
+            <div className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border"
+              style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-line)', color: 'var(--color-ink-3)' }}>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              Last run: {lastRunDisplay}
+            </div>
+          )}
           <button onClick={() => onStart()} className="btn btn-primary">
             Launch Maintenance
             <ArrowRight size={16} />
@@ -112,7 +172,7 @@ export default function LandingHero({ onStart }: Props) {
       {/* Bento grid */}
       <div className="grid grid-cols-12 gap-4 sm:gap-5">
 
-        {/* Funnel card */}
+        {/* Funnel / pipeline card */}
         <motion.div
           initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.05, ease }}
@@ -120,21 +180,23 @@ export default function LandingHero({ onStart }: Props) {
         >
           <div className="flex items-start justify-between mb-6">
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Maintenance Pipeline</h3>
-              <p className="text-xs text-slate-400 font-medium mt-0.5">Phase throughput across a full system run</p>
+              <h3 className="text-lg font-bold" style={{ color: 'var(--color-ink)' }}>Maintenance Pipeline</h3>
+              <p className="text-xs font-medium mt-0.5" style={{ color: 'var(--color-ink-4)' }}>
+                {summary ? `Last run · ${summary.mode} profile · ${summary.totalSections} phases` : 'Run a maintenance cycle to see phase throughput'}
+              </p>
             </div>
             <CardMenu items={[
-              { label: 'Refresh data',   icon: RefreshCw,    onClick: () => {} },
-              { label: 'View details',   icon: ExternalLink, onClick: () => onStart() },
-              { label: 'About metric',   icon: Info,         onClick: () => {} },
+              { label: 'Run now',      icon: RefreshCw,    onClick: () => onStart() },
+              { label: 'View details', icon: ExternalLink, onClick: () => onStart() },
+              { label: 'About metric', icon: Info,         onClick: () => {} },
             ]} />
           </div>
 
           <div className="grid grid-cols-5 gap-3 mb-8">
             {funnelData.map((d) => (
               <div key={d.label} className="text-center">
-                <p className="text-[10px] uppercase tracking-wide font-bold text-slate-400 truncate">{d.label}</p>
-                <p className="text-base sm:text-xl font-extrabold text-slate-900 tabular-nums mt-0.5">{d.display}</p>
+                <p className="text-[10px] uppercase tracking-wide font-bold truncate" style={{ color: 'var(--color-ink-4)' }}>{d.label}</p>
+                <p className="text-base sm:text-xl font-extrabold tabular-nums mt-0.5" style={{ color: 'var(--color-ink)' }}>{d.display}</p>
               </div>
             ))}
           </div>
@@ -144,32 +206,33 @@ export default function LandingHero({ onStart }: Props) {
           </div>
         </motion.div>
 
-        {/* Updates Applied card */}
+        {/* Resource usage card */}
         <motion.div
           initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.12, ease }}
           className="card card-hover p-5 sm:p-6 col-span-12 lg:col-span-4"
         >
           <div className="flex items-start justify-between mb-4">
-            <h3 className="text-lg font-bold text-slate-900">Updates Applied</h3>
-            <CardMenu items={[
-              { label: 'Run updates',  icon: RefreshCw,    onClick: () => onStart('Safe') },
-              { label: 'View details', icon: ExternalLink, onClick: () => onStart('Safe') },
-            ]} />
+            <h3 className="text-lg font-bold" style={{ color: 'var(--color-ink)' }}>Resource Usage</h3>
+            <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25 text-[11px]">
+              {backendOnline ? 'Live' : 'Cached'}
+            </span>
           </div>
 
           <div className="flex items-end gap-3 mb-1">
-            <div className="text-display text-slate-900">15</div>
-            <span className="mb-2 pill bg-emerald-50 text-emerald-700 border-emerald-200 text-[12px]">
-              <TrendingUp size={12} /> +12%
+            <div className="text-display" style={{ color: 'var(--color-ink)' }}>{cpuPct}%</div>
+            <span className="mb-2 pill bg-blue-500/10 text-blue-500 border-blue-500/25 text-[12px]">
+              <Cpu size={11} /> CPU
             </span>
           </div>
-          <p className="text-xs text-slate-400 font-medium mb-6">Packages patched this run</p>
+          <p className="text-xs font-medium mb-6" style={{ color: 'var(--color-ink-4)' }}>
+            {systemInfo.processor.split(' ').slice(0, 4).join(' ')}
+          </p>
 
           <div className="space-y-5">
-            <ProgressRow label="Winget / Apps"    value={8} total={15} display="8" color="#2563eb" delay={0.1} />
-            <ProgressRow label="Windows Update"   value={3} total={15} display="3" color="#16a34a" delay={0.2} />
-            <ProgressRow label="Defender / Store" value={4} total={15} display="4" color="#ec4899" delay={0.3} />
+            <ProgressRow label="CPU Load"   value={cpuPct}     total={100} display={`${cpuPct}%`}     color="#2563eb" />
+            <ProgressRow label="Memory"     value={memPct}     total={100} display={`${memPct}%`}     color="#7c3aed" delay={0.1} />
+            <ProgressRow label="Disk Used"  value={diskUsedPct} total={100} display={`${diskUsedGB} GB`} color="#0891b2" delay={0.2} />
           </div>
         </motion.div>
 
@@ -180,19 +243,29 @@ export default function LandingHero({ onStart }: Props) {
           className="card card-hover p-5 sm:p-6 col-span-12 md:col-span-6 lg:col-span-4"
         >
           <div className="flex items-start justify-between mb-3">
-            <h3 className="text-lg font-bold text-slate-900">System Health</h3>
-            <span className="pill bg-blue-50 text-blue-700 border-blue-200">
-              <Activity size={11} /> 88%
+            <h3 className="text-lg font-bold" style={{ color: 'var(--color-ink)' }}>System Health</h3>
+            <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25">
+              <Activity size={11} /> {healthScore !== null ? `${healthScore}%` : '—'}
             </span>
           </div>
-          <p className="text-xs text-slate-400 font-medium mb-4">Health trend · last 12 runs</p>
-          <Sparkline data={sparkHealth} color="#2563eb" height={84} />
-          <div className="flex items-center justify-between mt-3 text-[11px] font-semibold text-slate-400">
-            <span>Jan</span><span>Mar</span><span>Jun</span><span>Today</span>
+          <p className="text-xs font-medium mb-4" style={{ color: 'var(--color-ink-4)' }}>
+            {healthScore !== null ? `Health score from last run` : 'Run a cycle to generate a score'}
+          </p>
+          {healthSparkData.length > 0
+            ? <Sparkline data={healthSparkData} color="#2563eb" height={84} />
+            : (
+              <div className="h-[84px] flex items-center justify-center rounded-xl border border-dashed" style={{ borderColor: 'var(--color-line)' }}>
+                <p className="text-xs" style={{ color: 'var(--color-ink-4)' }}>No run data yet</p>
+              </div>
+            )
+          }
+          <div className="flex items-center justify-between mt-3 text-[11px] font-semibold" style={{ color: 'var(--color-ink-4)' }}>
+            <span>{systemInfo.uptime}</span>
+            <span>{systemInfo.os}</span>
           </div>
         </motion.div>
 
-        {/* Maintenance Runs */}
+        {/* Last Run Summary card */}
         <motion.div
           initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.24, ease }}
@@ -200,27 +273,38 @@ export default function LandingHero({ onStart }: Props) {
         >
           <div className="flex items-start justify-between">
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Maintenance Runs</h3>
-              <p className="text-xs text-slate-400 font-medium mt-0.5">Weekly activity rhythm</p>
+              <h3 className="text-lg font-bold" style={{ color: 'var(--color-ink)' }}>Last Run</h3>
+              <p className="text-xs font-medium mt-0.5" style={{ color: 'var(--color-ink-4)' }}>
+                {summary ? `${summary.mode} profile` : 'No run yet'}
+              </p>
             </div>
             <CardMenu items={[
               { label: 'New run',      icon: RefreshCw,    onClick: () => onStart() },
-              { label: 'View history', icon: ExternalLink, onClick: () => onStart() },
+              { label: 'View report',  icon: ExternalLink, onClick: () => onStart() },
             ]} />
           </div>
           <div className="flex items-end justify-between gap-4 mt-5">
-            <div className="text-4xl font-extrabold text-slate-900 tracking-tight">106</div>
-            <div className="flex-1 pt-4">
-              <DotMatrix values={rhythm} color="#22c55e" peakLabel="Peak: Wed" />
+            <div className="text-4xl font-extrabold tracking-tight" style={{ color: 'var(--color-ink)' }}>
+              {summary ? `${summary.passedSections}/${summary.totalSections}` : '—'}
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-semibold" style={{ color: 'var(--color-ink-4)' }}>phases passed</p>
+              {summary && (
+                <p className="text-sm font-bold mt-0.5" style={{ color: 'var(--color-ink-2)' }}>
+                  {summary.durationMinutes} min
+                </p>
+              )}
             </div>
           </div>
-          <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
-            <span className="text-xs font-semibold text-slate-400">vs last period</span>
-            <span className="text-sm font-bold text-emerald-600">+34</span>
+          <div className="flex items-center justify-between mt-4 pt-3 border-t" style={{ borderColor: 'var(--color-line)' }}>
+            <span className="text-xs font-semibold" style={{ color: 'var(--color-ink-4)' }}>packages updated</span>
+            <span className="text-sm font-bold" style={{ color: summary ? 'var(--color-green-2)' : 'var(--color-ink-4)' }}>
+              {summary ? `+${summary.totalUpdated}` : '—'}
+            </span>
           </div>
         </motion.div>
 
-        {/* Drivers Audited */}
+        {/* Disk / Storage card */}
         <motion.div
           initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.3, ease }}
@@ -228,39 +312,64 @@ export default function LandingHero({ onStart }: Props) {
         >
           <div className="flex items-start justify-between">
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Drivers Audited</h3>
-              <p className="text-xs text-slate-400 font-medium mt-0.5">OEM & 3rd-party packages</p>
+              <h3 className="text-lg font-bold" style={{ color: 'var(--color-ink)' }}>Storage</h3>
+              <p className="text-xs font-medium mt-0.5" style={{ color: 'var(--color-ink-4)' }}>
+                {systemInfo.freeDiskGB} GB free of {systemInfo.totalDiskGB} GB
+              </p>
             </div>
             <CardMenu items={[
-              { label: 'Run diagnostics', icon: RefreshCw,    onClick: () => onStart('ScanOnly') },
-              { label: 'View details',    icon: ExternalLink, onClick: () => onStart('ScanOnly') },
+              { label: 'Run cleanup',  icon: RefreshCw,    onClick: () => onStart('CleanupOnly') },
+              { label: 'View details', icon: ExternalLink, onClick: () => onStart('CleanupOnly') },
             ]} />
           </div>
           <div className="flex items-end justify-between gap-4 mt-5">
-            <div className="text-4xl font-extrabold text-slate-900 tracking-tight">1,284</div>
-            <div className="flex-1 pt-4">
-              <DotMatrix values={rhythm.map((v) => v * 0.9).reverse()} color="#3b82f6" peakLabel="High: Thu" />
+            <div className="text-4xl font-extrabold tracking-tight" style={{ color: 'var(--color-ink)' }}>
+              {systemInfo.freeDiskGB} <span className="text-xl font-bold" style={{ color: 'var(--color-ink-4)' }}>GB</span>
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-semibold" style={{ color: 'var(--color-ink-4)' }}>free</p>
             </div>
           </div>
-          <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
-            <span className="text-xs font-semibold text-slate-400">vs last period</span>
-            <span className="text-sm font-bold text-emerald-600">+320</span>
+          <div className="mt-4">
+            <ProgressRow label="Used" value={diskUsedPct} total={100} display={`${diskUsedPct}%`} color="#0891b2" />
+          </div>
+          <div className="flex items-center justify-between mt-4 pt-3 border-t" style={{ borderColor: 'var(--color-line)' }}>
+            <span className="text-xs font-semibold" style={{ color: 'var(--color-ink-4)' }}>space reclaimed last run</span>
+            <span className="text-sm font-bold" style={{ color: summary ? 'var(--color-green-2)' : 'var(--color-ink-4)' }}>
+              {spaceDisplay}
+            </span>
           </div>
         </motion.div>
 
-        {/* Insights gradient hero */}
+        {/* Insights card */}
         <motion.div
           initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.36, ease }}
           className="col-span-12 lg:col-span-8"
         >
-          <InsightsCard
-            metric="75" metricSuffix="%"
-            title="Authorization & integrity rate improved by 4% this week."
-            description="SFC and DISM scans found no integrity violations. 950 potential failures were avoided, with an estimated 3.1 GB of disk space recovered."
-            progress={0.8}
-            icon={<Shield size={12} />}
-          />
+          {summary ? (
+            <InsightsCard
+              metric={String(summary.healthScore)} metricSuffix="%"
+              title={
+                summary.cancelled
+                  ? `Run was cancelled after ${summary.passedSections} of ${summary.totalSections} phases completed.`
+                  : `${summary.passedSections} of ${summary.totalSections} phases passed on ${summary.mode} profile.`
+              }
+              description={
+                `${summary.totalUpdated} packages updated · ${spaceDisplay} reclaimed · ${summary.issuesFound} issue${summary.issuesFound !== 1 ? 's' : ''} found · ran in ${summary.durationMinutes} min`
+              }
+              progress={summary.passedSections / Math.max(summary.totalSections, 1)}
+              icon={<Shield size={12} />}
+            />
+          ) : (
+            <InsightsCard
+              metric="—" metricSuffix=""
+              title="No maintenance run yet."
+              description="Launch a maintenance cycle to generate your first health report, see packages updated, disk space reclaimed, and system integrity status."
+              progress={0}
+              icon={<Shield size={12} />}
+            />
+          )}
         </motion.div>
 
         {/* Quick Actions */}
@@ -269,14 +378,14 @@ export default function LandingHero({ onStart }: Props) {
           transition={{ duration: 0.55, delay: 0.42, ease }}
           className="card card-hover p-5 sm:p-6 col-span-12 md:col-span-6 lg:col-span-4 flex flex-col"
         >
-          <h3 className="text-lg font-bold text-slate-900 mb-1">Quick Actions</h3>
-          <p className="text-xs text-slate-400 font-medium mb-5">Jump straight into a workflow</p>
+          <h3 className="text-lg font-bold mb-1" style={{ color: 'var(--color-ink)' }}>Quick Actions</h3>
+          <p className="text-xs font-medium mb-5" style={{ color: 'var(--color-ink-4)' }}>Jump straight into a workflow</p>
 
           <div className="grid grid-cols-2 gap-3 flex-1">
-            <ActionTile icon={Zap}      label="Quick Update"    color="bg-cyan-50 text-cyan-600 border-cyan-100"     desc="Fast app & Defender updates"  onClick={() => onStart('Quick')} />
-            <ActionTile icon={Shield}   label="Full Scan"       color="bg-blue-50 text-blue-600 border-blue-100"     desc="SFC + DISM scan only"         onClick={() => onStart('ScanOnly')} />
-            <ActionTile icon={Download} label="Install Updates" color="bg-violet-50 text-violet-600 border-violet-100" desc="Full safe update cycle"      onClick={() => onStart('Safe')} />
-            <ActionTile icon={HardDrive} label="Deep Clean"     color="bg-amber-50 text-amber-600 border-amber-100"  desc="Cleanup + disk optimisation"  onClick={() => onStart('CleanupOnly')} />
+            <ActionTile icon={Zap}       label="Quick Update"    accent="#06b6d4" desc="Apps & Defender"           onClick={() => onStart('Quick')} />
+            <ActionTile icon={Shield}    label="Health Scan"     accent="#3b82f6" desc="SFC + DISM only"           onClick={() => onStart('ScanOnly')} />
+            <ActionTile icon={Download}  label="Full Update"     accent="#8b5cf6" desc="Safe full update cycle"    onClick={() => onStart('Safe')} />
+            <ActionTile icon={HardDrive} label="Deep Clean"      accent="#f59e0b" desc="Cleanup + optimise"        onClick={() => onStart('CleanupOnly')} />
           </div>
 
           <button onClick={() => onStart()} className="btn btn-primary w-full mt-5">
@@ -286,47 +395,79 @@ export default function LandingHero({ onStart }: Props) {
           </button>
         </motion.div>
 
-        {/* Feature strip */}
+        {/* Feature strip — real system values */}
         <motion.div
           initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.48, ease }}
           className="card p-5 sm:p-6 col-span-12 grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-5"
         >
           {[
-            { icon: Cpu,          label: 'Driver Diagnostics',    value: '42 OEM',  sub: 'PnP devices scanned', mode: 'ScanOnly' as RunMode },
-            { icon: CheckCircle2, label: 'Defender Signatures',   value: 'Current', sub: 'Synced 2m ago',       mode: 'Safe' as RunMode },
-            { icon: Sparkles,     label: 'Junk Reclaimed',        value: '3.1 GB',  sub: 'Temp & cache',        mode: 'CleanupOnly' as RunMode },
-            { icon: TrendingUp,   label: 'Boot Performance',      value: '+18%',    sub: 'Faster startup',      mode: 'Aggressive' as RunMode },
+            {
+              icon: Cpu,
+              label: 'Processor',
+              value: `${cpuPct}%`,
+              sub: systemInfo.processor.split(' ').slice(0, 3).join(' '),
+              mode: 'ScanOnly' as RunMode,
+            },
+            {
+              icon: CheckCircle2,
+              label: 'Memory',
+              value: `${systemInfo.ramGB} GB`,
+              sub: `${memPct}% in use`,
+              mode: 'Safe' as RunMode,
+            },
+            {
+              icon: Sparkles,
+              label: 'Space Reclaimed',
+              value: spaceDisplay,
+              sub: summary ? 'Last run cleanup' : 'Run cleanup to reclaim',
+              mode: 'CleanupOnly' as RunMode,
+            },
+            {
+              icon: TrendingUp,
+              label: 'System Uptime',
+              value: systemInfo.uptime.split(',')[0],
+              sub: systemInfo.uptime,
+              mode: 'Aggressive' as RunMode,
+            },
           ].map((f) => (
             <button key={f.label} onClick={() => onStart(f.mode)}
-              className="flex items-center gap-3 min-w-0 text-left group hover:bg-slate-50 rounded-2xl p-2 -m-2 transition-colors"
+              className="flex items-center gap-3 min-w-0 text-left group rounded-2xl p-2 -m-2 transition-colors"
+              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-2)')}
+              onMouseLeave={e => (e.currentTarget.style.backgroundColor = '')}
             >
-              <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 text-blue-600 flex items-center justify-center shrink-0 group-hover:border-blue-200 group-hover:bg-blue-50 group-hover:text-blue-700 transition-colors">
+              <div className="w-10 h-10 rounded-xl border text-blue-500 flex items-center justify-center shrink-0 transition-colors"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
                 <f.icon size={18} />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] uppercase font-bold text-slate-400 tracking-wide truncate">{f.label}</p>
-                <p className="text-base font-extrabold text-slate-900 leading-tight">{f.value}</p>
-                <p className="text-[11px] text-slate-400 truncate">{f.sub}</p>
+                <p className="text-[11px] uppercase font-bold tracking-wide truncate" style={{ color: 'var(--color-ink-4)' }}>{f.label}</p>
+                <p className="text-base font-extrabold leading-tight" style={{ color: 'var(--color-ink)' }}>{f.value}</p>
+                <p className="text-[11px] truncate" style={{ color: 'var(--color-ink-4)' }}>{f.sub}</p>
               </div>
             </button>
           ))}
         </motion.div>
       </div>
 
-      <p className="text-center text-[11px] text-slate-400 font-mono mt-8 tracking-wide">
-        #Requires -RunAsAdministrator · Windows 10/11 · PowerShell 5.1+
+      <p className="text-center text-[11px] font-mono mt-8 tracking-wide" style={{ color: 'var(--color-ink-4)' }}>
+        {systemInfo.hostName} · {systemInfo.os} · {systemInfo.build}
       </p>
     </div>
   );
 }
 
 function ActionTile({
-  icon: Icon, label, color, desc, onClick,
-}: { icon: typeof Zap; label: string; color: string; desc: string; onClick: () => void }) {
+  icon: Icon, label, accent, desc, onClick,
+}: { icon: typeof Zap; label: string; accent: string; desc: string; onClick: () => void }) {
   return (
     <button onClick={onClick}
-      className={`group flex flex-col items-start gap-1.5 p-4 rounded-2xl border ${color} hover:scale-[1.02] active:scale-[0.99] transition-transform text-left`}
+      className="group flex flex-col items-start gap-1.5 p-4 rounded-2xl border hover:scale-[1.02] active:scale-[0.99] transition-transform text-left"
+      style={{
+        backgroundColor: `${accent}14`,
+        borderColor: `${accent}30`,
+        color: accent,
+      }}
     >
       <Icon size={20} />
       <span className="text-sm font-bold leading-tight">{label}</span>

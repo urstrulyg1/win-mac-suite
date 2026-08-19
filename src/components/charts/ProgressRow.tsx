@@ -21,10 +21,10 @@ export default function ProgressRow({
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-[13px] font-semibold text-slate-600">{label}</span>
-        <span className="text-[13px] font-bold text-slate-900 tabular-nums">{display}</span>
+        <span className="text-[13px] font-semibold" style={{ color: 'var(--color-ink-2)' }}>{label}</span>
+        <span className="text-[13px] font-bold tabular-nums" style={{ color: 'var(--color-ink)' }}>{display}</span>
       </div>
-      <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+      <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-surface-2)' }}>
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}

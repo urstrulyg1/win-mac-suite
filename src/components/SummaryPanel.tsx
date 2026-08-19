@@ -38,21 +38,21 @@ export default function SummaryPanel({ summary, onReset, onExport }: Props) {
           initial={{ scale: 0.7, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 350, damping: 20, delay: 0.1 }}
-          className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold shadow-sm border ${
-            cancelled
-              ? 'bg-amber-50 border-amber-200 text-amber-700'
-              : 'bg-emerald-50 border-emerald-200 text-emerald-700'
-          }`}
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold shadow-sm border"
+          style={cancelled
+            ? { backgroundColor: 'rgba(245,158,11,0.12)', borderColor: 'rgba(245,158,11,0.30)', color: '#f59e0b' }
+            : { backgroundColor: 'rgba(34,197,94,0.12)', borderColor: 'rgba(34,197,94,0.30)', color: '#22c55e' }
+          }
         >
           {cancelled ? <Ban size={14} strokeWidth={2.5} /> : <CheckCircle2 size={14} strokeWidth={2.5} />}
           {cancelled ? 'Run Cancelled — Partial Report' : 'Maintenance Suite Complete'}
         </motion.span>
-        <h2 className="text-h2 font-extrabold text-slate-900 tracking-tight">
+        <h2 className="text-h2 font-extrabold tracking-tight" style={{ color: 'var(--color-ink)' }}>
           Optimization &amp; Health Report
         </h2>
         {summary.mode && (
-          <p className="text-xs text-slate-500 font-mono">
-            Profile: <span className="text-blue-700 font-bold">{summary.mode}</span>
+          <p className="text-xs font-mono" style={{ color: 'var(--color-ink-3)' }}>
+            Profile: <span className="text-blue-500 font-bold">{summary.mode}</span>
             {summary.startedAt && <> · {new Date(summary.startedAt).toLocaleString()}</>}
           </p>
         )}
@@ -77,10 +77,10 @@ export default function SummaryPanel({ summary, onReset, onExport }: Props) {
             >
               <s.icon size={17} />
             </div>
-            <p className="text-2xl font-extrabold font-mono text-slate-900 tabular-nums w-full text-center leading-tight">
+            <p className="text-2xl font-extrabold font-mono tabular-nums w-full text-center leading-tight" style={{ color: 'var(--color-ink)' }}>
               {s.node}
             </p>
-            <p className="text-[11.5px] text-slate-500 font-semibold mt-1 w-full text-center leading-snug" title={s.label}>
+            <p className="text-[11.5px] font-semibold mt-1 w-full text-center leading-snug" title={s.label} style={{ color: 'var(--color-ink-3)' }}>
               {s.label}
             </p>
           </motion.div>
@@ -92,14 +92,15 @@ export default function SummaryPanel({ summary, onReset, onExport }: Props) {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.55 }}
-          className="flex items-start sm:items-center gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800"
+          className="flex items-start sm:items-center gap-3 p-4 rounded-2xl border"
+          style={{ backgroundColor: 'rgba(245,158,11,0.10)', borderColor: 'rgba(245,158,11,0.28)', color: '#d97706' }}
         >
-          <div className="p-2 rounded-xl bg-amber-100 text-amber-700 shrink-0">
+          <div className="p-2 rounded-xl shrink-0" style={{ backgroundColor: 'rgba(245,158,11,0.18)', color: '#f59e0b' }}>
             <RotateCcw size={18} className="animate-spin-slow" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-amber-800">System Restart Recommended</p>
-            <p className="text-xs text-amber-700/80 mt-0.5 leading-relaxed">
+            <p className="text-sm font-bold">System Restart Recommended</p>
+            <p className="text-xs mt-0.5 leading-relaxed opacity-80">
               Windows updates and driver components are staged to finish installation upon next reboot.
             </p>
           </div>
@@ -121,10 +122,11 @@ export default function SummaryPanel({ summary, onReset, onExport }: Props) {
             {summary.followUps.map((f, i) => (
               <div
                 key={i}
-                className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs min-w-0"
+                className="flex items-start gap-2.5 p-2.5 rounded-xl text-xs min-w-0 border"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
               >
                 <ChevronRight size={14} className="text-amber-500 shrink-0 mt-0.5" />
-                <span className="text-slate-600 break-word-safe leading-relaxed flex-1">{f}</span>
+                <span className="break-word-safe leading-relaxed flex-1" style={{ color: 'var(--color-ink-2)' }}>{f}</span>
               </div>
             ))}
           </div>

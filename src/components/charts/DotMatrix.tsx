@@ -34,8 +34,8 @@ export default function DotMatrix({
     <div className="relative">
       {peakLabel && (
         <div
-          className="absolute -top-5 px-2.5 py-0.5 rounded-full bg-white border border-slate-200 text-[10px] font-bold text-slate-600 shadow-sm"
-          style={{ left: `calc(${(peakCol / Math.max(columns - 1, 1)) * 100}% - 28px)` }}
+          className="absolute -top-5 px-2.5 py-0.5 rounded-full text-[10px] font-bold shadow-sm border"
+          style={{ left: `calc(${(peakCol / Math.max(columns - 1, 1)) * 100}% - 28px)`, backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-line)', color: 'var(--color-ink-2)' }}
         >
           {peakLabel}
         </div>
@@ -56,7 +56,7 @@ export default function DotMatrix({
                   transition={{ delay: ci * 0.02 + ri * 0.02, duration: 0.3 }}
                   className="w-full max-w-[7px] aspect-square rounded-full"
                   style={{
-                    backgroundColor: on ? (isPeak ? color : `${color}cc`) : '#e2e8f0',
+                    backgroundColor: on ? (isPeak ? color : `${color}cc`) : 'var(--color-surface-3)',
                   }}
                 />
               ))}

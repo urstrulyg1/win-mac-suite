@@ -107,27 +107,27 @@ export default function RunningDashboard({
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-6">
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <span className="pill bg-blue-50 text-blue-700 border-blue-200">
+            <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25">
               <ShieldCheck size={12} /> {mode} profile
             </span>
             {isRunning ? (
-              <span className="pill bg-blue-50 text-blue-700 border-blue-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse-dot" /> Executing
+              <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse-dot" /> Executing
               </span>
             ) : phase === 'complete' ? (
               summary?.cancelled ? (
-                <span className="pill bg-amber-50 text-amber-700 border-amber-200">Cancelled</span>
+                <span className="pill bg-amber-500/10 text-amber-500 border-amber-500/25">Cancelled</span>
               ) : (
-                <span className="pill bg-emerald-50 text-emerald-700 border-emerald-200">Completed</span>
+                <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25">Completed</span>
               )
             ) : (
-              <span className="pill bg-slate-100 text-slate-600 border-slate-200">Ready to run</span>
+              <span className="pill" style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-3)', borderColor: 'var(--color-line)' }}>Ready to run</span>
             )}
           </div>
-          <h1 className="text-hero font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-hero font-extrabold tracking-tight" style={{ color: 'var(--color-ink)' }}>
             {phase === 'configuring' ? 'Configure run' : phase === 'complete' ? 'Run report' : 'Maintenance'}
           </h1>
-          <p className="text-slate-500 mt-1 text-[14px]">
+          <p className="mt-1 text-[14px]" style={{ color: 'var(--color-ink-3)' }}>
             {phase === 'configuring'
               ? 'Pick a profile, review flags, then launch.'
               : phase === 'complete'
@@ -139,10 +139,10 @@ export default function RunningDashboard({
         {/* Action cluster */}
         <div className="flex flex-wrap items-center gap-2">
           {isRunning && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-mono font-bold text-slate-700">
-              <Timer size={13} className="text-blue-600" />
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-mono font-bold border" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-line)', color: 'var(--color-ink-2)' }}>
+              <Timer size={13} className="text-blue-500" />
               <span className="tabular-nums">{formatDuration(elapsed)}</span>
-              {overallProgress > 2 && <span className="text-slate-400">· ~{formatDuration(etaSeconds)} left</span>}
+              {overallProgress > 2 && <span style={{ color: 'var(--color-ink-4)' }}>· ~{formatDuration(etaSeconds)} left</span>}
             </div>
           )}
           {isRunning && (
@@ -169,8 +169,8 @@ export default function RunningDashboard({
 
               <div className="card p-5 sm:p-6">
                 <div className="flex items-center gap-2 mb-4">
-                  <Sliders size={16} className="text-blue-600" />
-                  <h3 className="text-base font-bold text-slate-900">Configuration Flags</h3>
+                  <Sliders size={16} className="text-blue-500" />
+                  <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>Configuration Flags</h3>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <ToggleCard active={noReboot} onClick={onToggleNoReboot} title="No Reboot Prompt" desc="Skip restart prompt at completion" />
@@ -213,18 +213,18 @@ export default function RunningDashboard({
                 <div className="grid grid-cols-12 gap-4">
                   <div className="card p-5 col-span-12 sm:col-span-6">
                     <div className="flex items-center justify-between mb-1">
-                      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Overall Progress</p>
-                      <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                      <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-ink-4)' }}>Overall Progress</p>
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-md border" style={{ color: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.10)', borderColor: 'rgba(59,130,246,0.25)' }}>
                         {Math.round(overallProgress)}%
                       </span>
                     </div>
-                    <div className="text-4xl font-extrabold text-slate-900 tracking-tight tabular-nums">
-                      {doneCount}<span className="text-slate-300">/{sections.length}</span>
+                    <div className="text-4xl font-extrabold tracking-tight tabular-nums" style={{ color: 'var(--color-ink)' }}>
+                      {doneCount}<span style={{ color: 'var(--color-line-strong)' }}>/{sections.length}</span>
                     </div>
-                    <p className="text-xs text-slate-500 font-medium mt-0.5 mb-3 truncate">
+                    <p className="text-xs font-medium mt-0.5 mb-3 truncate" style={{ color: 'var(--color-ink-3)' }}>
                       {currentSectionName || 'Preparing phases...'}
                     </p>
-                    <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-2.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-surface-2)' }}>
                       <motion.div
                         className="h-full rounded-full relative overflow-hidden progress-stripe"
                         style={{ background: 'linear-gradient(90deg, #2563eb, #06b6d4)' }}
@@ -235,22 +235,22 @@ export default function RunningDashboard({
                   </div>
 
                   <div className="card p-5 col-span-6 sm:col-span-3 flex flex-col justify-between">
-                    <div className="w-8 h-8 rounded-lg bg-cyan-50 text-cyan-700 flex items-center justify-center mb-3">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: 'rgba(6,182,212,0.12)', color: '#22d3ee' }}>
                       <Package size={16} />
                     </div>
                     <div>
-                      <p className="text-3xl font-extrabold text-slate-900 tabular-nums">{updatedCount}</p>
-                      <p className="text-[11px] text-slate-500 font-semibold mt-0.5">Updates processed</p>
+                      <p className="text-3xl font-extrabold tabular-nums" style={{ color: 'var(--color-ink)' }}>{updatedCount}</p>
+                      <p className="text-[11px] font-semibold mt-0.5" style={{ color: 'var(--color-ink-3)' }}>Updates processed</p>
                     </div>
                   </div>
 
                   <div className="card p-5 col-span-6 sm:col-span-3 flex flex-col justify-between">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center mb-3">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: 'rgba(34,197,94,0.12)', color: '#4ade80' }}>
                       <TrendingUp size={16} />
                     </div>
                     <div>
-                      <p className="text-3xl font-extrabold text-slate-900 tabular-nums">{formatDuration(elapsed)}</p>
-                      <p className="text-[11px] text-slate-500 font-semibold mt-0.5">Elapsed</p>
+                      <p className="text-3xl font-extrabold tabular-nums" style={{ color: 'var(--color-ink)' }}>{formatDuration(elapsed)}</p>
+                      <p className="text-[11px] font-semibold mt-0.5" style={{ color: 'var(--color-ink-3)' }}>Elapsed</p>
                     </div>
                   </div>
 
@@ -258,10 +258,10 @@ export default function RunningDashboard({
                   <div className="card p-5 col-span-12 overflow-visible">
                     <div className="flex items-center justify-between mb-5">
                       <div>
-                        <h3 className="text-base font-bold text-slate-900">Execution Pipeline</h3>
-                        <p className="text-xs text-slate-400 font-medium">Phase throughput this run</p>
+                        <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>Execution Pipeline</h3>
+                        <p className="text-xs font-medium" style={{ color: 'var(--color-ink-4)' }}>Phase throughput this run</p>
                       </div>
-                      <span className="pill bg-blue-50 text-blue-700 border-blue-200">
+                      <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25">
                         <ShieldCheck size={11} /> Live
                       </span>
                     </div>
@@ -317,14 +317,14 @@ export default function RunningDashboard({
                           <button
                             key={chip.key}
                             onClick={() => setFilter(chip.key)}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
-                              active
-                                ? 'bg-slate-900 text-white border-slate-900'
-                                : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
-                            }`}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer`}
+                            style={active
+                              ? { backgroundColor: 'var(--color-ink)', color: '#fff', borderColor: 'var(--color-ink)' }
+                              : { backgroundColor: 'var(--color-surface)', color: 'var(--color-ink-3)', borderColor: 'var(--color-line)' }
+                            }
                           >
                             {chip.label}
-                            <span className={`tabular-nums ${active ? 'text-slate-300' : 'text-slate-400'}`}>{count}</span>
+                            <span className="tabular-nums" style={{ color: active ? 'rgba(255,255,255,0.55)' : 'var(--color-ink-4)' }}>{count}</span>
                           </button>
                         );
                       })}
@@ -338,7 +338,7 @@ export default function RunningDashboard({
                       ))
                     ) : (
                       <div className="card p-10 text-center">
-                        <p className="text-slate-500 text-sm">No phases match your filters.</p>
+                        <p className="text-sm" style={{ color: 'var(--color-ink-3)' }}>No phases match your filters.</p>
                       </div>
                     )}
                   </div>
@@ -352,7 +352,7 @@ export default function RunningDashboard({
                 <div className="space-y-5">
                   <SystemInfoPanel systemInfo={systemInfo} live={isRunning} />
                   <div className="card p-5 space-y-4">
-                    <h3 className="text-sm font-bold text-slate-900">Resource Breakdown</h3>
+                    <h3 className="text-sm font-bold" style={{ color: 'var(--color-ink)' }}>Resource Breakdown</h3>
                     <ProgressRow label="CPU Load" value={systemInfo.cpuUsage} total={100} display={`${systemInfo.cpuUsage}%`} color="#2563eb" />
                     <ProgressRow label="Memory" value={systemInfo.memoryUsage} total={100} display={`${systemInfo.memoryUsage}%`} color="#7c3aed" />
                     <ProgressRow
@@ -371,7 +371,7 @@ export default function RunningDashboard({
         )}
       </AnimatePresence>
 
-      <p className="text-center text-[11px] text-slate-400 font-mono mt-10 tracking-wide">
+      <p className="text-center text-[11px] font-mono mt-10 tracking-wide" style={{ color: 'var(--color-ink-4)' }}>
         Windows System Maintenance &amp; Diagnostics Engine · Version 5.0.0
       </p>
     </div>
@@ -393,22 +393,20 @@ function ToggleCard({
           onClick();
         }
       }}
-      className={`
-        flex items-center gap-3.5 p-4 rounded-2xl border cursor-pointer select-none transition-all outline-none
-        ${active
-          ? 'bg-blue-50 border-blue-300 shadow-sm shadow-blue-500/10'
-          : 'bg-slate-50/60 border-slate-200 hover:bg-white'
-        }
-      `}
+      className="flex items-center gap-3.5 p-4 rounded-2xl border cursor-pointer select-none transition-all outline-none"
+      style={active
+        ? { backgroundColor: 'rgba(59,130,246,0.10)', borderColor: 'rgba(59,130,246,0.35)' }
+        : { backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }
+      }
     >
       {active ? (
-        <CheckSquare size={20} className="text-blue-600 shrink-0" />
+        <CheckSquare size={20} className="text-blue-500 shrink-0" />
       ) : (
-        <Square size={20} className="text-slate-400 shrink-0" />
+        <Square size={20} className="shrink-0" style={{ color: 'var(--color-ink-4)' }} />
       )}
       <div className="min-w-0">
-        <p className="text-sm font-bold text-slate-900 truncate">{title}</p>
-        <p className="text-xs text-slate-500 mt-0.5 truncate">{desc}</p>
+        <p className="text-sm font-bold truncate" style={{ color: 'var(--color-ink)' }}>{title}</p>
+        <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--color-ink-3)' }}>{desc}</p>
       </div>
     </div>
   );

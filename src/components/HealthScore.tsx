@@ -58,7 +58,7 @@ export default function HealthScore({ score, size = 170 }: Props) {
             cy={size / 2}
             r={r}
             fill="none"
-            stroke="#eef2f7"
+            stroke="var(--color-surface-2)"
             strokeWidth={strokeWidth}
           />
           <motion.circle
@@ -77,10 +77,10 @@ export default function HealthScore({ score, size = 170 }: Props) {
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
-          <span className="text-5xl font-extrabold tracking-tight font-mono tabular-nums text-slate-900">
+          <span className="text-5xl font-extrabold tracking-tight font-mono tabular-nums" style={{ color: 'var(--color-ink)' }}>
             {display}
           </span>
-          <span className="text-[10px] uppercase font-mono tracking-widest text-slate-400 mt-0.5">
+          <span className="text-[10px] uppercase font-mono tracking-widest mt-0.5" style={{ color: 'var(--color-ink-4)' }}>
             / 100 Score
           </span>
         </div>
@@ -92,7 +92,7 @@ export default function HealthScore({ score, size = 170 }: Props) {
         >
           {grade}
         </span>
-        <p className="text-[11px] text-slate-400 mt-1 font-medium">Overall System Health Index</p>
+        <p className="text-[11px] mt-1 font-medium" style={{ color: 'var(--color-ink-4)' }}>Overall System Health Index</p>
       </div>
     </motion.div>
   );

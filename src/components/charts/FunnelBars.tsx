@@ -27,8 +27,8 @@ export default function FunnelBars({ data, height = 200 }: Props) {
       {[0, 0.25, 0.5, 0.75, 1].map((t) => (
         <div
           key={t}
-          className="absolute left-0 right-0 border-t border-dashed border-slate-200/80"
-          style={{ bottom: `calc(28px + ${t * 78}%)` }}
+          className="absolute left-0 right-0 border-t border-dashed"
+          style={{ bottom: `calc(28px + ${t * 78}%)`, borderColor: 'var(--color-line)' }}
         />
       ))}
 
@@ -48,18 +48,19 @@ export default function FunnelBars({ data, height = 200 }: Props) {
                 <motion.div
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="absolute bottom-full mb-2 z-20 px-3 py-1.5 rounded-xl bg-white shadow-xl border border-slate-200 text-[11px] font-medium text-slate-700 whitespace-nowrap"
+                  className="absolute bottom-full mb-2 z-20 px-3 py-1.5 rounded-xl shadow-xl text-[11px] font-medium whitespace-nowrap card"
+                  style={{ color: 'var(--color-ink-2)' }}
                 >
-                  <span className="font-bold text-slate-900">{d.display}</span>{' '}
-                  <span className="text-slate-400">·</span>{' '}
-                  <span className="text-slate-500">{d.label}</span>
+                  <span className="font-bold" style={{ color: 'var(--color-ink)' }}>{d.display}</span>{' '}
+                  <span style={{ color: 'var(--color-ink-4)' }}>·</span>{' '}
+                  <span style={{ color: 'var(--color-ink-3)' }}>{d.label}</span>
                 </motion.div>
               )}
 
               {/* Top tick cap */}
               <div
-                className="w-5 h-1 rounded-full bg-white shadow-sm border border-slate-200 mb-1 z-10"
-                style={{ alignSelf: 'center' }}
+                className="w-5 h-1 rounded-full shadow-sm border mb-1 z-10"
+                style={{ alignSelf: 'center', backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-line)' }}
               />
               <motion.div
                 initial={{ height: 0 }}
@@ -95,7 +96,8 @@ export default function FunnelBars({ data, height = 200 }: Props) {
         {data.map((d) => (
           <div
             key={d.label}
-            className="flex-1 text-center text-[10px] font-semibold text-slate-400 truncate"
+            className="flex-1 text-center text-[10px] font-semibold truncate"
+            style={{ color: 'var(--color-ink-4)' }}
           >
             {d.label}
           </div>

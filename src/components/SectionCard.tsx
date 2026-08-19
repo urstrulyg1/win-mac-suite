@@ -12,7 +12,8 @@ const iconMap: Record<string, React.ComponentType<any>> = {
   FileCheck, FolderSync, Trash, Gauge,
 };
 
-const statusCfg: Record<
+// Status configs: light / dark pairs
+const statusCfgLight: Record<
   SectionStatus,
   { icon: React.ComponentType<any>; color: string; bg: string; border: string; label: string }
 > = {
@@ -24,11 +25,30 @@ const statusCfg: Record<
   skipped:  { icon: SkipForward,   color: '#64748b', bg: '#f8fafc', border: '#e2e8f0', label: 'Skip' },
 };
 
-const logColors: Record<string, { badge: string; text: string; bg: string }> = {
+const statusCfgDark: Record<
+  SectionStatus,
+  { icon: React.ComponentType<any>; color: string; bg: string; border: string; label: string }
+> = {
+  pending:  { icon: Clock,         color: '#94a3b8', bg: 'rgba(100,116,139,0.15)', border: 'rgba(100,116,139,0.25)', label: 'Pending' },
+  running:  { icon: Loader2,       color: '#60a5fa', bg: 'rgba(59,130,246,0.15)',  border: 'rgba(59,130,246,0.30)',  label: 'Running' },
+  success:  { icon: CheckCircle2,  color: '#4ade80', bg: 'rgba(34,197,94,0.15)',   border: 'rgba(34,197,94,0.30)',   label: 'Done' },
+  warning:  { icon: AlertTriangle, color: '#fbbf24', bg: 'rgba(245,158,11,0.15)',  border: 'rgba(245,158,11,0.30)',  label: 'Warn' },
+  error:    { icon: XCircle,       color: '#f87171', bg: 'rgba(239,68,68,0.15)',   border: 'rgba(239,68,68,0.30)',   label: 'Error' },
+  skipped:  { icon: SkipForward,   color: '#64748b', bg: 'rgba(100,116,139,0.10)', border: 'rgba(100,116,139,0.20)', label: 'Skip' },
+};
+
+const logColorsLight: Record<string, { badge: string; text: string; bg: string }> = {
   INFO:    { badge: '#475569', text: '#334155', bg: '#f1f5f9' },
   SUCCESS: { badge: '#15803d', text: '#166534', bg: '#dcfce7' },
   WARNING: { badge: '#b45309', text: '#92400e', bg: '#fef3c7' },
   ERROR:   { badge: '#b91c1c', text: '#991b1b', bg: '#fee2e2' },
+};
+
+const logColorsDark: Record<string, { badge: string; text: string; bg: string }> = {
+  INFO:    { badge: '#94a3b8', text: '#cbd5e1', bg: 'rgba(71,85,105,0.18)' },
+  SUCCESS: { badge: '#4ade80', text: '#86efac', bg: 'rgba(34,197,94,0.15)' },
+  WARNING: { badge: '#fbbf24', text: '#fde68a', bg: 'rgba(245,158,11,0.15)' },
+  ERROR:   { badge: '#f87171', text: '#fca5a5', bg: 'rgba(239,68,68,0.15)' },
 };
 
 interface Props {
@@ -40,6 +60,19 @@ interface Props {
 
 export default function SectionCard({ section, index, expandSignal = 0, collapseSignal = 0 }: Props) {
   const [open, setOpen] = useState(false);
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsDark(document.documentElement.classList.contains('dark'));
+    check();
+    const obs = new MutationObserver(check);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => obs.disconnect();
+  }, []);
+
+  const statusCfg = isDark ? statusCfgDark : statusCfgLight;
+  const logColors = isDark ? logColorsDark : logColorsLight;
+
   const Icon = iconMap[section.icon] || Package;
   const st = statusCfg[section.status];
   const StIcon = st.icon;
@@ -66,24 +99,20 @@ export default function SectionCard({ section, index, expandSignal = 0, collapse
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index * 0.03, 0.25), duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-      className={`
-        rounded-2xl overflow-hidden transition-all duration-300 border
-        ${isRunning
-          ? 'bg-white border-blue-300 shadow-lg shadow-blue-500/10'
-          : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-md'
-        }
-        ${isSkipped ? 'opacity-55 hover:opacity-90' : ''}
-      `}
+      className={`rounded-2xl overflow-hidden transition-all duration-300 border ${isSkipped ? 'opacity-55 hover:opacity-90' : ''}`}
+      style={{
+        backgroundColor: 'var(--color-surface)',
+        borderColor: isRunning ? (isDark ? '#3b82f6' : '#93c5fd') : 'var(--color-line)',
+        boxShadow: isRunning ? `0 8px 24px -8px rgba(59,130,246,0.20)` : undefined,
+      }}
     >
       <button
         onClick={() => hasDetails && setOpen(!open)}
         disabled={!hasDetails}
         aria-expanded={open}
-        className={`
-          w-full flex items-center gap-3 p-3.5 sm:px-4 text-left
-          ${hasDetails ? 'cursor-pointer hover:bg-slate-50/80' : 'cursor-default'}
-          transition-colors duration-150 outline-none
-        `}
+        className={`w-full flex items-center gap-3 p-3.5 sm:px-4 text-left transition-colors duration-150 outline-none ${hasDetails ? 'cursor-pointer' : 'cursor-default'}`}
+        onMouseEnter={e => { if (hasDetails) e.currentTarget.style.backgroundColor = 'var(--color-surface-2)'; }}
+        onMouseLeave={e => { e.currentTarget.style.backgroundColor = ''; }}
       >
         <span
           className="w-7 h-7 rounded-lg text-[11px] font-bold font-mono flex items-center justify-center shrink-0 border"
@@ -100,10 +129,10 @@ export default function SectionCard({ section, index, expandSignal = 0, collapse
         </span>
 
         <div className="flex-1 min-w-0 pr-2">
-          <p title={section.title} className="text-[13.5px] font-bold text-slate-900 truncate">
+          <p title={section.title} className="text-[13.5px] font-bold truncate" style={{ color: 'var(--color-ink)' }}>
             {section.title}
           </p>
-          <p title={section.description} className="text-[11.5px] text-slate-500 truncate mt-0.5">
+          <p title={section.description} className="text-[11.5px] truncate mt-0.5" style={{ color: 'var(--color-ink-3)' }}>
             {section.description}
           </p>
         </div>
@@ -115,7 +144,7 @@ export default function SectionCard({ section, index, expandSignal = 0, collapse
             </span>
           )}
           {section.duration > 0 && (
-            <span className="hidden sm:inline-block text-[11px] text-slate-400 font-mono">
+            <span className="hidden sm:inline-block text-[11px] font-mono" style={{ color: 'var(--color-ink-4)' }}>
               {section.duration}s
             </span>
           )}
@@ -130,7 +159,8 @@ export default function SectionCard({ section, index, expandSignal = 0, collapse
             <motion.span
               animate={{ rotate: open ? 180 : 0 }}
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="p-1 rounded-md text-slate-400 hover:text-slate-700"
+              className="p-1 rounded-md"
+              style={{ color: 'var(--color-ink-4)' }}
             >
               <ChevronDown size={16} />
             </motion.span>
@@ -142,7 +172,7 @@ export default function SectionCard({ section, index, expandSignal = 0, collapse
 
       {isRunning && (
         <div className="px-4 pb-3">
-          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+          <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-surface-2)' }}>
             <motion.div
               animate={{ width: `${section.progress}%` }}
               transition={{ duration: 0.3, ease: 'easeOut' }}
@@ -182,7 +212,7 @@ export default function SectionCard({ section, index, expandSignal = 0, collapse
             transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden border-t border-slate-100"
           >
-            <div className="p-4 bg-slate-50/60 space-y-3">
+            <div className="p-4 space-y-3" style={{ backgroundColor: 'var(--color-surface-2)' }}>
               {section.result && (
                 <div
                   className="px-3 py-2 rounded-lg text-xs font-mono font-semibold border flex items-center justify-between gap-2"
@@ -198,21 +228,22 @@ export default function SectionCard({ section, index, expandSignal = 0, collapse
               {section.details && Object.keys(section.details).length > 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {Object.entries(section.details).map(([k, v]) => (
-                    <div key={k} className="p-2.5 rounded-lg bg-white border border-slate-200 min-w-0">
-                      <p className="text-[10px] uppercase font-bold text-slate-400 truncate">{k}</p>
-                      <p className="text-xs font-mono font-bold text-slate-800 truncate mt-0.5">{v}</p>
+                    <div key={k} className="p-2.5 rounded-lg min-w-0 border" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-line)' }}>
+                      <p className="text-[10px] uppercase font-bold truncate" style={{ color: 'var(--color-ink-4)' }}>{k}</p>
+                      <p className="text-xs font-mono font-bold truncate mt-0.5" style={{ color: 'var(--color-ink)' }}>{v}</p>
                     </div>
                   ))}
                 </div>
               )}
 
               {section.logs.length > 0 && (
-                <div className="rounded-lg bg-white border border-slate-200 p-3 max-h-52 overflow-y-auto font-mono text-[11px] space-y-1.5">
+                <div className="rounded-lg p-3 max-h-52 overflow-y-auto font-mono text-[11px] space-y-1.5 border"
+                  style={{ backgroundColor: isDark ? '#0b1017' : '#ffffff', borderColor: 'var(--color-line)' }}>
                   {section.logs.map((l, i) => {
                     const col = logColors[l.level] || logColors.INFO;
                     return (
                       <div key={i} className="flex items-baseline gap-2 leading-relaxed">
-                        <span className="text-slate-300 shrink-0 text-[10px] tabular-nums">
+                        <span className="shrink-0 text-[10px] tabular-nums" style={{ color: isDark ? '#3d4f6a' : '#cbd5e1' }}>
                           {l.time ? `[${l.time}]` : '·'}
                         </span>
                         <span

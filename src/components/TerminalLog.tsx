@@ -3,7 +3,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Terminal, Minus, Plus, Copy, Check, Trash2, Download, Search, ArrowDownToLine } from 'lucide-react';
 import type { LogEntry } from '../types';
 
+// Use CSS-var-friendly colors that work in both light and dark contexts.
+// The terminal panel itself renders on a dark background in dark mode.
 const logColors: Record<string, { badge: string; text: string; bg: string }> = {
+  INFO:    { badge: '#94a3b8', text: '#cbd5e1', bg: 'rgba(71,85,105,0.18)' },
+  SUCCESS: { badge: '#4ade80', text: '#86efac', bg: 'rgba(34,197,94,0.15)' },
+  WARNING: { badge: '#fbbf24', text: '#fde68a', bg: 'rgba(245,158,11,0.15)' },
+  ERROR:   { badge: '#f87171', text: '#fca5a5', bg: 'rgba(239,68,68,0.15)' },
+};
+
+// Light-mode colors (used when .dark is not active)
+const logColorsLight: Record<string, { badge: string; text: string; bg: string }> = {
   INFO:    { badge: '#475569', text: '#334155', bg: '#f1f5f9' },
   SUCCESS: { badge: '#15803d', text: '#166534', bg: '#dcfce7' },
   WARNING: { badge: '#b45309', text: '#92400e', bg: '#fef3c7' },
@@ -29,6 +39,18 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
   const [showFilters, setShowFilters] = useState(false);
   const stickToBottomRef = useRef(true);
   const [atBottom, setAtBottom] = useState(true);
+  const [isDark, setIsDark] = useState(false);
+
+  // Track dark mode class on <html>
+  useEffect(() => {
+    const check = () => setIsDark(document.documentElement.classList.contains('dark'));
+    check();
+    const obs = new MutationObserver(check);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => obs.disconnect();
+  }, []);
+
+  const colors = isDark ? logColors : logColorsLight;
 
   const levelCounts = useMemo(() => {
     const c: Record<string, number> = { INFO: 0, SUCCESS: 0, WARNING: 0, ERROR: 0 };
@@ -69,7 +91,8 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
   return (
     <div className="card overflow-hidden">
       {/* Title bar */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200 gap-2">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b gap-2"
+        style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
         <div className="flex items-center gap-3 min-w-0">
           <div className="flex items-center gap-1.5 shrink-0" aria-hidden="true">
             <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
@@ -77,8 +100,8 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
             <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
           </div>
           <div className="flex items-center gap-2 min-w-0">
-            <Terminal size={13} className="text-blue-600 shrink-0" />
-            <span className="text-xs text-slate-600 font-mono font-semibold truncate">
+            <Terminal size={13} className="text-blue-500 shrink-0" />
+            <span className="text-xs font-mono font-semibold truncate" style={{ color: 'var(--color-ink-3)' }}>
               PowerShell 5.1 — UpdateAll v5.0
             </span>
           </div>
@@ -88,7 +111,7 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
           {logs.length > 0 && (
             <>
               <IconBtn title="Copy logs" onClick={copyLogs}>
-                {copied ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
               </IconBtn>
               {onExport && (
                 <IconBtn title="Download report" onClick={onExport}>
@@ -118,11 +141,12 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-hidden border-b border-slate-200 bg-white"
+            className="overflow-hidden border-b"
+            style={{ borderColor: 'var(--color-line)', backgroundColor: 'var(--color-surface)' }}
           >
             <div className="p-3 space-y-2.5">
               <div className="relative">
-                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--color-ink-4)' }} />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -135,18 +159,18 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
                 {LEVELS.map((lv) => {
                   const active = level === lv;
                   const count = lv === 'ALL' ? logs.length : levelCounts[lv] ?? 0;
-                  const col = lv === 'ALL' ? null : logColors[lv];
+                  const col = lv === 'ALL' ? null : colors[lv];
                   return (
                     <button
                       key={lv}
                       onClick={() => setLevel(lv)}
-                      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border transition-colors cursor-pointer ${
-                        active
-                          ? 'bg-slate-900 text-white border-slate-900'
-                          : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
-                      }`}
+                      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border transition-colors cursor-pointer`}
+                      style={active
+                        ? { backgroundColor: 'var(--color-ink)', color: '#fff', borderColor: 'var(--color-ink)' }
+                        : { backgroundColor: 'var(--color-surface)', color: 'var(--color-ink-3)', borderColor: 'var(--color-line)' }
+                      }
                     >
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: col ? col.badge : '#64748b' }} />
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: col ? col.badge : 'var(--color-ink-4)' }} />
                       {lv}
                       <span className="tabular-nums opacity-60">{count}</span>
                     </button>
@@ -165,7 +189,8 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
             animate={{ height: 260 }}
             exit={{ height: 0 }}
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-hidden relative bg-white"
+            className="overflow-hidden relative"
+            style={{ backgroundColor: isDark ? '#0b1017' : '#ffffff' }}
           >
             <div
               ref={ref}
@@ -173,21 +198,21 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
               className="h-[260px] overflow-y-auto px-4 py-3 font-mono text-[11.5px] leading-relaxed space-y-1.5"
             >
               {logs.length === 0 && (
-                <div className="flex items-center gap-2 text-slate-400 py-1">
-                  <span className="text-emerald-600 font-bold">PS C:\&gt;</span>
+                <div className="flex items-center gap-2 py-1" style={{ color: 'var(--color-ink-4)' }}>
+                  <span className="text-emerald-500 font-bold">PS C:\&gt;</span>
                   <span>Session ready. Awaiting trigger...</span>
-                  <span className="animate-terminal-blink text-emerald-600">▋</span>
+                  <span className="animate-terminal-blink text-emerald-500">▋</span>
                 </div>
               )}
 
               {logs.length > 0 && visible.length === 0 && (
-                <div className="flex items-center justify-center h-full text-slate-400 text-xs">
+                <div className="flex items-center justify-center h-full text-xs" style={{ color: 'var(--color-ink-4)' }}>
                   No log lines match the current filter.
                 </div>
               )}
 
               {visible.map((l, i) => {
-                const col = logColors[l.level] || logColors.INFO;
+                const col = colors[l.level] || colors.INFO;
                 return (
                   <motion.div
                     key={`${l.time}-${i}`}
@@ -196,7 +221,7 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
                     transition={{ duration: 0.2 }}
                     className="flex items-baseline gap-2 min-w-0"
                   >
-                    <span className="text-slate-300 shrink-0 text-[10px] select-none tabular-nums">
+                    <span className="shrink-0 text-[10px] select-none tabular-nums" style={{ color: isDark ? '#3d4f6a' : '#cbd5e1' }}>
                       {l.time ? `[${l.time}]` : ''}
                     </span>
                     <span
@@ -213,7 +238,7 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
               })}
 
               {isRunning && logs.length > 0 && (
-                <div className="flex items-center gap-2 text-emerald-600 pt-1">
+                <div className="flex items-center gap-2 text-emerald-500 pt-1">
                   <span className="font-bold">PS C:\&gt;</span>
                   <span className="animate-terminal-blink">▋</span>
                 </div>
@@ -249,9 +274,13 @@ function IconBtn({
       onClick={onClick}
       title={title}
       aria-label={title}
-      className={`p-1.5 rounded-md transition-colors cursor-pointer outline-none ${
-        active ? 'bg-slate-200 text-slate-700' : 'text-slate-400 hover:bg-slate-200/70 hover:text-slate-700'
-      }`}
+      className={`p-1.5 rounded-md transition-colors cursor-pointer outline-none`}
+      style={active
+        ? { backgroundColor: 'var(--color-line-strong)', color: 'var(--color-ink)' }
+        : { color: 'var(--color-ink-4)' }
+      }
+      onMouseEnter={e => { if (!active) e.currentTarget.style.backgroundColor = 'var(--color-surface-2)'; }}
+      onMouseLeave={e => { if (!active) e.currentTarget.style.backgroundColor = ''; }}
     >
       {children}
     </button>

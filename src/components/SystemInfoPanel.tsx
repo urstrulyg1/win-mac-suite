@@ -15,10 +15,10 @@ function Bar({
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-2 text-[12px]">
-        <span className="text-slate-600 font-semibold truncate">{label}</span>
-        <span className="text-slate-900 font-mono font-bold tabular-nums shrink-0">{value}{unit}</span>
+        <span className="font-semibold truncate" style={{ color: 'var(--color-ink-2)' }}>{label}</span>
+        <span className="font-mono font-bold tabular-nums shrink-0" style={{ color: 'var(--color-ink)' }}>{value}{unit}</span>
       </div>
-      <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+      <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-surface-2)' }}>
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
@@ -47,10 +47,10 @@ export default function SystemInfoPanel({ systemInfo, selectedMode, live = false
       transition={{ duration: 0.45, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
       className="card p-5 sm:p-6"
     >
-      <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+      <div className="flex items-center justify-between pb-4 mb-4 border-b" style={{ borderColor: 'var(--color-line)' }}>
         <div className="flex items-center gap-2">
-          <Activity size={16} className="text-blue-600" />
-          <h3 className="text-[13px] font-bold uppercase tracking-wider text-slate-700">System Telemetry</h3>
+          <Activity size={16} className="text-blue-500" />
+          <h3 className="text-[13px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-ink-2)' }}>System Telemetry</h3>
           {live && (
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider text-cyan-700 bg-cyan-50 border border-cyan-100">
               <span className="relative flex h-1.5 w-1.5">
@@ -86,21 +86,22 @@ export default function SystemInfoPanel({ systemInfo, selectedMode, live = false
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.15 + i * 0.04, duration: 0.3 }}
-            className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50/70 border border-slate-100 text-[12.5px] min-w-0"
+            className="flex items-center gap-3 p-2.5 rounded-xl text-[12.5px] min-w-0 border"
+            style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
           >
-            <div className="p-1.5 rounded-lg bg-white text-blue-600 border border-slate-100 shrink-0 shadow-sm">
+            <div className="p-1.5 rounded-lg text-blue-500 border shrink-0 shadow-sm" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-line)' }}>
               <r.icon size={15} />
             </div>
             <div className="flex-1 min-w-0 overflow-hidden">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-0.5">{r.k}</p>
-              <p title={r.v} className="text-slate-800 font-semibold truncate leading-snug">{r.v}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider leading-none mb-0.5" style={{ color: 'var(--color-ink-4)' }}>{r.k}</p>
+              <p title={r.v} className="font-semibold truncate leading-snug" style={{ color: 'var(--color-ink)' }}>{r.v}</p>
             </div>
           </motion.div>
         ))}
       </div>
 
-      <div className="space-y-3.5 pt-4 mt-4 border-t border-slate-100">
-        <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Resource Utilization</h4>
+      <div className="space-y-3.5 pt-4 mt-4 border-t" style={{ borderColor: 'var(--color-line)' }}>
+        <h4 className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-ink-4)' }}>Resource Utilization</h4>
         <Bar label="CPU" value={systemInfo.cpuUsage} max={100} unit="%" color="#2563eb" />
         <Bar label="Memory" value={systemInfo.memoryUsage} max={100} unit="%" color="#7c3aed" />
         <Bar
@@ -113,12 +114,12 @@ export default function SystemInfoPanel({ systemInfo, selectedMode, live = false
       </div>
 
       {selectedMode && (
-        <div className="mt-5 p-3.5 rounded-xl bg-blue-50 border border-blue-100">
-          <div className="flex items-center gap-1.5 text-[11px] font-bold text-blue-700 uppercase tracking-wider mb-1">
+        <div className="mt-5 p-3.5 rounded-xl border" style={{ backgroundColor: 'rgba(59,130,246,0.08)', borderColor: 'rgba(59,130,246,0.20)' }}>
+          <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider mb-1 text-blue-500">
             <Sparkles size={12} />
             <span>Profile: {selectedMode}</span>
           </div>
-          <p className="text-[11.5px] text-slate-600 leading-relaxed">
+          <p className="text-[11.5px] leading-relaxed" style={{ color: 'var(--color-ink-2)' }}>
             {selectedMode === 'Safe' && 'Full security & software updates with standard component verification.'}
             {selectedMode === 'Quick' && 'Fast-track updates for apps, Store and Defender. Skips deep integrity scans.'}
             {selectedMode === 'Aggressive' && 'Deep component cleanup with ResetBase, Prefetch flush and Storage Sense.'}
