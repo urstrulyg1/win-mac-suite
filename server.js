@@ -1,101 +1,58 @@
 /**
- * WinSuite local telemetry server
- * Reads real system info via `systeminformation` and exposes it on
- * http://localhost:3131/api/sysinfo  (polled every 3 s by the UI)
+ * WinSuite & MacSuite v6.3 Production Architecture
+ * Local Telemetry, Secure Command Allowlist & Operations Server (:3131).
  *
- * Run:  node server.js   (or  npm run server)
+ * Modular Route Organization:
+ * - /api/sysinfo, /api/capabilities, /api/permissions -> routes/system.js
+ * - /api/health-check, /api/processes, /api/event-logs -> routes/diagnostics.js
+ * - /api/security, /api/privacy                       -> routes/security.js
+ * - /api/storage, /api/developer-cleanup, /api/snapshots -> routes/storage.js
+ * - /api/services, /api/startup-items                 -> routes/services.js
+ * - /api/network/diagnostics                          -> routes/network.js
+ * - /api/reports, /api/audit-history                  -> routes/reports.js
+ * - /api/actions/*                                    -> routes/actions.js
  */
 
-import si from 'systeminformation';
 import express from 'express';
 import cors from 'cors';
 import os from 'os';
 
+import systemRouter from './server/routes/system.js';
+import diagnosticsRouter from './server/routes/diagnostics.js';
+import securityRouter from './server/routes/security.js';
+import storageRouter from './server/routes/storage.js';
+import servicesRouter from './server/routes/services.js';
+import networkRouter from './server/routes/network.js';
+import reportsRouter from './server/routes/reports.js';
+import actionsRouter from './server/routes/actions.js';
+
+import { localhostOnlyGuard, concurrencyGuard } from './server/security/request-guard.js';
+
 const PORT = 3131;
 const app = express();
-app.use(cors());
 
-// ── helpers ─────────────────────────────────────────────────────────────────
-function fmtUptime(seconds) {
-  const d = Math.floor(seconds / 86400);
-  const h = Math.floor((seconds % 86400) / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (d > 0) return `${d} day${d !== 1 ? 's' : ''}, ${h} hour${h !== 1 ? 's' : ''}`;
-  if (h > 0) return `${h} hour${h !== 1 ? 's' : ''}, ${m} min`;
-  return `${m} min`;
-}
+// Local origin and security configuration
+app.use(cors({ origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3131', 'http://127.0.0.1:3131'] }));
+app.use(express.json());
+app.use(localhostOnlyGuard);
+app.use(concurrencyGuard);
 
-function toGB(bytes) {
-  return Math.round((bytes / 1073741824) * 10) / 10;   // 1 GiB
-}
+// Mount modular sub-routers
+app.use('/api', systemRouter);
+app.use('/api', diagnosticsRouter);
+app.use('/api', securityRouter);
+app.use('/api', storageRouter);
+app.use('/api', servicesRouter);
+app.use('/api', reportsRouter);
+app.use('/api/network', networkRouter);
+app.use('/api/actions', actionsRouter);
 
-// ── one-time static data (fetched on startup) ───────────────────────────────
-let staticInfo = null;
-
-async function loadStatic() {
-  const [cpu, mem, osInfo, osData, disk, system] = await Promise.all([
-    si.cpu(),
-    si.mem(),
-    si.osInfo(),
-    si.osInfo(),
-    si.fsSize(),
-    si.system(),
-  ]);
-
-  // pick the largest disk (usually the boot drive)
-  const mainDisk = disk
-    .filter(d => d.size > 0)
-    .sort((a, b) => b.size - a.size)[0] || { size: 0, used: 0 };
-
-  staticInfo = {
-    hostName:   os.hostname(),
-    user:       os.userInfo().username,
-    os:         `${osInfo.distro} ${osInfo.release}`,
-    build:      osInfo.build || osData.kernel || '',
-    processor:  `${cpu.manufacturer} ${cpu.brand}`,
-    ramGB:      toGB(mem.total),
-    totalDiskGB: toGB(mainDisk.size),
-    model:      system.model || '',
-  };
-}
-
-await loadStatic();
-
-// ── live endpoint – called every ~3 s by the browser ────────────────────────
-app.get('/api/sysinfo', async (_req, res) => {
-  try {
-    const [cpuLoad, mem, disk, net] = await Promise.all([
-      si.currentLoad(),
-      si.mem(),
-      si.fsSize(),
-      si.networkStats(),
-    ]);
-
-    const mainDisk = disk
-      .filter(d => d.size > 0)
-      .sort((a, b) => b.size - a.size)[0] || { size: 0, used: 0 };
-
-    const freeDiskGB  = toGB(mainDisk.size - mainDisk.used);
-    const cpuUsage    = Math.round(cpuLoad.currentLoad);
-    const memUsage    = Math.round((mem.active / mem.total) * 100);
-    const isOnline    = net.some(n => n.operstate === 'up');
-    const uptimeSec   = os.uptime();
-
-    res.json({
-      ...staticInfo,
-      freeDiskGB,
-      cpuUsage,
-      memoryUsage: memUsage,
-      isOnline,
-      uptime: fmtUptime(uptimeSec),
-    });
-  } catch (err) {
-    console.error('sysinfo error:', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
+const isMac = process.platform === 'darwin';
+const isWin = process.platform === 'win32';
+const detectedPlatform = isMac ? 'macos' : isWin ? 'windows' : 'unsupported';
+const brand = isMac ? 'MacSuite' : 'WinSuite';
 
 app.listen(PORT, '127.0.0.1', () => {
-  console.log(`✅  WinSuite telemetry server listening on http://127.0.0.1:${PORT}`);
-  console.log(`    Serving real system data for: ${os.hostname()}`);
+  console.log(`✅  ${brand} (v6.3) telemetry & operations server listening on http://127.0.0.1:${PORT}`);
+  console.log(`    Platform: ${detectedPlatform.toUpperCase()} | Host: ${os.hostname()} (${os.arch()})`);
 });

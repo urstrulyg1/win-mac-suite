@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play, Sliders, CheckSquare, Square,
   SquareX, Timer, Search, Filter, ChevronsUpDown, ChevronsDownUp,
-  TrendingUp, Package, ShieldCheck,
+  TrendingUp, Package, ShieldCheck, AlertTriangle,
 } from 'lucide-react';
 import type { Section, RunMode, LogEntry, AppPhase, SystemInfo, RunSummary } from '../types';
 import { useElapsedTimer, formatDuration } from '../hooks/useElapsedTimer';
@@ -14,6 +14,9 @@ import TerminalLog from './TerminalLog';
 import SummaryPanel from './SummaryPanel';
 import ProgressRow from './charts/ProgressRow';
 import FunnelBars from './charts/FunnelBars';
+import ConfirmationModal from './ConfirmationModal';
+import { usePlatform } from '../platform';
+import { createMaintenancePlan } from '../maintenance';
 
 interface Props {
   phase: AppPhase;
@@ -45,11 +48,17 @@ export default function RunningDashboard({
   onModeChange, onToggleNoReboot, onToggleExportJson,
   onStart, onReset, onCancel, onClearLogs, onExport,
 }: Props) {
+  const { config, isMac, capabilities } = usePlatform();
   const elapsed = useElapsedTimer(isRunning);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterKey>('all');
   const [expandSignal, setExpandSignal] = useState(0);
   const [collapseSignal, setCollapseSignal] = useState(0);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  const plan = useMemo(() => {
+    return createMaintenancePlan(config, mode, capabilities);
+  }, [config, mode, capabilities]);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: sections.length, pending: 0, running: 0, done: 0, issues: 0 };
@@ -79,7 +88,6 @@ export default function RunningDashboard({
     return Math.max(0, (elapsed / overallProgress) * (100 - overallProgress));
   }, [elapsed, overallProgress, isRunning]);
 
-  // KPI numbers during a run
   const doneCount = sections.filter((s) => s.status === 'success' || s.status === 'skipped').length;
   const updatedCount = sections
     .flatMap((s) => s.logs)
@@ -101,14 +109,39 @@ export default function RunningDashboard({
     { key: 'issues', label: 'Issues' },
   ];
 
+  const handleStartAttempt = () => {
+    if (mode === 'Aggressive') {
+      setShowConfirmModal(true);
+    } else {
+      onStart();
+    }
+  };
+
   return (
-    <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
+    <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+      {/* Confirmation Dialog for Deep Operations */}
+      <ConfirmationModal
+        open={showConfirmModal}
+        title={`Execute ${config.productName} Deep Maintenance?`}
+        description={
+          isMac
+            ? 'Deep Maintenance will purge ~/Library/Caches, thin local Time Machine snapshots, and trim APFS volumes. Continue?'
+            : 'Deep Maintenance will clean Component Store with ResetBase and purge old update caches. Continue?'
+        }
+        riskLevel="moderate"
+        onConfirm={() => {
+          setShowConfirmModal(false);
+          onStart();
+        }}
+        onCancel={() => setShowConfirmModal(false)}
+      />
+
       {/* Page header / status row */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-6">
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-2">
             <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25">
-              <ShieldCheck size={12} /> {mode} profile
+              <ShieldCheck size={12} /> {mode} Profile
             </span>
             {isRunning ? (
               <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25">
@@ -121,18 +154,20 @@ export default function RunningDashboard({
                 <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25">Completed</span>
               )
             ) : (
-              <span className="pill" style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-3)', borderColor: 'var(--color-line)' }}>Ready to run</span>
+              <span className="pill" style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-3)', borderColor: 'var(--color-line)' }}>
+                {config.productName} Ready
+              </span>
             )}
           </div>
           <h1 className="text-hero font-extrabold tracking-tight" style={{ color: 'var(--color-ink)' }}>
-            {phase === 'configuring' ? 'Configure run' : phase === 'complete' ? 'Run report' : 'Maintenance'}
+            {phase === 'configuring' ? `Configure ${config.productName}` : phase === 'complete' ? 'Execution Summary' : 'Maintenance Pipeline'}
           </h1>
           <p className="mt-1 text-[14px]" style={{ color: 'var(--color-ink-3)' }}>
             {phase === 'configuring'
-              ? 'Pick a profile, review flags, then launch.'
+              ? `Select an execution profile, review flags and inspect the 10 scheduled ${config.osFamily} phases.`
               : phase === 'complete'
-              ? 'Review results, metrics and follow-up actions.'
-              : 'Live execution across the Windows maintenance pipeline.'}
+              ? 'Review diagnostics, reclaimed space, and system health results.'
+              : `Live execution across the ${config.osFamily} maintenance pipeline.`}
           </p>
         </div>
 
@@ -170,17 +205,19 @@ export default function RunningDashboard({
               <div className="card p-5 sm:p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <Sliders size={16} className="text-blue-500" />
-                  <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>Configuration Flags</h3>
+                  <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>Execution Flags</h3>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <ToggleCard active={noReboot} onClick={onToggleNoReboot} title="No Reboot Prompt" desc="Skip restart prompt at completion" />
-                  <ToggleCard active={exportJson} onClick={onToggleExportJson} title="Export Diagnostics" desc="Auto-save JSON telemetry report" />
+                  {!isMac && (
+                    <ToggleCard active={noReboot} onClick={onToggleNoReboot} title="No Reboot Prompt" desc="Skip restart prompt at completion" />
+                  )}
+                  <ToggleCard active={exportJson} onClick={onToggleExportJson} title="Export Diagnostics" desc="Auto-compile JSON telemetry report" />
                 </div>
 
                 <motion.button
                   whileHover={{ y: -1 }}
                   whileTap={{ scale: 0.99 }}
-                  onClick={onStart}
+                  onClick={handleStartAttempt}
                   className="btn btn-primary w-full mt-5 !py-3.5 text-[15px] relative overflow-hidden"
                 >
                   <span className="shimmer-bar" />
@@ -242,7 +279,6 @@ export default function RunningDashboard({
           >
             {/* Left: KPIs + sections or summary */}
             <div className="col-span-12 lg:col-span-8 space-y-5">
-              {/* KPI bento row */}
               {phase !== 'complete' && (
                 <div className="grid grid-cols-12 gap-4">
                   <div className="card p-5 col-span-12 sm:col-span-6">
@@ -391,9 +427,9 @@ export default function RunningDashboard({
                     <ProgressRow label="Memory" value={systemInfo.memoryUsage} total={100} display={`${systemInfo.memoryUsage}%`} color="#7c3aed" />
                     <ProgressRow
                       label="Disk Used"
-                      value={Math.round(((systemInfo.totalDiskGB - systemInfo.freeDiskGB) / systemInfo.totalDiskGB) * 100)}
+                      value={Math.round(((systemInfo.totalDiskGB - systemInfo.freeDiskGB) / Math.max(systemInfo.totalDiskGB, 1)) * 100)}
                       total={100}
-                      display={`${Math.round(((systemInfo.totalDiskGB - systemInfo.freeDiskGB) / systemInfo.totalDiskGB) * 100)}%`}
+                      display={`${Math.round(((systemInfo.totalDiskGB - systemInfo.freeDiskGB) / Math.max(systemInfo.totalDiskGB, 1)) * 100)}%`}
                       color="#0891b2"
                     />
                   </div>
@@ -405,8 +441,8 @@ export default function RunningDashboard({
         )}
       </AnimatePresence>
 
-      <p className="text-center text-[11px] font-mono mt-10 tracking-wide" style={{ color: 'var(--color-ink-4)' }}>
-        Windows System Maintenance &amp; Diagnostics Engine · Version 5.0.0
+      <p className="text-center text-[11px] font-mono mt-4 tracking-wide" style={{ color: 'var(--color-ink-4)' }}>
+        {config.productName} · {config.subtitle} · Version {config.version}
       </p>
     </div>
   );

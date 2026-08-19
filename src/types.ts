@@ -1,6 +1,14 @@
-export type RunMode = 'Safe' | 'Aggressive' | 'Quick' | 'ScanOnly' | 'CleanupOnly';
+export type RunMode = 'Safe' | 'Aggressive' | 'Quick' | 'ScanOnly' | 'CleanupOnly' | 'Custom';
 
-export type SectionStatus = 'pending' | 'running' | 'success' | 'warning' | 'error' | 'skipped';
+export type SectionStatus =
+  | 'pending'
+  | 'running'
+  | 'success'
+  | 'warning'
+  | 'error'
+  | 'skipped'
+  | 'unavailable'
+  | 'permission-required';
 
 export interface Section {
   id: string;
@@ -14,6 +22,10 @@ export interface Section {
   result: string;
   logs: LogEntry[];
   details?: Record<string, string | number>;
+  requiresElevation?: boolean;
+  riskLevel?: 'safe' | 'moderate' | 'advanced';
+  allowedCommandId?: string;
+  selected?: boolean;
 }
 
 export interface LogEntry {
@@ -37,6 +49,15 @@ export interface SystemInfo {
   uptime: string;
 }
 
+export interface BeforeAfterSnapshot {
+  timestamp: string;
+  healthScore: number;
+  diskPercentUsed: number;
+  freeDiskGB: number;
+  startupCount: number;
+  issuesCount: number;
+}
+
 export interface RunSummary {
   healthScore: number;
   totalSections: number;
@@ -51,6 +72,37 @@ export interface RunSummary {
   cancelled?: boolean;
   mode?: RunMode;
   startedAt?: string;
+  beforeSnapshot?: BeforeAfterSnapshot;
+  afterSnapshot?: BeforeAfterSnapshot;
+}
+
+export interface OperationAuditRecord {
+  id: string;
+  timestamp: string;
+  operation: string;
+  commandId?: string;
+  platform: 'windows' | 'macos';
+  user: string;
+  risk: 'safe' | 'moderate' | 'advanced';
+  permissionLevel: 'Administrator' | 'Root' | 'Standard User';
+  result: 'success' | 'warning' | 'error' | 'cancelled' | 'timeout';
+  durationSeconds: number;
+  changesMade: string[];
+  reclaimedBytes?: number;
+  errorCode?: string;
+  outputLogSnippet?: string;
+}
+
+export interface SystemRecommendation {
+  id: string;
+  category: string;
+  severity: 'high' | 'medium' | 'low';
+  title: string;
+  description: string;
+  impact: string;
+  actionLabel: string;
+  actionTarget: string;
+  estimatedBenefit?: string;
 }
 
 export type AppPhase = 'landing' | 'configuring' | 'running' | 'complete' | 'reports';

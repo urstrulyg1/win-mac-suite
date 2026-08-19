@@ -2,10 +2,17 @@
 set -eo pipefail
 cd "$(dirname "$0")"
 
+OS_NAME="MacSuite"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  OS_NAME="MacSuite (macOS)"
+else
+  OS_NAME="WinSuite / System Maintenance Suite"
+fi
+
 echo ""
 echo "  ========================================================"
-echo "    WINDOWS SYSTEM UPDATE & OPTIMIZATION SUITE v5.0"
-echo "                      Web UI Launcher"
+echo "    ${OS_NAME} v5.0"
+echo "            Cross-Platform System Maintenance"
 echo "  ========================================================"
 echo ""
 
@@ -28,7 +35,7 @@ fi
 if ! command -v node >/dev/null 2>&1; then
   echo "  [ERROR] Node.js was not found on your system."
   echo "  Please install Node.js (LTS recommended) from https://nodejs.org/"
-  echo "  or via your package manager (e.g. brew install node, apt install nodejs, etc.)."
+  echo "  or via Homebrew (brew install node)."
   exit 1
 fi
 
@@ -52,7 +59,7 @@ if [ ! -d "node_modules" ] || \
 fi
 
 if [ "$NEED_INSTALL" -eq 1 ]; then
-  echo "  [..] Installing required project dependencies (express, systeminformation, vite, tailwind, etc.)..."
+  echo "  [..] Installing required project dependencies..."
   if ! npm install --loglevel=error; then
     echo "  [WARN] Standard install failed. Trying npm ci..."
     npm ci --loglevel=error || npm install --loglevel=error
@@ -64,9 +71,9 @@ fi
 
 echo ""
 echo "  ========================================================"
-echo "    Starting WinSuite Telemetry Backend + Web UI"
-echo "    - Backend Telemetry API: http://127.0.0.1:3131"
-echo "    - Web UI Dashboard:      http://localhost:5173"
+echo "    Starting Backend Telemetry & Diagnostics + Web UI"
+echo "    - Telemetry API:    http://127.0.0.1:3131"
+echo "    - Web UI Dashboard: http://localhost:5173"
 echo "    Press Ctrl+C to stop all servers"
 echo "  ========================================================"
 echo ""

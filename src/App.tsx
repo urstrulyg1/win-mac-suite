@@ -1,56 +1,41 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import type { RunMode, AppPhase, Section, LogEntry, RunSummary, SystemInfo } from './types';
-import { SYSTEM_INFO, createSections, getSectionSimData, shouldSkipSection, generateTimestamp } from './data';
-import { useToast } from './components/Toast';
-import { useDarkMode } from './hooks/useDarkMode';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import TopNav from './components/TopNav';
 import LandingHero from './components/LandingHero';
 import RunningDashboard from './components/RunningDashboard';
+import DiagnosticsHub from './components/DiagnosticsHub';
+import SecurityHub from './components/SecurityHub';
+import StorageHub from './components/StorageHub';
+import SystemAppsHub from './components/SystemAppsHub';
 import ReportsPage from './components/ReportsPage';
+import UnsupportedPlatformView from './components/UnsupportedPlatformView';
+import { useDarkMode } from './hooks/useDarkMode';
+import { useToast } from './components/Toast';
+import type { Section, RunMode, LogEntry, RunSummary, AppPhase, SystemInfo } from './types';
+import { PlatformProvider, usePlatform, type PlatformCapabilities } from './platform';
+import { createMaintenancePlan, executeMaintenancePlan } from './maintenance';
 
-// Fetch real system data from the local backend. Falls back to SYSTEM_INFO if
-// the server is not running (e.g. static build / no backend).
-async function fetchSysInfo(): Promise<SystemInfo | null> {
-  try {
-    const res = await fetch('/api/sysinfo', { signal: AbortSignal.timeout(2000) });
-    if (!res.ok) return null;
-    return await res.json() as SystemInfo;
-  } catch {
-    return null;
-  }
-}
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const clamp = (n: number, min: number, max: number) => Math.min(Math.max(n, min), max);
-
-function buildExportReport(
+export function buildExportReport(
+  platform: string,
   mode: RunMode,
   sections: Section[],
   logs: LogEntry[],
   summary: RunSummary | null,
 ): string {
   const report = {
-    suite: 'Windows System Update & Optimization Suite',
+    suite: platform === 'macos' ? 'MacSuite' : 'WinSuite',
     version: '5.0.0',
-    generatedAt: new Date().toISOString(),
-    executionMode: mode,
-    system: {
-      host: SYSTEM_INFO.hostName,
-      os: SYSTEM_INFO.os,
-      build: SYSTEM_INFO.build,
-      processor: SYSTEM_INFO.processor,
-      ramGB: SYSTEM_INFO.ramGB,
-    },
+    exportTimestamp: new Date().toISOString(),
+    mode,
     summary,
-    sections: sections.map((s) => ({
+    phases: sections.map((s) => ({
       number: s.number,
       title: s.title,
+      description: s.description,
       status: s.status,
-      progress: s.progress,
-      durationSeconds: s.duration,
+      duration: s.duration,
       result: s.result,
-      details: s.details ?? {},
+      details: s.details,
       logCount: s.logs.length,
     })),
     logs,
@@ -58,13 +43,15 @@ function buildExportReport(
   return JSON.stringify(report, null, 2);
 }
 
-export default function App() {
+function MainApp() {
   const { toast } = useToast();
   const { dark, toggle: toggleDark } = useDarkMode();
+  const { config, platform, isSupported, createPlatformSections, capabilities } = usePlatform();
+
   const [phase, setPhase] = useState<AppPhase>('landing');
   const [mode, setMode] = useState<RunMode>('Safe');
   const [activeTab, setActiveTab] = useState<string>('overview');
-  const [sections, setSections] = useState<Section[]>(createSections());
+  const [sections, setSections] = useState<Section[]>(() => createPlatformSections());
   const [allLogs, setAllLogs] = useState<LogEntry[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [summary, setSummary] = useState<RunSummary | null>(null);
@@ -73,31 +60,67 @@ export default function App() {
   const [noReboot, setNoReboot] = useState(false);
   const [exportJson, setExportJson] = useState(false);
 
-  // Real system telemetry — polled from /api/sysinfo every 3 s.
-  // Falls back to SYSTEM_INFO constants when the backend is not running.
-  const [realSysInfo, setRealSysInfo] = useState<SystemInfo>(SYSTEM_INFO);
+  // Real system telemetry
+  const [realSysInfo, setRealSysInfo] = useState<SystemInfo>({
+    hostName: '',
+    user: '',
+    os: '',
+    build: '',
+    processor: '',
+    ramGB: 0,
+    freeDiskGB: 0,
+    totalDiskGB: 0,
+    isOnline: true,
+    cpuUsage: 0,
+    memoryUsage: 0,
+    uptime: '',
+  });
   const [backendOnline, setBackendOnline] = useState(false);
-  const runStartedAtRef = useRef<string>('');
 
   const cancelRef = useRef(false);
-  const sectionsRef = useRef<Section[]>(createSections());
+  const sectionsRef = useRef<Section[]>(sections);
   const logsRef = useRef<LogEntry[]>([]);
 
+  // Update sections when platform or config changes
+  useEffect(() => {
+    if (!isRunning && phase !== 'running' && phase !== 'complete') {
+      const fresh = createPlatformSections();
+      setSections(fresh);
+      sectionsRef.current = fresh;
+    }
+  }, [createPlatformSections, isRunning, phase]);
+
+  // Telemetry Polling
   useEffect(() => {
     let cancelled = false;
 
     const poll = async () => {
-      const data = await fetchSysInfo();
-      if (cancelled) return;
-      if (data) {
-        setRealSysInfo(data);
+      try {
+        const res = await fetch('http://127.0.0.1:3131/api/sysinfo');
+        if (!res.ok) throw new Error('API down');
+        const data = await res.json();
+        if (cancelled) return;
         setBackendOnline(true);
-      } else {
-        setBackendOnline(false);
+        setRealSysInfo({
+          hostName: data.hostName || 'Local Computer',
+          user: data.user || 'User',
+          os: data.os || 'OS',
+          build: data.build || '',
+          processor: data.processor || 'CPU',
+          ramGB: data.ramGB || 0,
+          freeDiskGB: data.freeDiskGB || 0,
+          totalDiskGB: data.totalDiskGB || 0,
+          isOnline: data.isOnline ?? true,
+          cpuUsage: data.cpuUsage ?? 0,
+          memoryUsage: data.memoryUsage ?? 0,
+          uptime: data.uptime || '',
+        });
+      } catch {
+        if (!cancelled) setBackendOnline(false);
       }
     };
 
-    poll(); // immediate first fetch
+    poll();
     const id = window.setInterval(poll, 3000);
     return () => { cancelled = true; window.clearInterval(id); };
   }, []);
@@ -109,6 +132,7 @@ export default function App() {
       return next;
     });
   }, []);
+
   const patch = useCallback((id: string, u: Partial<Section>) => {
     setSections((p) => {
       const next = p.map((s) => (s.id === id ? { ...s, ...u } : s));
@@ -120,14 +144,14 @@ export default function App() {
   const downloadReport = useCallback(
     (secs: Section[], logs: LogEntry[], summ: RunSummary | null, runMode: RunMode) => {
       try {
-        const blob = new Blob([buildExportReport(runMode, secs, logs, summ)], {
+        const blob = new Blob([buildExportReport(platform, runMode, secs, logs, summ)], {
           type: 'application/json',
         });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-        a.download = `windows-suite-report-${stamp}.json`;
+        a.download = `${config.productName.toLowerCase()}-report-${stamp}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -137,7 +161,7 @@ export default function App() {
         return false;
       }
     },
-    [],
+    [platform, config.productName],
   );
 
   const run = useCallback(async () => {
@@ -145,150 +169,57 @@ export default function App() {
     setIsRunning(true);
     setOverallProgress(0);
     setSummary(null);
-    const secs = createSections();
-    sectionsRef.current = secs;
+
+    const initialSections = createPlatformSections();
+    sectionsRef.current = initialSections;
     logsRef.current = [];
-    setSections(secs);
+    setSections(initialSections);
     setAllLogs([]);
-    runStartedAtRef.current = new Date().toISOString();
-    const ts = generateTimestamp;
 
-    const hostDisplay = realSysInfo.hostName || 'Local Computer';
-    const osDisplay = realSysInfo.os || 'Windows';
-    const buildDisplay = realSysInfo.build ? ` (${realSysInfo.build})` : '';
+    const plan = createMaintenancePlan(config, mode, capabilities);
 
-    await sleep(250);
-    log({ time: ts(), level: 'INFO', message: `Suite v5.0.0 initialized — Execution Mode: ${mode}` });
-    await sleep(120);
-    log({ time: ts(), level: 'INFO', message: `Host: ${hostDisplay} | OS: ${osDisplay}${buildDisplay}` });
-    await sleep(120);
-    log({ time: ts(), level: 'SUCCESS', message: '[OK] Network online · Elevated administrative privileges verified' });
-    await sleep(120);
-    log({ time: ts(), level: 'INFO', message: '─'.repeat(48) });
-    await sleep(350);
-
-    const total = secs.length;
-    let passed = 0;
-    let cancelled = false;
-
-    for (let i = 0; i < total; i++) {
-      if (cancelRef.current) {
-        cancelled = true;
-        break;
-      }
-      const sec = secs[i];
-      const sim = getSectionSimData(sec.id);
-
-      if (shouldSkipSection(sec.id, mode)) {
-        patch(sec.id, { status: 'skipped', result: 'SKIPPED (Mode Policy)', progress: 100 });
-        log({ time: ts(), level: 'INFO', message: `[SKIP] ${sec.title} (Skipped for ${mode} mode)` });
-        setOverallProgress(Math.round(((i + 1) / total) * 100));
-        passed++;
-        await sleep(180);
-        continue;
-      }
-
-      setCurrentSectionName(sec.title);
-      patch(sec.id, { status: 'running', progress: 0 });
-      await sleep(150);
-      log({ time: ts(), level: 'INFO', message: `═ [Phase ${sec.number}/${total}] ${sec.title.toUpperCase()}` });
-      await sleep(250);
-
-      if (sim) {
-        const logs = sim.logs(mode);
-        const dur = sim.minDuration + Math.random() * (sim.maxDuration - sim.minDuration);
-        const delay = (dur * 1000) / logs.length;
-        const secLogs: LogEntry[] = [];
-
-        for (let j = 0; j < logs.length; j++) {
-          if (cancelRef.current) break;
-          const entry = { ...logs[j], time: ts() };
-          secLogs.push(entry);
+    const finalSummary = await executeMaintenancePlan(
+      plan,
+      {
+        onPhaseStart: (_id, name) => {
+          setCurrentSectionName(name);
+        },
+        onPhaseProgress: (id, progress, curLogs) => {
+          patch(id, { status: 'running', progress, logs: curLogs });
+        },
+        onPhaseComplete: (id, status, result, duration, pLogs) => {
+          patch(id, { status, progress: 100, result, duration, logs: pLogs });
+        },
+        onLog: (entry) => {
           log(entry);
-          patch(sec.id, { progress: Math.round(((j + 1) / logs.length) * 100), logs: [...secLogs] });
-          setOverallProgress(Math.round(((i + (j + 1) / logs.length) / total) * 100));
-          await sleep(delay * (0.7 + Math.random() * 0.5));
-        }
-
-        if (cancelRef.current) {
-          cancelled = true;
-          break;
-        }
-
-        let status: Section['status'] = 'success';
-        if (sim.successResult.match(/FAIL|ISSUES/)) status = 'error';
-        else if (sim.successResult.match(/PARTIAL|WARNING/)) status = 'warning';
-
-        patch(sec.id, {
-          status,
-          progress: 100,
-          result: sim.successResult,
-          duration: Math.round(dur * 10) / 10,
-          logs: secLogs,
-          details: sim.details,
-        });
-        if (status !== 'error') passed++;
-
-        await sleep(100);
-        log({
-          time: ts(),
-          level: status === 'success' ? 'SUCCESS' : status === 'warning' ? 'WARNING' : 'ERROR',
-          message: `Done: ${sim.successResult} (${Math.round(dur * 10) / 10}s)`,
-        });
-      }
-      await sleep(300);
-    }
-
-    // Dynamic follow-up recommendations based on the executed profile
-    const followUps: string[] = [];
-    if (!noReboot && mode !== 'ScanOnly' && mode !== 'CleanupOnly') {
-      followUps.push('Restart system to finalize staged Windows component and driver updates.');
-    }
-    if (mode === 'ScanOnly' || mode === 'Safe' || mode === 'Aggressive') {
-      followUps.push('Review Windows CBS integrity logs at C:\\Windows\\Logs\\CBS\\CBS.log.');
-    }
-    if (followUps.length === 0) {
-      followUps.push('System is optimized and clean. All scheduled maintenance tasks completed.');
-    }
-
-    // Reflect reclaimed disk space after cleanup-type operations
-    const reclaimedDisk = mode === 'ScanOnly' ? 0 : 3.1;
-    const finalSummary: RunSummary = {
-      healthScore: Math.round((passed / total) * 100),
-      totalSections: total,
-      passedSections: passed,
-      durationMinutes: Math.round((3 + Math.random() * 4) * 10) / 10,
-      totalUpdated: mode === 'ScanOnly' || mode === 'CleanupOnly' ? 0 : 15,
-      spaceReclaimed: mode === 'ScanOnly' ? 0 : 3189,
-      issuesFound: 0,
-      issuesFixed: 0,
-      rebootRequired: !noReboot && mode !== 'ScanOnly' && mode !== 'CleanupOnly',
-      followUps,
-      cancelled,
-      mode,
-      startedAt: runStartedAtRef.current,
-    };
-
-    if (cancelled) {
-      log({ time: ts(), level: 'WARNING', message: '⚠ Execution aborted by user — partial report generated.' });
-      toast('Run cancelled — partial results retained', 'warning');
-    } else {
-      setOverallProgress(100);
-      log({ time: ts(), level: 'SUCCESS', message: '═ SYSTEM MAINTENANCE AND UPDATE COMPLETED SUCCESSFULLY' });
-      toast('Maintenance suite completed successfully', 'success');
-    }
+        },
+        onOverallProgress: (p) => {
+          setOverallProgress(p);
+        },
+      },
+      () => cancelRef.current,
+      { noReboot },
+    );
 
     setSummary(finalSummary);
     setRealSysInfo((prev) => ({
       ...prev,
-      freeDiskGB: +(prev.freeDiskGB + reclaimedDisk).toFixed(1),
+      freeDiskGB: +(prev.freeDiskGB + (finalSummary.spaceReclaimed / 1024)).toFixed(1),
     }));
     setIsRunning(false);
     setCurrentSectionName('');
-    await sleep(600);
-    setActiveTab('reports');
-    setPhase('reports');
-  }, [mode, log, patch, toast, noReboot, exportJson, downloadReport]);
+
+    if (finalSummary.cancelled) {
+      toast('Run cancelled — partial diagnostics saved', 'warning');
+    } else {
+      toast(`${config.productName} completed successfully`, 'success');
+    }
+
+    setTimeout(() => {
+      setActiveTab('reports');
+      setPhase('reports');
+    }, 600);
+  }, [config, mode, capabilities, createPlatformSections, patch, log, noReboot, toast]);
 
   const cancelRun = useCallback(() => {
     cancelRef.current = true;
@@ -299,7 +230,7 @@ export default function App() {
     cancelRef.current = true;
     setActiveTab('maintenance');
     setPhase('configuring');
-    const fresh = createSections();
+    const fresh = createPlatformSections();
     sectionsRef.current = fresh;
     logsRef.current = [];
     setSections(fresh);
@@ -308,43 +239,36 @@ export default function App() {
     setSummary(null);
     setOverallProgress(0);
     setCurrentSectionName('');
-  }, []);
+  }, [createPlatformSections]);
 
   const clearLogs = useCallback(() => {
     setAllLogs([]);
-    toast('Terminal cleared', 'info');
+    toast('Terminal console cleared', 'info');
   }, [toast]);
 
   const handleManualExport = useCallback(() => {
     const ok = downloadReport(sections, allLogs, summary, mode);
-    if (ok) toast('Report downloaded', 'success');
+    if (ok) toast('Diagnostics report downloaded', 'success');
     else toast('Export failed', 'error');
   }, [downloadReport, sections, allLogs, summary, mode, toast]);
 
   const handleNavTab = useCallback((tab: string) => {
+    if (isRunning) {
+      toast('Please wait for the current run to finish or cancel first', 'warning');
+      return;
+    }
+
+    setActiveTab(tab);
     if (tab === 'overview') {
-      if (isRunning) { toast('Stop the current run before returning home', 'warning'); return; }
-      cancelRef.current = true;
-      setActiveTab('overview');
       setPhase('landing');
-      return;
-    }
-    if (tab === 'updates' || tab === 'security' || tab === 'maintenance') {
-      if (isRunning) { toast('Stop the current run first', 'warning'); return; }
-      if (tab === 'security') setMode('ScanOnly');
-      else if (tab === 'updates') setMode('Safe');
-      else if (tab === 'maintenance') setMode('Aggressive');
-      setActiveTab(tab);
-      setPhase('configuring');
-      return;
-    }
-    if (tab === 'reports') {
-      if (isRunning) { toast('Stop the current run first', 'warning'); return; }
-      setActiveTab('reports');
+    } else if (tab === 'reports') {
       setPhase('reports');
-      return;
+    } else if (tab === 'maintenance') {
+      setPhase('configuring');
+    } else {
+      setPhase('landing');
     }
-  }, [isRunning, phase, toast]);
+  }, [isRunning, toast]);
 
   const handleStartWithMode = useCallback((selectedMode?: RunMode) => {
     if (selectedMode) setMode(selectedMode);
@@ -352,8 +276,9 @@ export default function App() {
     setPhase('configuring');
   }, []);
 
-  // When the backend is live use real values; otherwise fall back to statics.
-  const liveSystem: SystemInfo = backendOnline ? realSysInfo : SYSTEM_INFO;
+  if (!isSupported) {
+    return <UnsupportedPlatformView platformName={realSysInfo.os || platform} />;
+  }
 
   return (
     <div className="min-h-screen app-bg antialiased selection:bg-blue-200 selection:text-blue-900 overflow-x-hidden">
@@ -364,55 +289,76 @@ export default function App() {
         dark={dark}
         onToggleDark={toggleDark}
         summary={summary}
-        systemInfo={liveSystem}
+        systemInfo={realSysInfo}
         onHome={() => handleNavTab('overview')}
         onReset={reset}
         onBack={phase === 'configuring' ? () => { setActiveTab('overview'); setPhase('landing'); } : undefined}
         onNavTab={handleNavTab}
       />
+
       <AnimatePresence mode="wait">
-        {phase === 'landing' ? (
+        {activeTab === 'diagnostics' ? (
+          <motion.div
+            key="diagnostics-tab"
+            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.2 }} className="w-full"
+          >
+            <DiagnosticsHub systemInfo={realSysInfo} onStartAction={handleStartWithMode} />
+          </motion.div>
+        ) : activeTab === 'security' ? (
+          <motion.div
+            key="security-tab"
+            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.2 }} className="w-full"
+          >
+            <SecurityHub />
+          </motion.div>
+        ) : activeTab === 'storage' ? (
+          <motion.div
+            key="storage-tab"
+            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.2 }} className="w-full"
+          >
+            <StorageHub systemInfo={realSysInfo} onClean={handleStartWithMode} />
+          </motion.div>
+        ) : activeTab === 'system' ? (
+          <motion.div
+            key="system-tab"
+            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.2 }} className="w-full"
+          >
+            <SystemAppsHub />
+          </motion.div>
+        ) : phase === 'landing' && activeTab === 'overview' ? (
           <motion.div
             key="landing-page"
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.98 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="relative z-10 w-full"
-            style={{ pointerEvents: 'auto' }}
+            initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }} className="w-full"
           >
             <LandingHero
               onStart={handleStartWithMode}
-              systemInfo={liveSystem}
+              systemInfo={realSysInfo}
               summary={summary}
               backendOnline={backendOnline}
             />
           </motion.div>
-        ) : phase === 'reports' ? (
+        ) : phase === 'reports' || activeTab === 'reports' ? (
           <motion.div
             key="reports-page"
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="relative z-10 w-full"
-            style={{ pointerEvents: 'auto' }}
+            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.2 }} className="w-full"
           >
             <ReportsPage
               summary={summary}
-              onStartNew={(m) => { handleStartWithMode(m); }}
+              onStartNew={(m) => handleStartWithMode(m)}
               onExport={summary ? handleManualExport : undefined}
             />
           </motion.div>
         ) : (
           <motion.div
             key="dashboard-page"
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="relative z-10 w-full"
-            style={{ pointerEvents: 'auto' }}
+            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.2 }} className="w-full"
           >
             <RunningDashboard
               phase={phase}
@@ -420,7 +366,7 @@ export default function App() {
               sections={sections}
               allLogs={allLogs}
               isRunning={isRunning}
-              systemInfo={liveSystem}
+              systemInfo={realSysInfo}
               summary={summary}
               overallProgress={overallProgress}
               currentSectionName={currentSectionName}
@@ -442,5 +388,60 @@ export default function App() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+export default function App() {
+  const [backendPlatform, setBackendPlatform] = useState<string | undefined>(undefined);
+  const [backendCapabilities, setBackendCapabilities] = useState<PlatformCapabilities | undefined>(undefined);
+  const [systemInfo, setSystemInfo] = useState<SystemInfo>({
+    hostName: '',
+    user: '',
+    os: '',
+    build: '',
+    processor: '',
+    ramGB: 0,
+    freeDiskGB: 0,
+    totalDiskGB: 0,
+    isOnline: true,
+    cpuUsage: 0,
+    memoryUsage: 0,
+    uptime: '',
+  });
+
+  useEffect(() => {
+    fetch('http://127.0.0.1:3131/api/sysinfo')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) {
+          if (data.platform) setBackendPlatform(data.platform);
+          if (data.capabilities) setBackendCapabilities(data.capabilities);
+          setSystemInfo({
+            hostName: data.hostName || '',
+            user: data.user || '',
+            os: data.os || '',
+            build: data.build || '',
+            processor: data.processor || '',
+            ramGB: data.ramGB || 0,
+            freeDiskGB: data.freeDiskGB || 0,
+            totalDiskGB: data.totalDiskGB || 0,
+            isOnline: data.isOnline ?? true,
+            cpuUsage: data.cpuUsage ?? 0,
+            memoryUsage: data.memoryUsage ?? 0,
+            uptime: data.uptime || '',
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  return (
+    <PlatformProvider
+      systemInfo={systemInfo}
+      backendPlatform={backendPlatform}
+      backendCapabilities={backendCapabilities}
+    >
+      <MainApp />
+    </PlatformProvider>
   );
 }

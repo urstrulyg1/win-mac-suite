@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
-import { Monitor, Cpu, HardDrive, Wifi, WifiOff, Clock, MemoryStick, Activity, Sparkles } from 'lucide-react';
+import { Monitor, Cpu, HardDrive, Wifi, WifiOff, Clock, MemoryStick, Activity, Sparkles, Apple, Battery } from 'lucide-react';
 import type { SystemInfo, RunMode } from '../types';
+import { usePlatform } from '../platform';
 
 interface Props {
   systemInfo: SystemInfo;
@@ -32,9 +33,11 @@ function Bar({
 }
 
 export default function SystemInfoPanel({ systemInfo, selectedMode, live = false }: Props) {
+  const { config, isMac } = usePlatform();
+
   const rows = [
-    { icon: Monitor, k: 'Host', v: systemInfo.hostName || 'Local Host' },
-    { icon: Cpu, k: 'Processor', v: systemInfo.processor || 'System CPU' },
+    { icon: isMac ? Apple : Monitor, k: 'Host', v: systemInfo.hostName || 'Local Host' },
+    { icon: Cpu, k: isMac ? 'Apple Silicon' : 'Processor', v: systemInfo.processor || 'System CPU' },
     { icon: MemoryStick, k: 'Memory', v: systemInfo.ramGB > 0 ? `${systemInfo.ramGB} GB RAM` : '—' },
     { icon: HardDrive, k: 'Storage', v: systemInfo.totalDiskGB > 0 ? `${systemInfo.freeDiskGB} GB free / ${systemInfo.totalDiskGB} GB` : '—' },
     { icon: Clock, k: 'Uptime', v: systemInfo.uptime || '—' },
@@ -50,7 +53,9 @@ export default function SystemInfoPanel({ systemInfo, selectedMode, live = false
       <div className="flex items-center justify-between pb-4 mb-4 border-b" style={{ borderColor: 'var(--color-line)' }}>
         <div className="flex items-center gap-2">
           <Activity size={16} className="text-blue-500" />
-          <h3 className="text-[13px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-ink-2)' }}>System Telemetry</h3>
+          <h3 className="text-[13px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-ink-2)' }}>
+            {config.productName} Telemetry
+          </h3>
           {live && (
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider text-cyan-700 bg-cyan-50 border border-cyan-100">
               <span className="relative flex h-1.5 w-1.5">
@@ -101,12 +106,12 @@ export default function SystemInfoPanel({ systemInfo, selectedMode, live = false
       </div>
 
       <div className="space-y-3.5 pt-4 mt-4 border-t" style={{ borderColor: 'var(--color-line)' }}>
-        <h4 className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-ink-4)' }}>Resource Utilization</h4>
-        <Bar label="CPU" value={systemInfo.cpuUsage} max={100} unit="%" color="#2563eb" />
+        <h4 className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-ink-4)' }}>Hardware Metrics</h4>
+        <Bar label="CPU Load" value={systemInfo.cpuUsage} max={100} unit="%" color="#2563eb" />
         <Bar label="Memory" value={systemInfo.memoryUsage} max={100} unit="%" color="#7c3aed" />
         <Bar
-          label="Disk"
-          value={Math.round(((systemInfo.totalDiskGB - systemInfo.freeDiskGB) / systemInfo.totalDiskGB) * 100)}
+          label="Disk Used"
+          value={Math.round(((systemInfo.totalDiskGB - systemInfo.freeDiskGB) / Math.max(systemInfo.totalDiskGB, 1)) * 100)}
           max={100}
           unit="%"
           color="#0891b2"
@@ -114,17 +119,13 @@ export default function SystemInfoPanel({ systemInfo, selectedMode, live = false
       </div>
 
       {selectedMode && (
-        <div className="mt-5 p-3.5 rounded-xl border" style={{ backgroundColor: 'rgba(59,130,246,0.08)', borderColor: 'rgba(59,130,246,0.20)' }}>
+        <div className="mt-4 p-3.5 rounded-xl border" style={{ backgroundColor: 'rgba(59,130,246,0.08)', borderColor: 'rgba(59,130,246,0.20)' }}>
           <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider mb-1 text-blue-500">
             <Sparkles size={12} />
             <span>Profile: {selectedMode}</span>
           </div>
           <p className="text-[11.5px] leading-relaxed" style={{ color: 'var(--color-ink-2)' }}>
-            {selectedMode === 'Safe' && 'Full security & software updates with standard component verification.'}
-            {selectedMode === 'Quick' && 'Fast-track updates for apps, Store and Defender. Skips deep integrity scans.'}
-            {selectedMode === 'Aggressive' && 'Deep component cleanup with ResetBase, Prefetch flush and Storage Sense.'}
-            {selectedMode === 'ScanOnly' && 'Non-destructive hardware diagnostics plus SFC & DISM integrity checks.'}
-            {selectedMode === 'CleanupOnly' && 'Reclaims temporary update caches, crash dumps and system files.'}
+            {config.modeDescriptions[selectedMode]?.description || 'Optimized system maintenance profile.'}
           </p>
         </div>
       )}
