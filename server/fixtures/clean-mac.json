@@ -1,0 +1,13 @@
+{
+  "profile": "clean-mac",
+  "description": "Pristine macOS installation with nominal resource utilization",
+  "memoryUsagePct": 42,
+  "swapUsedGB": 0,
+  "dockerActive": false,
+  "dockerCpuPct": 0,
+  "chromeMemoryMB": 650,
+  "thermalLevel": "Nominal",
+  "systemDataGB": 18.2,
+  "freeDiskGB": 240.0,
+  "recentCrashes": []
+}

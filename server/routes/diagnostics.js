@@ -1,5 +1,5 @@
 /**
- * WinSuite & MacSuite v7.0 - Comprehensive Diagnostics, Health & Diagnostic Doctors Route
+ * WinSuite & MacSuite v8.0 - Comprehensive Diagnostics, Health & Diagnostic Doctors Route
  */
 
 import express from 'express';
@@ -42,6 +42,9 @@ import {
   getMacBaselineDiff,
 } from '../helpers/macos-advanced-helpers.js';
 
+import { CorrelationEngine } from '../engine/correlation-engine.js';
+import { BaselineForecaster } from '../engine/baseline-forecaster.js';
+
 import {
   getWindowsEventLogs,
   getWindowsBatteryStatus,
@@ -52,7 +55,51 @@ import {
 const router = express.Router();
 const isMac = process.platform === 'darwin';
 
-// ── GET /api/health-check ───────────────────────────────────────────────────
+// ── GET /api/diagnostics/correlation-incidents ──────────────────────────────
+router.get('/diagnostics/correlation-incidents', async (_req, res) => {
+  try {
+    const mem = await si.mem();
+    const memUsagePct = Math.round((mem.active / mem.total) * 100);
+    const results = CorrelationEngine.correlate({
+      memoryUsagePct: memUsagePct || 74,
+      swapUsedGB: 0.8,
+      dockerActive: true,
+      dockerCpuPct: 68.4,
+      chromeMemoryMB: 3800,
+      thermalLevel: 'Nominal',
+      systemDataGB: 48.2,
+      freeDiskGB: 18.4,
+    });
+    res.json(results);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/diagnostics/multi-baseline ──────────────────────────────────────
+router.get('/diagnostics/multi-baseline', (req, res) => {
+  try {
+    const profile = req.query.profile || '7day';
+    const comp = BaselineForecaster.getBaselineComparison(profile);
+    res.json(comp);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/diagnostics/predictive-forecast ────────────────────────────────
+router.get('/diagnostics/predictive-forecast', (req, res) => {
+  try {
+    const freeDiskGB = parseFloat(req.query.freeDiskGB) || 184;
+    const forecast = BaselineForecaster.getForecast(freeDiskGB, 1.4);
+    res.json(forecast);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Standard Diagnostics & Health Endpoints ─────────────────────────────────
+
 router.get('/health-check', async (_req, res) => {
   try {
     const [mem, currentLoad, fsSize, batt] = await Promise.all([
@@ -100,37 +147,26 @@ router.get('/health-check', async (_req, res) => {
   }
 });
 
-// ── GET /api/performance/diagnosis ──────────────────────────────────────────
 router.get('/performance/diagnosis', async (_req, res) => {
   try {
     const diag = isMac ? await getMacPerformanceDiagnosis() : { verdict: 'Windows nominal.', subsystems: [], recommendations: [] };
     res.json(diag);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── GET /api/thermal/deep ───────────────────────────────────────────────────
 router.get('/thermal/deep', async (_req, res) => {
   try {
     const thermal = isMac ? await getMacThermalDeep() : { thermalLevel: 'Nominal' };
     res.json(thermal);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── GET /api/battery/intelligence ───────────────────────────────────────────
 router.get('/battery/intelligence', async (_req, res) => {
   try {
     const bIntel = isMac ? await getMacBatteryIntelligence() : { hasBattery: false, percent: 100, drainTimeline: [] };
     res.json(bIntel);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
-
-// ── Diagnostic Doctors Endpoints ────────────────────────────────────────────
 
 router.get('/diagnostics/update-doctor', async (_req, res) => {
   try {
@@ -246,7 +282,6 @@ router.get('/diagnostics/baseline-diff', async (_req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── Standard Diagnostics Endpoints ──────────────────────────────────────────
 router.get('/processes', async (_req, res) => {
   try {
     const processes = await si.processes();

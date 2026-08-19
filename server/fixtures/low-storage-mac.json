@@ -1,0 +1,13 @@
+{
+  "profile": "low-storage-mac",
+  "description": "Mac with critical disk space depletion",
+  "memoryUsagePct": 65,
+  "swapUsedGB": 0.2,
+  "dockerActive": false,
+  "dockerCpuPct": 0,
+  "chromeMemoryMB": 1200,
+  "thermalLevel": "Nominal",
+  "systemDataGB": 84.6,
+  "freeDiskGB": 4.8,
+  "recentCrashes": []
+}

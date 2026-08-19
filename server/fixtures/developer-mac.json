@@ -1,0 +1,15 @@
+{
+  "profile": "developer-mac",
+  "description": "Developer setup with Docker, Xcode DerivedData, and high RAM usage",
+  "memoryUsagePct": 78,
+  "swapUsedGB": 1.4,
+  "dockerActive": true,
+  "dockerCpuPct": 68.4,
+  "chromeMemoryMB": 3800,
+  "thermalLevel": "Nominal",
+  "systemDataGB": 54.2,
+  "freeDiskGB": 22.4,
+  "recentCrashes": [
+    { "app": "Chrome", "reason": "EXC_BAD_ACCESS during WebGL rendering" }
+  ]
+}

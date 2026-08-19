@@ -287,6 +287,8 @@ function MainApp() {
     setPhase('configuring');
   }, []);
 
+  const [diagnosticOnly, setDiagnosticOnly] = useState(true);
+
   if (!isSupported) {
     return <UnsupportedPlatformView platformName={realSysInfo.os || platform} />;
   }
@@ -298,6 +300,8 @@ function MainApp() {
         activeTab={activeTab}
         isRunning={isRunning}
         dark={dark}
+        diagnosticOnly={diagnosticOnly}
+        onToggleDiagnosticOnly={() => setDiagnosticOnly((v) => !v)}
         onToggleDark={toggleDark}
         summary={summary}
         systemInfo={realSysInfo}
