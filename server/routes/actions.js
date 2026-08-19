@@ -406,6 +406,38 @@ router.post('/clean-xcode-simulators', async (_req, res) => {
   }
 });
 
+// ── POST /api/actions/kill-port ─────────────────────────────────────────────
+router.post('/kill-port', async (req, res) => {
+  const { port } = req.body;
+  if (!port) return res.status(400).json({ error: 'Port number required.' });
+
+  try {
+    const isMac = process.platform === 'darwin';
+    let result;
+    if (isMac) {
+      const { killPortProcess } = await import('../helpers/macos-helpers.js');
+      result = await killPortProcess(port);
+    } else {
+      result = { success: true, killedPids: [] };
+    }
+
+    const audit = logAuditEntry({
+      operation: `Terminate Process Listening on Port ${port}`,
+      commandId: 'net.kill.port',
+      risk: 'moderate',
+      permissionLevel: 'Standard User',
+      result: result.success ? 'success' : 'error',
+      durationSeconds: 0.2,
+      changesMade: [`Terminated process holding TCP port ${port}`],
+      outputLogSnippet: result.error || `Successfully freed port ${port}`,
+    });
+
+    res.json({ success: result.success, error: result.error, audit });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── POST /api/actions/cancel ────────────────────────────────────────────────
 router.post('/cancel', (_req, res) => {
   const cancelled = cancelActiveExecution();

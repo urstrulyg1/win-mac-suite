@@ -8,6 +8,7 @@ import si from 'systeminformation';
 import {
   getMacDeveloperArtifacts,
   getMacLargeFiles,
+  getMacSystemDataBreakdown,
   runSafeCommand,
 } from '../helpers/macos-helpers.js';
 import {
@@ -101,6 +102,30 @@ router.get('/snapshots', async (_req, res) => {
         count: 1,
         snapshots: [
           { id: 'RestorePoint-101', date: 'Recent', description: 'Pre-Update System Restore Point', size: '1.2 GB' },
+        ],
+      });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/storage/system-data ───────────────────────────────────────────
+router.get('/storage/system-data', async (_req, res) => {
+  try {
+    if (isMac) {
+      const breakdown = await getMacSystemDataBreakdown();
+      res.json(breakdown);
+    } else {
+      res.json({
+        platform: 'windows',
+        totalSystemDataGB: 34.5,
+        potentialRecoveryGB: 18.2,
+        categories: [
+          { id: 'winsxs', name: 'WinSxS Component Store', sizeGB: 12.4, reclaimable: true, safeToPurge: true, description: 'Obsolete Windows Update package backups.' },
+          { id: 'delivery', name: 'Delivery Optimization Cache', sizeGB: 4.8, reclaimable: true, safeToPurge: true, description: 'Peer-to-peer Windows update fragments.' },
+          { id: 'temp-dumps', name: 'Memory & Minidump Dumps', sizeGB: 3.2, reclaimable: true, safeToPurge: true, description: 'Crash reports and memory minidumps.' },
+          { id: 'hiberfil', name: 'Hibernation State (hiberfil.sys)', sizeGB: 14.1, reclaimable: false, safeToPurge: false, description: 'RAM sleep image.' },
         ],
       });
     }

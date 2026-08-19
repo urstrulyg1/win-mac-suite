@@ -4,6 +4,7 @@ import {
   Wrench, MemoryStick, Volume2, Sparkles, RefreshCw,
   FolderSync, ShieldCheck, Play, Terminal, CheckCircle2,
   AlertTriangle, Radio, Activity, ChevronRight, Cpu, Layers,
+  XCircle, Zap, Code, Shield, Check
 } from 'lucide-react';
 import { usePlatform } from '../platform';
 import InspectorModal, { type InspectorData } from './InspectorModal';
@@ -12,18 +13,20 @@ export default function MacUtilitiesHub() {
   const { config, isMac } = usePlatform();
   const [listeningPorts, setListeningPorts] = useState<any[]>([]);
   const [thermalInfo, setThermalInfo] = useState<any>(null);
+  const [devHealth, setDevHealth] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const [lastActionResult, setLastActionResult] = useState<{ title: string; message: string; type: 'success' | 'info' } | null>(null);
   const [inspectItem, setInspectItem] = useState<InspectorData | null>(null);
-  const [activeSubTab, setActiveSubTab] = useState<'quickActions' | 'listeningPorts' | 'thermal'>('quickActions');
+  const [activeSubTab, setActiveSubTab] = useState<'quickActions' | 'listeningPorts' | 'devHealth' | 'thermal'>('quickActions');
 
   const fetchUtilityData = async () => {
     setLoading(true);
     try {
-      const [pRes, tRes] = await Promise.all([
+      const [pRes, tRes, dRes] = await Promise.all([
         fetch('http://127.0.0.1:3131/api/network/listening-ports').catch(() => null),
         fetch('http://127.0.0.1:3131/api/thermal').catch(() => null),
+        fetch('http://127.0.0.1:3131/api/developer/health').catch(() => null),
       ]);
 
       if (pRes && pRes.ok) {
@@ -33,6 +36,10 @@ export default function MacUtilitiesHub() {
       if (tRes && tRes.ok) {
         const tData = await tRes.json();
         setThermalInfo(tData);
+      }
+      if (dRes && dRes.ok) {
+        const dData = await dRes.json();
+        setDevHealth(dData);
       }
     } catch {}
     finally {
@@ -44,12 +51,13 @@ export default function MacUtilitiesHub() {
     fetchUtilityData();
   }, []);
 
-  const runUtilityAction = async (endpoint: string, actionName: string, successMsg: string) => {
+  const runUtilityAction = async (endpoint: string, actionName: string, successMsg: string, payload: any = {}) => {
     setActionInProgress(actionName);
     try {
       const res = await fetch(`http://127.0.0.1:3131/api/actions/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (data.success) {
@@ -60,7 +68,7 @@ export default function MacUtilitiesHub() {
         });
       } else {
         setLastActionResult({
-          title: `${actionName} Encountered a Warning`,
+          title: `${actionName} Encountered an Issue`,
           message: data.error || 'The utility executed with warnings.',
           type: 'info',
         });
@@ -75,6 +83,11 @@ export default function MacUtilitiesHub() {
     } finally {
       setActionInProgress(null);
     }
+  };
+
+  const handleKillPort = async (e: React.MouseEvent, port: number) => {
+    e.stopPropagation();
+    await runUtilityAction('kill-port', `Kill Port :${port}`, `Successfully killed process on port ${port}.`, { port });
   };
 
   const quickTools = [
@@ -119,7 +132,7 @@ export default function MacUtilitiesHub() {
           details: [
             { label: 'Target Daemon', value: 'com.apple.audio.coreaudiod' },
             { label: 'Command', value: 'killall -9 coreaudiod' },
-            { label: 'Impact', value: 'Fixes headphone jack, Bluetooth AirPods, and audio interface glitches' },
+            { label: 'Impact', value: 'Fixes headphone jack, Bluetooth AirPods, and audio glitches' },
           ],
           command: 'killall -9 coreaudiod',
         }),
@@ -226,14 +239,14 @@ export default function MacUtilitiesHub() {
               <Wrench size={12} /> {config.productName} Power Toolbox
             </span>
             <span className="pill" style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-3)', borderColor: 'var(--color-line)' }}>
-              Native 1-Click System Utilities &amp; Sockets Monitor
+              1-Click Port Killer, RAM Purger &amp; Dev Health
             </span>
           </div>
           <h1 className="text-hero font-extrabold tracking-tight" style={{ color: 'var(--color-ink)' }}>
             System Utilities &amp; Power Tools
           </h1>
           <p className="mt-1 text-[14px]" style={{ color: 'var(--color-ink-3)' }}>
-            Instant 1-click RAM purger, CoreAudio daemon reset, QuickLook thumbnail rebuilder, listening sockets, and thermal monitoring.
+            Instant 1-click RAM purger, CoreAudio daemon reset, port conflict killer, and developer environment diagnostics.
           </p>
         </div>
 
@@ -275,7 +288,8 @@ export default function MacUtilitiesHub() {
       <div className="flex items-center gap-1.5 p-1 rounded-2xl border overflow-x-auto" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
         {[
           { id: 'quickActions' as const, label: '1-Click System Utilities', icon: Wrench },
-          { id: 'listeningPorts' as const, label: `Active Listening Ports (${listeningPorts.length})`, icon: Radio },
+          { id: 'listeningPorts' as const, label: `Active Ports & Sockets (${listeningPorts.length})`, icon: Radio },
+          { id: 'devHealth' as const, label: 'Developer CLI Matrix', icon: Code },
           { id: 'thermal' as const, label: 'Thermal Pressure State', icon: Activity },
         ].map((t) => {
           const isSel = activeSubTab === t.id;
@@ -353,10 +367,10 @@ export default function MacUtilitiesHub() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
-                  Active Listening TCP Ports &amp; Sockets
+                  Active Listening TCP Ports &amp; 1-Click Port Killer
                 </h3>
                 <p className="text-xs font-medium" style={{ color: 'var(--color-ink-4)' }}>
-                  Probed from macOS kernel socket table via /usr/sbin/lsof -iTCP -sTCP:LISTEN
+                  Kill rogue processes holding developer ports (:3000, :5173, :8080) to fix EADDRINUSE errors.
                 </p>
               </div>
               <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-[10px]">
@@ -364,8 +378,8 @@ export default function MacUtilitiesHub() {
               </span>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
+            <div className="overflow-x-auto min-w-0">
+              <table className="w-full text-xs text-left min-w-[540px]">
                 <thead>
                   <tr className="border-b" style={{ borderColor: 'var(--color-line)', color: 'var(--color-ink-4)' }}>
                     <th className="pb-3 font-bold uppercase tracking-wider">Port</th>
@@ -373,7 +387,7 @@ export default function MacUtilitiesHub() {
                     <th className="pb-3 font-bold uppercase tracking-wider">PID</th>
                     <th className="pb-3 font-bold uppercase tracking-wider">User</th>
                     <th className="pb-3 font-bold uppercase tracking-wider">Socket Binding</th>
-                    <th className="pb-3 font-bold uppercase tracking-wider text-right">Actions</th>
+                    <th className="pb-3 font-bold uppercase tracking-wider text-right">Kill / Inspect</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y" style={{ borderColor: 'var(--color-line)' }}>
@@ -396,23 +410,80 @@ export default function MacUtilitiesHub() {
                             { label: 'Protocol', value: port.protocol },
                           ],
                           command: `lsof -i :${port.port}`,
+                          actionButton: {
+                            label: `Kill Process on Port ${port.port}`,
+                            danger: true,
+                            onClick: () => runUtilityAction('kill-port', `Kill Port :${port.port}`, `Killed port ${port.port}`, { port: port.port }),
+                          },
                         })
                       }
                     >
-                      <td className="py-3 font-mono font-bold text-blue-500">{port.port}</td>
-                      <td className="py-3 font-bold" style={{ color: 'var(--color-ink)' }}>{port.process}</td>
+                      <td className="py-3 font-mono font-bold text-blue-500">:{port.port}</td>
+                      <td className="py-3 font-bold truncate max-w-[140px]" style={{ color: 'var(--color-ink)' }}>{port.process}</td>
                       <td className="py-3 font-mono" style={{ color: 'var(--color-ink-3)' }}>{port.pid}</td>
                       <td className="py-3 font-mono" style={{ color: 'var(--color-ink-4)' }}>{port.user}</td>
-                      <td className="py-3 font-mono text-[11px]" style={{ color: 'var(--color-ink-3)' }}>{port.address}</td>
+                      <td className="py-3 font-mono text-[11px] truncate max-w-[140px]" style={{ color: 'var(--color-ink-3)' }}>{port.address}</td>
                       <td className="py-3 text-right">
-                        <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25 text-[10px]">
-                          Inspect
-                        </span>
+                        <div className="inline-flex items-center gap-1.5">
+                          <button
+                            onClick={(e) => handleKillPort(e, port.port)}
+                            className="text-[10px] font-bold px-2 py-1 rounded-md bg-red-500/10 text-red-500 border border-red-500/25 hover:bg-red-500/20 cursor-pointer"
+                            title={`Kill process on port ${port.port}`}
+                          >
+                            Kill Port
+                          </button>
+                          <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25 text-[10px]">
+                            Inspect
+                          </span>
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+          </motion.div>
+        )}
+
+        {activeSubTab === 'devHealth' && (
+          <motion.div key="devHealth" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>Developer Toolchain &amp; CLI Health</h3>
+                <p className="text-xs font-medium" style={{ color: 'var(--color-ink-4)' }}>
+                  Detected {devHealth?.totalInstalled || 0} active developer runtimes and compilers.
+                </p>
+              </div>
+              <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25 text-[10px]">
+                CLI Toolchain Probe
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {(devHealth?.tools || []).map((t: any) => (
+                <div
+                  key={t.name}
+                  className="p-4 rounded-2xl border flex items-center justify-between gap-3"
+                  style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                      t.healthy ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-500/10 text-slate-400'
+                    }`}>
+                      <Code size={16} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold truncate" style={{ color: 'var(--color-ink)' }}>{t.name}</p>
+                      <p className="text-[11px] font-mono truncate" style={{ color: 'var(--color-ink-4)' }}>{t.version}</p>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] pill shrink-0 ${
+                    t.healthy ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/25' : 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                  }`}>
+                    {t.status}
+                  </span>
+                </div>
+              ))}
             </div>
           </motion.div>
         )}

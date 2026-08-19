@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, Search, Bell, RotateCw, ArrowLeft, X,
   User, CheckCircle2, AlertTriangle, Info, Moon, Sun, Monitor,
-  Activity, Sparkles, HardDrive, FileText, Layers, Lock,
+  Activity, Sparkles, HardDrive, FileText, Layers, Lock, HelpCircle,
 } from 'lucide-react';
 import type { AppPhase, RunSummary, SystemInfo } from '../types';
 import { usePlatform } from '../platform';
@@ -24,6 +24,7 @@ interface Props {
 
 const navTabs = [
   { id: 'overview',     label: 'Overview',     icon: Monitor },
+  { id: 'troubleshoot', label: 'Fix a Problem', icon: HelpCircle },
   { id: 'diagnostics',  label: 'Diagnostics',  icon: Activity },
   { id: 'utilities',    label: 'Toolbox',      icon: Sparkles },
   { id: 'maintenance',  label: 'Maintenance',  icon: Shield },

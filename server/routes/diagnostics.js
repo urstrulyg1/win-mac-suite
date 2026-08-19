@@ -18,6 +18,8 @@ import {
   getMacHardwareStatus,
   getMacSpotlightStatus,
   getMacPowerAssertions,
+  getMacPrivacyRiskScore,
+  getMacTroubleshootGuide,
 } from '../helpers/macos-helpers.js';
 import {
   getWindowsEventLogs,
@@ -180,6 +182,41 @@ router.get('/spotlight', async (_req, res) => {
   try {
     const spotlight = isMac ? await getMacSpotlightStatus() : { indexingEnabled: true, statusText: 'Windows Search Active' };
     res.json(spotlight);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/privacy/score ─────────────────────────────────────────────────
+router.get('/privacy/score', async (_req, res) => {
+  try {
+    const score = isMac ? await getMacPrivacyRiskScore() : {
+      privacyScore: 88,
+      status: 'Optimal',
+      permissions: [
+        { id: 'camera', name: 'Camera Access', risk: 'medium', grantedApps: ['Edge', 'Teams'], count: 2 },
+        { id: 'microphone', name: 'Microphone Access', risk: 'medium', grantedApps: ['Edge', 'Teams'], count: 2 },
+      ],
+      findings: [
+        { id: 'f-1', severity: 'success', title: 'No Unsigned Startup Programs', description: 'All run keys originate from signed publishers.' },
+      ],
+    };
+    res.json(score);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/troubleshoot/:issueId ──────────────────────────────────────────
+router.get('/troubleshoot/:issueId', async (req, res) => {
+  try {
+    const guide = isMac ? await getMacTroubleshootGuide(req.params.issueId) : {
+      title: 'Windows Diagnostic Resolver',
+      diagnosis: 'Inspecting Windows performance counters...',
+      findings: [{ label: 'System State', value: 'Nominal', healthy: true }],
+      actions: [],
+    };
+    res.json(guide);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

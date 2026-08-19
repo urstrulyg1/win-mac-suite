@@ -9,6 +9,7 @@ import StorageHub from './components/StorageHub';
 import SystemAppsHub from './components/SystemAppsHub';
 import ReportsPage from './components/ReportsPage';
 import MacUtilitiesHub from './components/MacUtilitiesHub';
+import TroubleshootCenter from './components/TroubleshootCenter';
 import UnsupportedPlatformView from './components/UnsupportedPlatformView';
 import { useDarkMode } from './hooks/useDarkMode';
 import { useToast } from './components/Toast';
@@ -301,7 +302,15 @@ function MainApp() {
       />
 
       <AnimatePresence mode="wait">
-        {activeTab === 'diagnostics' ? (
+        {activeTab === 'troubleshoot' ? (
+          <motion.div
+            key="troubleshoot-tab"
+            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.2 }} className="w-full"
+          >
+            <TroubleshootCenter onNavigateTab={handleNavTab} />
+          </motion.div>
+        ) : activeTab === 'diagnostics' ? (
           <motion.div
             key="diagnostics-tab"
             initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
