@@ -6,6 +6,19 @@ import { useToast } from './components/Toast';
 import TopNav from './components/TopNav';
 import LandingHero from './components/LandingHero';
 import RunningDashboard from './components/RunningDashboard';
+import ReportsPage from './components/ReportsPage';
+
+// Fetch real system data from the local backend. Falls back to SYSTEM_INFO if
+// the server is not running (e.g. static build / no backend).
+async function fetchSysInfo(): Promise<SystemInfo | null> {
+  try {
+    const res = await fetch('/api/sysinfo', { signal: AbortSignal.timeout(2000) });
+    if (!res.ok) return null;
+    return await res.json() as SystemInfo;
+  } catch {
+    return null;
+  }
+}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const clamp = (n: number, min: number, max: number) => Math.min(Math.max(n, min), max);
@@ -48,6 +61,7 @@ export default function App() {
   const { toast } = useToast();
   const [phase, setPhase] = useState<AppPhase>('landing');
   const [mode, setMode] = useState<RunMode>('Safe');
+  const [activeTab, setActiveTab] = useState<string>('overview');
   const [sections, setSections] = useState<Section[]>(createSections());
   const [allLogs, setAllLogs] = useState<LogEntry[]>([]);
   const [isRunning, setIsRunning] = useState(false);
@@ -57,49 +71,33 @@ export default function App() {
   const [noReboot, setNoReboot] = useState(false);
   const [exportJson, setExportJson] = useState(true);
 
-  // Live fluctuating telemetry (CPU / RAM / free disk)
-  const [telemetry, setTelemetry] = useState({
-    cpu: SYSTEM_INFO.cpuUsage,
-    mem: SYSTEM_INFO.memoryUsage,
-    freeDisk: SYSTEM_INFO.freeDiskGB,
-  });
-  const telemetryTargetRef = useRef({ cpu: SYSTEM_INFO.cpuUsage, mem: SYSTEM_INFO.memoryUsage });
+  // Real system telemetry — polled from /api/sysinfo every 3 s.
+  // Falls back to SYSTEM_INFO constants when the backend is not running.
+  const [realSysInfo, setRealSysInfo] = useState<SystemInfo>(SYSTEM_INFO);
+  const [backendOnline, setBackendOnline] = useState(false);
   const runStartedAtRef = useRef<string>('');
 
   const cancelRef = useRef(false);
   const sectionsRef = useRef<Section[]>(createSections());
   const logsRef = useRef<LogEntry[]>([]);
 
-  // Smoothly drift telemetry toward randomised targets for a "live" feel
   useEffect(() => {
-    const id = window.setInterval(() => {
-      if (isRunning) {
-        telemetryTargetRef.current = {
-          cpu: clamp(SYSTEM_INFO.cpuUsage + 18 + Math.random() * 45, 5, 99),
-          mem: clamp(SYSTEM_INFO.memoryUsage + 8 + Math.random() * 28, 20, 96),
-        };
-      } else {
-        telemetryTargetRef.current = {
-          cpu: clamp(SYSTEM_INFO.cpuUsage + (Math.random() - 0.5) * 10, 4, 30),
-          mem: clamp(SYSTEM_INFO.memoryUsage + (Math.random() - 0.5) * 8, 25, 60),
-        };
-      }
-    }, 1900);
-    return () => window.clearInterval(id);
-  }, [isRunning]);
+    let cancelled = false;
 
-  useEffect(() => {
-    let raf = 0;
-    const tick = () => {
-      setTelemetry((prev) => ({
-        cpu: prev.cpu + (telemetryTargetRef.current.cpu - prev.cpu) * 0.06,
-        mem: prev.mem + (telemetryTargetRef.current.mem - prev.mem) * 0.06,
-        freeDisk: prev.freeDisk,
-      }));
-      raf = requestAnimationFrame(tick);
+    const poll = async () => {
+      const data = await fetchSysInfo();
+      if (cancelled) return;
+      if (data) {
+        setRealSysInfo(data);
+        setBackendOnline(true);
+      } else {
+        setBackendOnline(false);
+      }
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+
+    poll(); // immediate first fetch
+    const id = window.setInterval(poll, 3000);
+    return () => { cancelled = true; window.clearInterval(id); };
   }, []);
 
   const log = useCallback((entry: LogEntry) => {
@@ -278,7 +276,8 @@ export default function App() {
     setIsRunning(false);
     setCurrentSectionName('');
     await sleep(600);
-    setPhase('complete');
+    setActiveTab('reports');
+    setPhase('reports');
   }, [mode, log, patch, toast, noReboot, exportJson, downloadReport]);
 
   const cancelRun = useCallback(() => {
@@ -288,6 +287,7 @@ export default function App() {
 
   const reset = useCallback(() => {
     cancelRef.current = true;
+    setActiveTab('maintenance');
     setPhase('configuring');
     const fresh = createSections();
     sectionsRef.current = fresh;
@@ -311,28 +311,50 @@ export default function App() {
     else toast('Export failed', 'error');
   }, [downloadReport, sections, allLogs, summary, mode, toast]);
 
-  const liveSystem: SystemInfo = {
-    ...SYSTEM_INFO,
-    cpuUsage: Math.round(telemetry.cpu),
-    memoryUsage: Math.round(telemetry.mem),
-    freeDiskGB: Math.round(telemetry.freeDisk * 10) / 10,
-  };
+  const handleNavTab = useCallback((tab: string) => {
+    if (tab === 'overview') {
+      if (isRunning) { toast('Stop the current run before returning home', 'warning'); return; }
+      cancelRef.current = true;
+      setActiveTab('overview');
+      setPhase('landing');
+      return;
+    }
+    if (tab === 'updates' || tab === 'security' || tab === 'maintenance') {
+      if (isRunning) { toast('Stop the current run first', 'warning'); return; }
+      if (tab === 'security') setMode('ScanOnly');
+      else if (tab === 'updates') setMode('Safe');
+      else if (tab === 'maintenance') setMode('Aggressive');
+      setActiveTab(tab);
+      setPhase('configuring');
+      return;
+    }
+    if (tab === 'reports') {
+      if (isRunning) { toast('Stop the current run first', 'warning'); return; }
+      setActiveTab('reports');
+      setPhase('reports');
+      return;
+    }
+  }, [isRunning, phase, toast]);
+
+  const handleStartWithMode = useCallback((selectedMode?: RunMode) => {
+    if (selectedMode) setMode(selectedMode);
+    setActiveTab('maintenance');
+    setPhase('configuring');
+  }, []);
+
+  // When the backend is live use real values; otherwise fall back to statics.
+  const liveSystem: SystemInfo = backendOnline ? realSysInfo : SYSTEM_INFO;
 
   return (
-    <div className="min-h-screen app-bg text-slate-900 antialiased selection:bg-blue-200 selection:text-blue-900">
+    <div className="min-h-screen app-bg text-slate-900 antialiased selection:bg-blue-200 selection:text-blue-900 overflow-x-hidden">
       <TopNav
         phase={phase}
+        activeTab={activeTab}
         isRunning={isRunning}
-        onHome={() => {
-          if (isRunning) {
-            toast('Stop the current run before returning home', 'warning');
-            return;
-          }
-          cancelRef.current = true;
-          setPhase('landing');
-        }}
+        onHome={() => handleNavTab('overview')}
         onReset={reset}
-        onBack={phase === 'configuring' ? () => setPhase('landing') : undefined}
+        onBack={phase === 'configuring' ? () => { setActiveTab('overview'); setPhase('landing'); } : undefined}
+        onNavTab={handleNavTab}
       />
       <AnimatePresence mode="wait">
         {phase === 'landing' ? (
@@ -341,9 +363,27 @@ export default function App() {
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
-            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="relative z-10 w-full"
+            style={{ pointerEvents: 'auto' }}
           >
-            <LandingHero onStart={() => setPhase('configuring')} />
+            <LandingHero onStart={handleStartWithMode} />
+          </motion.div>
+        ) : phase === 'reports' ? (
+          <motion.div
+            key="reports-page"
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="relative z-10 w-full"
+            style={{ pointerEvents: 'auto' }}
+          >
+            <ReportsPage
+              summary={summary}
+              onStartNew={(m) => { handleStartWithMode(m); }}
+              onExport={summary ? handleManualExport : undefined}
+            />
           </motion.div>
         ) : (
           <motion.div
@@ -351,8 +391,9 @@ export default function App() {
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-            className="relative z-10"
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="relative z-10 w-full"
+            style={{ pointerEvents: 'auto' }}
           >
             <RunningDashboard
               phase={phase}

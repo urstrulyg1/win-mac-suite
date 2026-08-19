@@ -69,18 +69,18 @@ export default function SummaryPanel({ summary, onReset, onExport }: Props) {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 + i * 0.05, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            className="card card-hover p-4 text-center"
+            className="card card-hover p-4 flex flex-col items-center text-center"
           >
             <div
-              className="w-9 h-9 rounded-xl mx-auto mb-2 flex items-center justify-center"
+              className="w-9 h-9 rounded-xl mb-2 flex items-center justify-center shrink-0"
               style={{ backgroundColor: s.bg, color: s.color }}
             >
               <s.icon size={17} />
             </div>
-            <p className="text-2xl font-extrabold font-mono text-slate-900 tabular-nums truncate">
+            <p className="text-2xl font-extrabold font-mono text-slate-900 tabular-nums w-full text-center leading-tight">
               {s.node}
             </p>
-            <p className="text-[11.5px] text-slate-500 font-semibold mt-0.5 truncate" title={s.label}>
+            <p className="text-[11.5px] text-slate-500 font-semibold mt-1 w-full text-center leading-snug" title={s.label}>
               {s.label}
             </p>
           </motion.div>

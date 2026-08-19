@@ -35,9 +35,7 @@
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-* {
-  margin: 0;
-  padding: 0;
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
@@ -76,11 +74,12 @@ code, kbd, samp, pre, .font-mono {
   position: fixed;
   inset: 0;
   pointer-events: none;
+  user-select: none;
   background-image:
     radial-gradient(rgba(15, 23, 42, 0.035) 1px, transparent 1px);
   background-size: 28px 28px;
   mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 80%);
-  z-index: 0;
+  z-index: -1;
 }
 
 /* ── Surfaces & cards ── */
@@ -140,12 +139,15 @@ code, kbd, samp, pre, .font-mono {
 .pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 10px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
   border: 1px solid transparent;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 
 .btn {
@@ -161,6 +163,9 @@ code, kbd, samp, pre, .font-mono {
   border: 1px solid transparent;
   transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
 }
 
 .btn-primary {
@@ -283,6 +288,12 @@ code, kbd, samp, pre, .font-mono {
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
   animation: shimmer 2.6s ease-in-out infinite;
   pointer-events: none;
+}
+
+/* ── Ensure all interactive elements are always clickable ── */
+a, button, [role="button"], [role="checkbox"], input, select, textarea, summary, label {
+  pointer-events: auto;
+  position: relative;
 }
 
 /* ── Focus & text utils ── */

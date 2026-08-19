@@ -102,7 +102,7 @@ export default function RunningDashboard({
   ];
 
   return (
-    <div className="relative z-10 max-w-[1400px] mx-auto px-3 sm:px-6 py-6 sm:py-8">
+    <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
       {/* Page header / status row */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-6">
         <div>
@@ -234,24 +234,28 @@ export default function RunningDashboard({
                     </div>
                   </div>
 
-                  <div className="card p-5 col-span-6 sm:col-span-3">
+                  <div className="card p-5 col-span-6 sm:col-span-3 flex flex-col justify-between">
                     <div className="w-8 h-8 rounded-lg bg-cyan-50 text-cyan-700 flex items-center justify-center mb-3">
                       <Package size={16} />
                     </div>
-                    <p className="text-3xl font-extrabold text-slate-900 tabular-nums">{updatedCount}</p>
-                    <p className="text-[11px] text-slate-500 font-semibold mt-0.5">Updates processed</p>
+                    <div>
+                      <p className="text-3xl font-extrabold text-slate-900 tabular-nums">{updatedCount}</p>
+                      <p className="text-[11px] text-slate-500 font-semibold mt-0.5">Updates processed</p>
+                    </div>
                   </div>
 
-                  <div className="card p-5 col-span-6 sm:col-span-3">
+                  <div className="card p-5 col-span-6 sm:col-span-3 flex flex-col justify-between">
                     <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center mb-3">
                       <TrendingUp size={16} />
                     </div>
-                    <p className="text-3xl font-extrabold text-slate-900 tabular-nums">{formatDuration(elapsed)}</p>
-                    <p className="text-[11px] text-slate-500 font-semibold mt-0.5">Elapsed</p>
+                    <div>
+                      <p className="text-3xl font-extrabold text-slate-900 tabular-nums">{formatDuration(elapsed)}</p>
+                      <p className="text-[11px] text-slate-500 font-semibold mt-0.5">Elapsed</p>
+                    </div>
                   </div>
 
                   {/* Funnel / pipeline card */}
-                  <div className="card p-5 col-span-12">
+                  <div className="card p-5 col-span-12 overflow-visible">
                     <div className="flex items-center justify-between mb-5">
                       <div>
                         <h3 className="text-base font-bold text-slate-900">Execution Pipeline</h3>
@@ -261,7 +265,9 @@ export default function RunningDashboard({
                         <ShieldCheck size={11} /> Live
                       </span>
                     </div>
-                    <FunnelBars data={funnelData} height={180} />
+                    <div className="pb-1">
+                      <FunnelBars data={funnelData} height={180} />
+                    </div>
                   </div>
                 </div>
               )}

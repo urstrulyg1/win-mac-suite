@@ -207,21 +207,21 @@ export default function SectionCard({ section, index, expandSignal = 0, collapse
               )}
 
               {section.logs.length > 0 && (
-                <div className="rounded-lg bg-white border border-slate-200 p-3 max-h-52 overflow-y-auto font-mono text-[11px] space-y-1">
+                <div className="rounded-lg bg-white border border-slate-200 p-3 max-h-52 overflow-y-auto font-mono text-[11px] space-y-1.5">
                   {section.logs.map((l, i) => {
                     const col = logColors[l.level] || logColors.INFO;
                     return (
-                      <div key={i} className="flex items-start gap-2 leading-relaxed">
-                        <span className="text-slate-300 shrink-0 text-[10px] mt-0.5">
-                          {l.time ? `[${l.time}]` : '•'}
+                      <div key={i} className="flex items-baseline gap-2 leading-relaxed">
+                        <span className="text-slate-300 shrink-0 text-[10px] tabular-nums">
+                          {l.time ? `[${l.time}]` : '·'}
                         </span>
                         <span
-                          className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase shrink-0"
+                          className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase shrink-0 inline-flex items-center"
                           style={{ backgroundColor: col.bg, color: col.badge }}
                         >
                           {l.level}
                         </span>
-                        <span className="break-word-safe flex-1 text-xs" style={{ color: col.text }}>
+                        <span className="break-word-safe flex-1 text-[11px]" style={{ color: col.text }}>
                           {l.message}
                         </span>
                       </div>

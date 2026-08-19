@@ -53,4 +53,4 @@ export interface RunSummary {
   startedAt?: string;
 }
 
-export type AppPhase = 'landing' | 'configuring' | 'running' | 'complete';
+export type AppPhase = 'landing' | 'configuring' | 'running' | 'complete' | 'reports';

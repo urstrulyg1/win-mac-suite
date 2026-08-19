@@ -14,9 +14,9 @@ function Bar({
   const pct = Math.min(Math.max((value / max) * 100, 0), 100);
   return (
     <div className="space-y-1.5">
-      <div className="flex justify-between items-center text-[12px]">
-        <span className="text-slate-600 font-semibold">{label}</span>
-        <span className="text-slate-900 font-mono font-bold tabular-nums">{value}{unit}</span>
+      <div className="flex items-center justify-between gap-2 text-[12px]">
+        <span className="text-slate-600 font-semibold truncate">{label}</span>
+        <span className="text-slate-900 font-mono font-bold tabular-nums shrink-0">{value}{unit}</span>
       </div>
       <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
         <motion.div
@@ -91,9 +91,9 @@ export default function SystemInfoPanel({ systemInfo, selectedMode, live = false
             <div className="p-1.5 rounded-lg bg-white text-blue-600 border border-slate-100 shrink-0 shadow-sm">
               <r.icon size={15} />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{r.k}</p>
-              <p title={r.v} className="text-slate-800 font-semibold truncate mt-px">{r.v}</p>
+            <div className="flex-1 min-w-0 overflow-hidden">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-0.5">{r.k}</p>
+              <p title={r.v} className="text-slate-800 font-semibold truncate leading-snug">{r.v}</p>
             </div>
           </motion.div>
         ))}

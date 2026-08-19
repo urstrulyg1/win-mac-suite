@@ -28,7 +28,7 @@ export default function InsightsCard({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-      className={`relative overflow-hidden rounded-[22px] p-6 text-white flex flex-col justify-between min-h-[260px] ${className}`}
+      className={`relative overflow-hidden rounded-[22px] p-6 sm:p-8 text-white flex flex-col justify-between min-h-[260px] ${className}`}
       style={{
         background:
           'linear-gradient(135deg, #1e3a8a 0%, #2563eb 32%, #0ea5e9 52%, #f59e0b 78%, #fb923c 100%)',
@@ -53,13 +53,13 @@ export default function InsightsCard({
       </div>
 
       <div className="relative z-10">
-        <div className="text-6xl sm:text-7xl font-extrabold tracking-tighter leading-none drop-shadow-sm">
+        <div className="text-5xl sm:text-6xl font-extrabold tracking-tighter leading-none drop-shadow-sm">
           {metric}
-          {metricSuffix && <span className="text-4xl align-top ml-1">{metricSuffix}</span>}
+          {metricSuffix && <span className="text-3xl align-top ml-1">{metricSuffix}</span>}
         </div>
 
-        <p className="mt-5 text-lg font-bold leading-snug text-white drop-shadow">{title}</p>
-        <p className="mt-1.5 text-[13px] leading-relaxed text-white/85 max-w-sm">{description}</p>
+        <p className="mt-4 text-base font-bold leading-snug text-white drop-shadow break-words">{title}</p>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-white/85 break-words">{description}</p>
 
         {/* segmented progress */}
         <div className="mt-5 flex items-center gap-1.5 max-w-[220px]">

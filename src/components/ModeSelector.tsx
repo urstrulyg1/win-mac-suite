@@ -48,7 +48,7 @@ export default function ModeSelector({ selectedMode, onSelect }: Props) {
               whileHover={{ y: -2 }}
               whileTap={{ scale: 0.99 }}
               onClick={() => onSelect(mode)}
-              className={`relative text-left p-4 rounded-2xl border-2 transition-all cursor-pointer overflow-hidden ${
+              className={`relative text-left p-4 rounded-2xl border-2 transition-all cursor-pointer overflow-hidden flex flex-col ${
                 sel ? 'bg-white shadow-lg' : 'bg-slate-50/60 hover:bg-white border-transparent'
               }`}
               style={{
@@ -59,7 +59,7 @@ export default function ModeSelector({ selectedMode, onSelect }: Props) {
               {sel && (
                 <motion.div
                   layoutId="mode-check"
-                  className="absolute top-3 right-3 w-6 h-6 rounded-full flex items-center justify-center text-white"
+                  className="absolute top-3 right-3 w-6 h-6 rounded-full flex items-center justify-center text-white shrink-0"
                   style={{ backgroundColor: tone.solid }}
                   transition={{ type: 'spring', stiffness: 400, damping: 28 }}
                 >
@@ -68,19 +68,19 @@ export default function ModeSelector({ selectedMode, onSelect }: Props) {
               )}
 
               <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
+                className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 shrink-0"
                 style={{ backgroundColor: tone.soft, color: tone.text }}
               >
                 <Icon size={20} />
               </div>
 
-              <div className="flex items-center gap-2 pr-7">
+              <div className="flex items-center gap-2 pr-8 mb-1.5">
                 <p className="text-[14px] font-bold text-slate-900 leading-tight">{info.label}</p>
               </div>
-              <p className="text-xs text-slate-500 mt-1.5 leading-relaxed pr-2">{info.description}</p>
+              <p className="text-xs text-slate-500 leading-relaxed pr-8 flex-1">{info.description}</p>
 
               {mode === 'Safe' && (
-                <span className="inline-block mt-2 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100">
+                <span className="inline-block mt-3 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100 self-start">
                   Recommended
                 </span>
               )}

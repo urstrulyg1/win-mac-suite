@@ -22,17 +22,17 @@ export default function FunnelBars({ data, height = 200 }: Props) {
   const barW = 100 / data.length;
 
   return (
-    <div className="relative w-full select-none" style={{ height }}>
+    <div className="relative w-full select-none" style={{ height, paddingBottom: 28 }}>
       {/* Y-axis gridlines */}
       {[0, 0.25, 0.5, 0.75, 1].map((t) => (
         <div
           key={t}
           className="absolute left-0 right-0 border-t border-dashed border-slate-200/80"
-          style={{ bottom: `${t * 78}%` }}
+          style={{ bottom: `calc(28px + ${t * 78}%)` }}
         />
       ))}
 
-      <div className="absolute inset-0 flex items-end gap-[3%] px-1 pb-1">
+      <div className="absolute inset-x-0 top-0 flex items-end gap-[3%] px-1 pb-1" style={{ bottom: 28 }}>
         {data.map((d, i) => {
           const h = (d.value / max) * 78;
           const active = hover === i;
@@ -91,7 +91,7 @@ export default function FunnelBars({ data, height = 200 }: Props) {
       </div>
 
       {/* X-axis labels */}
-      <div className="absolute left-0 right-0 bottom-[-22px] flex gap-[3%] px-1">
+      <div className="absolute left-0 right-0 bottom-0 h-[28px] flex items-center gap-[3%] px-1">
         {data.map((d) => (
           <div
             key={d.label}

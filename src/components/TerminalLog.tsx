@@ -170,7 +170,7 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
             <div
               ref={ref}
               onScroll={handleScroll}
-              className="h-[260px] overflow-y-auto px-4 py-3 font-mono text-[11.5px] leading-relaxed space-y-1"
+              className="h-[260px] overflow-y-auto px-4 py-3 font-mono text-[11.5px] leading-relaxed space-y-1.5"
             >
               {logs.length === 0 && (
                 <div className="flex items-center gap-2 text-slate-400 py-1">
@@ -194,18 +194,18 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
                     initial={{ opacity: 0, x: -4 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.2 }}
-                    className="flex items-start gap-2 min-w-0"
+                    className="flex items-baseline gap-2 min-w-0"
                   >
-                    <span className="text-slate-300 shrink-0 text-[10px] select-none pt-0.5">
+                    <span className="text-slate-300 shrink-0 text-[10px] select-none tabular-nums">
                       {l.time ? `[${l.time}]` : ''}
                     </span>
                     <span
-                      className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase shrink-0 select-none mt-0.5"
+                      className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase shrink-0 select-none inline-flex items-center"
                       style={{ backgroundColor: col.bg, color: col.badge }}
                     >
                       {l.level}
                     </span>
-                    <span className="break-word-safe flex-1 text-xs" style={{ color: col.text }}>
+                    <span className="break-word-safe flex-1 text-[11.5px]" style={{ color: col.text }}>
                       {l.message}
                     </span>
                   </motion.div>
