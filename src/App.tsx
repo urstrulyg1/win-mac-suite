@@ -279,9 +279,9 @@ export default function App() {
     }
 
     setSummary(finalSummary);
-    setTelemetry((prev) => ({
+    setRealSysInfo((prev) => ({
       ...prev,
-      freeDisk: +(prev.freeDisk + reclaimedDisk).toFixed(1),
+      freeDiskGB: +(prev.freeDiskGB + reclaimedDisk).toFixed(1),
     }));
     setIsRunning(false);
     setCurrentSectionName('');
