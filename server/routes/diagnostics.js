@@ -44,6 +44,8 @@ import {
 
 import { CorrelationEngine } from '../engine/correlation-engine.js';
 import { BaselineForecaster } from '../engine/baseline-forecaster.js';
+import { RecommendationEngine } from '../engine/recommendation-engine.js';
+import { DiagnosticExperimentEngine } from '../engine/experiment-engine.js';
 
 import {
   getWindowsEventLogs,
@@ -54,6 +56,27 @@ import {
 
 const router = express.Router();
 const isMac = process.platform === 'darwin';
+
+// ── GET /api/diagnostics/recommendations ────────────────────────────────────
+router.get('/diagnostics/recommendations', (_req, res) => {
+  try {
+    const recommendations = RecommendationEngine.getRankedRecommendations();
+    res.json({ recommendations });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/diagnostics/run-experiment ─────────────────────────────────────
+router.get('/diagnostics/run-experiment', async (req, res) => {
+  try {
+    const hypothesisId = req.query.hypothesisId || 'exp-docker-ram';
+    const result = await DiagnosticExperimentEngine.runExperiment(hypothesisId);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ── GET /api/diagnostics/correlation-incidents ──────────────────────────────
 router.get('/diagnostics/correlation-incidents', async (_req, res) => {
