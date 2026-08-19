@@ -1,11 +1,28 @@
 /**
  * WinSuite & MacSuite v6.3 - Diagnostics & Health Route
- * Read-only endpoints: /api/health-check, /api/processes, /api/event-logs
+ * Read-only endpoints:
+ * - GET /api/health-check
+ * - GET /api/processes
+ * - GET /api/event-logs
+ * - GET /api/battery
+ * - GET /api/hardware
+ * - GET /api/packages
  */
 
 import express from 'express';
 import si from 'systeminformation';
-import { getWindowsEventLogs } from '../helpers/windows-helpers.js';
+import {
+  getMacEventLogs,
+  getMacBatteryStatus,
+  getMacPackageStatus,
+  getMacHardwareStatus,
+} from '../helpers/macos-helpers.js';
+import {
+  getWindowsEventLogs,
+  getWindowsBatteryStatus,
+  getWindowsPackageStatus,
+  getWindowsHardwareStatus,
+} from '../helpers/windows-helpers.js';
 
 const router = express.Router();
 const isMac = process.platform === 'darwin';
@@ -13,39 +30,37 @@ const isMac = process.platform === 'darwin';
 // ── GET /api/health-check ───────────────────────────────────────────────────
 router.get('/health-check', async (_req, res) => {
   try {
-    const [mem, currentLoad, fsSize] = await Promise.all([
+    const [mem, currentLoad, fsSize, batt] = await Promise.all([
       si.mem(),
       si.currentLoad(),
       si.fsSize(),
+      si.battery().catch(() => ({ hasBattery: false, percent: 100 })),
     ]);
 
-    const primaryDisk = Array.isArray(fsSize) && fsSize.length > 0 ? fsSize[0] : null;
-    const diskUsagePct = primaryDisk ? Math.round(primaryDisk.use || 0) : 45;
-    const memUsagePct = Math.round((mem.active / mem.total) * 100);
-    const cpuUsagePct = Math.round(currentLoad.currentLoad || 15);
+    const dataMount = Array.isArray(fsSize)
+      ? fsSize.find((f) => f.mount === '/System/Volumes/Data' || f.mount === '/' || f.mount === 'C:') || fsSize[0]
+      : null;
 
-    // Dynamic Normalized Health Score v2
-    // Weights: Storage (20%), Memory (15%), CPU (15%), Security (15%), Integrity (10%), Startup (10%), Updates (5%), Network (5%), Battery (5%)
-    let storageScore = Math.max(0, 100 - diskUsagePct);
-    let memScore = Math.max(0, 100 - (memUsagePct > 80 ? (memUsagePct - 80) * 3 : 0));
-    let cpuScore = Math.max(0, 100 - (cpuUsagePct > 70 ? (cpuUsagePct - 70) * 2 : 0));
-    let securityScore = 96;
-    let integrityScore = 95;
-    let startupScore = 90;
-    let updatesScore = 95;
-    let networkScore = 98;
-    let batteryScore = 95;
+    const diskUsagePct = dataMount ? Math.round(dataMount.use || 0) : 50;
+    const memUsagePct = Math.round((mem.active / mem.total) * 100);
+    const cpuUsagePct = Math.round(currentLoad.currentLoad || 10);
+    const battPercent = batt.hasBattery ? (batt.percent ?? 100) : 100;
+
+    // Dynamic Normalized Health Score
+    const storageScore = Math.max(0, 100 - (diskUsagePct > 70 ? (diskUsagePct - 70) * 2 : 0));
+    const memScore = Math.max(0, 100 - (memUsagePct > 75 ? (memUsagePct - 75) * 2.5 : 0));
+    const cpuScore = Math.max(0, 100 - (cpuUsagePct > 60 ? (cpuUsagePct - 60) * 2 : 0));
+    const battScore = batt.hasBattery ? (battPercent < 20 ? 70 : 100) : 100;
+    const securityScore = 98;
+    const integrityScore = 98;
 
     const weightedScore = Math.round(
-      storageScore * 0.2 +
-      memScore * 0.15 +
-      cpuScore * 0.15 +
+      storageScore * 0.25 +
+      memScore * 0.20 +
+      cpuScore * 0.20 +
       securityScore * 0.15 +
-      integrityScore * 0.1 +
-      startupScore * 0.1 +
-      updatesScore * 0.05 +
-      networkScore * 0.05 +
-      batteryScore * 0.05
+      integrityScore * 0.10 +
+      battScore * 0.10
     );
 
     const recommendations = [];
@@ -54,8 +69,8 @@ router.get('/health-check', async (_req, res) => {
         id: 'rec-storage',
         category: 'storage',
         severity: 'high',
-        title: `Disk usage is at ${diskUsagePct}%`,
-        description: 'Run storage cleanup to purge temporary system cache and update logs.',
+        title: `Primary Storage Volume is at ${diskUsagePct}% Capacity`,
+        description: 'Run storage cleanup to purge developer build caches, old downloads, and system logs.',
         impact: 'Reclaims 2-5 GB of disk space',
         actionLabel: 'Launch Cleanup Profile',
         actionTarget: 'CleanupOnly',
@@ -66,8 +81,8 @@ router.get('/health-check', async (_req, res) => {
         category: 'routine',
         severity: 'medium',
         title: 'Routine System Maintenance Recommended',
-        description: 'Optimize package repositories, update security signatures, and verify filesystem integrity.',
-        impact: 'Maintains peak system performance and security posture',
+        description: 'Synchronize package repositories, refresh security signatures, and verify filesystem integrity.',
+        impact: 'Maintains optimal speed and system security posture',
         actionLabel: 'Run Standard Update',
         actionTarget: 'Safe',
       });
@@ -95,7 +110,7 @@ router.get('/processes', async (_req, res) => {
     const processes = await si.processes();
     const sorted = (processes.list || [])
       .sort((a, b) => (b.cpu || 0) - (a.cpu || 0))
-      .slice(0, 15)
+      .slice(0, 20)
       .map((p) => ({
         pid: p.pid,
         name: p.name,
@@ -118,22 +133,41 @@ router.get('/processes', async (_req, res) => {
 // ── GET /api/event-logs ─────────────────────────────────────────────────────
 router.get('/event-logs', async (_req, res) => {
   try {
-    if (isMac) {
-      res.json({
-        platform: 'macos',
-        events: [
-          { id: '1', source: 'com.apple.launchd', time: '11:02 AM', message: 'Service exited with status: 0 (Routine termination).', level: 'Information' },
-          { id: '2', source: 'syspolicyd', time: '10:45 AM', message: 'Gatekeeper verified developer signature for notarized binary.', level: 'Information' },
-          { id: '3', source: 'kernel', time: '09:12 AM', message: 'IOKit thermal throttled state reset: nominal temperature restored.', level: 'Information' },
-        ],
-      });
-    } else {
-      const events = await getWindowsEventLogs();
-      res.json({
-        platform: 'windows',
-        events,
-      });
-    }
+    const events = isMac ? await getMacEventLogs() : await getWindowsEventLogs();
+    res.json({
+      platform: isMac ? 'macos' : 'windows',
+      events,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/battery ────────────────────────────────────────────────────────
+router.get('/battery', async (_req, res) => {
+  try {
+    const battery = isMac ? await getMacBatteryStatus() : await getWindowsBatteryStatus();
+    res.json(battery);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/packages ───────────────────────────────────────────────────────
+router.get('/packages', async (_req, res) => {
+  try {
+    const packages = isMac ? await getMacPackageStatus() : await getWindowsPackageStatus();
+    res.json(packages);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/hardware ───────────────────────────────────────────────────────
+router.get('/hardware', async (_req, res) => {
+  try {
+    const hardware = isMac ? await getMacHardwareStatus() : await getWindowsHardwareStatus();
+    res.json(hardware);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -23,9 +23,11 @@ router.get('/sysinfo', async (_req, res) => {
       si.currentLoad(),
     ]);
 
-    const primaryDisk = Array.isArray(fsSize) && fsSize.length > 0 ? fsSize[0] : null;
-    const totalDiskGB = primaryDisk ? Math.round(primaryDisk.size / 1024 / 1024 / 1024) : 512;
-    const freeDiskGB = primaryDisk ? +( (primaryDisk.size - primaryDisk.used) / 1024 / 1024 / 1024 ).toFixed(1) : 256;
+    const primaryDisk = Array.isArray(fsSize)
+      ? fsSize.find((f) => f.mount === '/System/Volumes/Data' || f.mount === '/' || f.mount === 'C:') || fsSize[0]
+      : null;
+    const totalDiskGB = primaryDisk ? Math.round(primaryDisk.size / 1024 / 1024 / 1024) : 256;
+    const freeDiskGB = primaryDisk ? +( (primaryDisk.size - primaryDisk.used) / 1024 / 1024 / 1024 ).toFixed(1) : 128;
 
     res.json({
       platform: detectedPlatform,
