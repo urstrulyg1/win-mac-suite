@@ -3,12 +3,13 @@ import { motion } from 'framer-motion';
 import {
   Activity, Shield, AlertTriangle, CheckCircle2, Cpu,
   HardDrive, MemoryStick, Battery, Wifi, ArrowRight,
-  RefreshCw, Play, Sparkles, Wrench, Info, ExternalLink,
+  RefreshCw, Play, Sparkles, Wrench, ChevronRight,
 } from 'lucide-react';
 import type { HealthCheckItem } from '../platform/types';
 import type { SystemInfo, RunMode } from '../types';
 import { usePlatform } from '../platform';
 import HealthScore from './HealthScore';
+import InspectorModal, { type InspectorData } from './InspectorModal';
 
 interface Props {
   systemInfo: SystemInfo;
@@ -23,6 +24,7 @@ export default function DiagnosticsPanel({ systemInfo, onStartAction }: Props) {
   const [overallScore, setOverallScore] = useState(94);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [inspectItem, setInspectItem] = useState<InspectorData | null>(null);
 
   const fetchHealth = async () => {
     setLoading(true);
@@ -108,6 +110,8 @@ export default function DiagnosticsPanel({ systemInfo, onStartAction }: Props) {
 
   return (
     <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+      <InspectorModal data={inspectItem} onClose={() => setInspectItem(null)} />
+
       {/* Page Header */}
       <motion.div
         initial={{ opacity: 0, y: 14 }}
@@ -135,7 +139,7 @@ export default function DiagnosticsPanel({ systemInfo, onStartAction }: Props) {
         <button
           onClick={fetchHealth}
           disabled={loading}
-          className="btn btn-ghost text-xs"
+          className="btn btn-ghost text-xs cursor-pointer"
         >
           <RefreshCw size={13} className={loading ? 'animate-spin-smooth' : ''} />
           <span>Re-scan System</span>
@@ -151,7 +155,7 @@ export default function DiagnosticsPanel({ systemInfo, onStartAction }: Props) {
           </p>
           <button
             onClick={() => onStartAction('ScanOnly')}
-            className="btn btn-primary text-xs w-full mt-4"
+            className="btn btn-primary text-xs w-full mt-4 cursor-pointer"
           >
             <Play size={13} className="fill-white" />
             Run Comprehensive Health Scan
@@ -228,11 +232,30 @@ export default function DiagnosticsPanel({ systemInfo, onStartAction }: Props) {
           {filteredItems.map((item) => {
             const isWarn = item.status === 'warning' || item.status === 'critical';
             return (
-              <motion.div
+              <button
                 key={item.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border"
+                onClick={() =>
+                  setInspectItem({
+                    title: item.title,
+                    category: item.category,
+                    badge: item.value,
+                    badgeType: isWarn ? 'warning' : 'success',
+                    subtitle: item.description,
+                    details: [
+                      { label: 'Subsystem Category', value: item.category },
+                      { label: 'Status Condition', value: item.status.toUpperCase() },
+                      { label: 'Metric Value', value: item.value },
+                      { label: 'Description', value: item.description },
+                    ],
+                    actionButton: item.actionLabel
+                      ? {
+                          label: item.actionLabel,
+                          onClick: () => onStartAction((item.actionTarget as RunMode) || 'Safe'),
+                        }
+                      : undefined,
+                  })
+                }
+                className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border text-left transition-all hover:scale-[1.005] cursor-pointer"
                 style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
               >
                 <div className="flex items-start gap-3 min-w-0">
@@ -273,16 +296,16 @@ export default function DiagnosticsPanel({ systemInfo, onStartAction }: Props) {
                   </div>
                 </div>
 
-                {item.actionLabel && (
-                  <button
-                    onClick={() => onStartAction((item.actionTarget as RunMode) || 'Safe')}
-                    className="btn btn-primary text-xs shrink-0 self-start sm:self-center !py-2 !px-3"
-                  >
-                    <span>{item.actionLabel}</span>
-                    <ArrowRight size={12} />
-                  </button>
-                )}
-              </motion.div>
+                <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                  {item.actionLabel && (
+                    <span className="btn btn-primary text-xs !py-1.5 !px-3 flex items-center gap-1">
+                      <span>{item.actionLabel}</span>
+                      <ArrowRight size={12} />
+                    </span>
+                  )}
+                  <ChevronRight size={14} className="text-slate-400" />
+                </div>
+              </button>
             );
           })}
         </div>

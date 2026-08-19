@@ -12,9 +12,9 @@ import ModeSelector from './ModeSelector';
 import SectionCard from './SectionCard';
 import TerminalLog from './TerminalLog';
 import SummaryPanel from './SummaryPanel';
-import ProgressRow from './charts/ProgressRow';
 import FunnelBars from './charts/FunnelBars';
 import ConfirmationModal from './ConfirmationModal';
+import InspectorModal, { type InspectorData } from './InspectorModal';
 import { usePlatform } from '../platform';
 import { createMaintenancePlan } from '../maintenance';
 
@@ -55,6 +55,7 @@ export default function RunningDashboard({
   const [expandSignal, setExpandSignal] = useState(0);
   const [collapseSignal, setCollapseSignal] = useState(0);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [inspectItem, setInspectItem] = useState<InspectorData | null>(null);
 
   const plan = useMemo(() => {
     return createMaintenancePlan(config, mode, capabilities);
@@ -119,6 +120,8 @@ export default function RunningDashboard({
 
   return (
     <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+      <InspectorModal data={inspectItem} onClose={() => setInspectItem(null)} />
+
       {/* Confirmation Dialog for Deep Operations */}
       <ConfirmationModal
         open={showConfirmModal}
@@ -181,7 +184,7 @@ export default function RunningDashboard({
             </div>
           )}
           {isRunning && (
-            <button onClick={onCancel} className="btn btn-danger">
+            <button onClick={onCancel} className="btn btn-danger cursor-pointer">
               <SquareX size={15} /> Cancel run
             </button>
           )}
@@ -218,7 +221,7 @@ export default function RunningDashboard({
                   whileHover={{ y: -1 }}
                   whileTap={{ scale: 0.99 }}
                   onClick={handleStartAttempt}
-                  className="btn btn-primary w-full mt-5 !py-3.5 text-[15px] relative overflow-hidden"
+                  className="btn btn-primary w-full mt-5 !py-3.5 text-[15px] relative overflow-hidden cursor-pointer"
                 >
                   <span className="shimmer-bar" />
                   <Play size={17} className="fill-white relative z-10" />
@@ -238,14 +241,14 @@ export default function RunningDashboard({
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setExpandSignal((n) => n + 1)}
-                      className="btn btn-ghost !py-1.5 !px-2.5 text-xs"
+                      className="btn btn-ghost !py-1.5 !px-2.5 text-xs cursor-pointer"
                       title="Expand all"
                     >
                       <ChevronsDownUp size={13} /> <span>Expand All</span>
                     </button>
                     <button
                       onClick={() => setCollapseSignal((n) => n + 1)}
-                      className="btn btn-ghost !py-1.5 !px-2.5 text-xs"
+                      className="btn btn-ghost !py-1.5 !px-2.5 text-xs cursor-pointer"
                       title="Collapse all"
                     >
                       <ChevronsUpDown size={13} /> <span>Collapse All</span>
@@ -281,7 +284,22 @@ export default function RunningDashboard({
             <div className="col-span-12 lg:col-span-8 space-y-5">
               {phase !== 'complete' && (
                 <div className="grid grid-cols-12 gap-4">
-                  <div className="card p-5 col-span-12 sm:col-span-6">
+                  <button
+                    onClick={() =>
+                      setInspectItem({
+                        title: 'Overall Pipeline Progress',
+                        category: 'Execution State',
+                        badge: `${Math.round(overallProgress)}% Complete`,
+                        subtitle: currentSectionName || 'Executing phases...',
+                        details: [
+                          { label: 'Completed Phases', value: `${doneCount} of ${sections.length}` },
+                          { label: 'Current Phase', value: currentSectionName || 'Synchronizing' },
+                          { label: 'Estimated Remaining', value: `~${formatDuration(etaSeconds)}` },
+                        ],
+                      })
+                    }
+                    className="card card-hover p-5 col-span-12 sm:col-span-6 text-left cursor-pointer transition-all hover:scale-[1.01]"
+                  >
                     <div className="flex items-center justify-between mb-1">
                       <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-ink-4)' }}>Overall Progress</p>
                       <span className="text-xs font-bold px-2 py-0.5 rounded-md border" style={{ color: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.10)', borderColor: 'rgba(59,130,246,0.25)' }}>
@@ -302,9 +320,22 @@ export default function RunningDashboard({
                         transition={{ duration: 0.4, ease: 'easeOut' }}
                       />
                     </div>
-                  </div>
+                  </button>
 
-                  <div className="card p-5 col-span-6 sm:col-span-3 flex flex-col justify-between">
+                  <button
+                    onClick={() =>
+                      setInspectItem({
+                        title: 'Updates Processed',
+                        category: 'Package Manifests',
+                        badge: `${updatedCount} Packages`,
+                        subtitle: 'Total package and repository components updated.',
+                        details: [
+                          { label: 'Updated Count', value: updatedCount },
+                        ],
+                      })
+                    }
+                    className="card card-hover p-5 col-span-6 sm:col-span-3 flex flex-col justify-between text-left cursor-pointer transition-all hover:scale-[1.01]"
+                  >
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: 'rgba(6,182,212,0.12)', color: '#22d3ee' }}>
                       <Package size={16} />
                     </div>
@@ -312,9 +343,23 @@ export default function RunningDashboard({
                       <p className="text-3xl font-extrabold tabular-nums" style={{ color: 'var(--color-ink)' }}>{updatedCount}</p>
                       <p className="text-[11px] font-semibold mt-0.5" style={{ color: 'var(--color-ink-3)' }}>Updates processed</p>
                     </div>
-                  </div>
+                  </button>
 
-                  <div className="card p-5 col-span-6 sm:col-span-3 flex flex-col justify-between">
+                  <button
+                    onClick={() =>
+                      setInspectItem({
+                        title: 'Execution Timer',
+                        category: 'Runtime Duration',
+                        badge: formatDuration(elapsed),
+                        subtitle: 'Elapsed duration for current maintenance session.',
+                        details: [
+                          { label: 'Elapsed Time', value: formatDuration(elapsed) },
+                          { label: 'Estimated Left', value: `~${formatDuration(etaSeconds)}` },
+                        ],
+                      })
+                    }
+                    className="card card-hover p-5 col-span-6 sm:col-span-3 flex flex-col justify-between text-left cursor-pointer transition-all hover:scale-[1.01]"
+                  >
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: 'rgba(34,197,94,0.12)', color: '#4ade80' }}>
                       <TrendingUp size={16} />
                     </div>
@@ -322,7 +367,7 @@ export default function RunningDashboard({
                       <p className="text-3xl font-extrabold tabular-nums" style={{ color: 'var(--color-ink)' }}>{formatDuration(elapsed)}</p>
                       <p className="text-[11px] font-semibold mt-0.5" style={{ color: 'var(--color-ink-3)' }}>Elapsed</p>
                     </div>
-                  </div>
+                  </button>
 
                   {/* Funnel / pipeline card */}
                   <div className="card p-5 col-span-12 overflow-visible">
@@ -363,14 +408,14 @@ export default function RunningDashboard({
                       <div className="flex items-center gap-2 shrink-0">
                         <button
                           onClick={() => setExpandSignal((n) => n + 1)}
-                          className="btn btn-ghost !py-2 !px-3 text-xs"
+                          className="btn btn-ghost !py-2 !px-3 text-xs cursor-pointer"
                           title="Expand all"
                         >
                           <ChevronsDownUp size={13} /> <span className="hidden sm:inline">Expand</span>
                         </button>
                         <button
                           onClick={() => setCollapseSignal((n) => n + 1)}
-                          className="btn btn-ghost !py-2 !px-3 text-xs"
+                          className="btn btn-ghost !py-2 !px-3 text-xs cursor-pointer"
                           title="Collapse all"
                         >
                           <ChevronsUpDown size={13} /> <span className="hidden sm:inline">Collapse</span>
@@ -418,24 +463,13 @@ export default function RunningDashboard({
 
             {/* Right column */}
             <div className="col-span-12 lg:col-span-4 space-y-5 lg:sticky lg:top-24">
-              {phase !== 'complete' && (
-                <div className="space-y-5">
-                  <SystemInfoPanel systemInfo={systemInfo} live={isRunning} />
-                  <div className="card p-5 space-y-4">
-                    <h3 className="text-sm font-bold" style={{ color: 'var(--color-ink)' }}>Resource Breakdown</h3>
-                    <ProgressRow label="CPU Load" value={systemInfo.cpuUsage} total={100} display={`${systemInfo.cpuUsage}%`} color="#2563eb" />
-                    <ProgressRow label="Memory" value={systemInfo.memoryUsage} total={100} display={`${systemInfo.memoryUsage}%`} color="#7c3aed" />
-                    <ProgressRow
-                      label="Disk Used"
-                      value={Math.round(((systemInfo.totalDiskGB - systemInfo.freeDiskGB) / Math.max(systemInfo.totalDiskGB, 1)) * 100)}
-                      total={100}
-                      display={`${Math.round(((systemInfo.totalDiskGB - systemInfo.freeDiskGB) / Math.max(systemInfo.totalDiskGB, 1)) * 100)}%`}
-                      color="#0891b2"
-                    />
-                  </div>
-                </div>
-              )}
-              <TerminalLog logs={allLogs} isRunning={isRunning} onClear={onClearLogs} onExport={onExport} />
+              <TerminalLog
+                logs={allLogs}
+                isRunning={isRunning}
+                overallProgress={overallProgress}
+                onClear={onClearLogs}
+                title={`${config.productName} Console`}
+              />
             </div>
           </motion.div>
         )}
