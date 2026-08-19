@@ -1,20 +1,32 @@
 /**
- * WinSuite & MacSuite v10.0 — Offline-First & Degraded Mode (P0 #9)
+ * WinSuite & MacSuite v10.1 — Offline-First & Degraded Mode (P0 #9, corrected in P1)
  *
  * Rules enforced here:
- *   1. Every LOCAL capability (hardware, storage, battery, processes, network
- *      diagnostics, security, crashes, dev tools) works with NO internet.
+ *   1. Each capability DECLARES its network requirement (see capability-requirements.js)
+ *      and that declaration is tracked separately from whether it has ever been
+ *      VERIFIED on a disconnected machine.
  *   2. Anything needing the internet is explicitly marked optional; its absence
  *      degrades a card, never the dashboard.
  *   3. One failing probe must not fail the page. `runProbe` converts every failure
  *      into a contract-compliant UNAVAILABLE result with an explanation.
+ *
+ * CORRECTED IN v10.1: rule 1 previously read "Every LOCAL capability ... works with NO
+ * internet." That was asserted from code inspection, never demonstrated on a genuinely
+ * disconnected machine, and was false for at least local network diagnostics. Offline
+ * behaviour is now a per-capability contract with an explicit verification state.
  */
 
 import dns from 'dns';
 import { AVAILABILITY, HEALTH_STATUS, createSubsystemReport } from '../core/contract.js';
 import { classifyFailure } from './operation-executor.js';
+import { buildOfflinePosture, NETWORK_REQUIREMENT } from './capability-requirements.js';
 
-/** Local-only capabilities: these must never be blocked by connectivity. */
+/**
+ * @deprecated v10.1 — superseded by CAPABILITY_REGISTER in capability-requirements.js.
+ * Retained only so older imports keep resolving. It encodes the flat, unverified
+ * "these 12 are local" assumption and must not be used for new work or for any
+ * user-facing claim.
+ */
 export const LOCAL_CAPABILITIES = [
   'hardware.inventory',
   'storage.analysis',
@@ -227,21 +239,63 @@ function withTimeout(promise, ms, label) {
 /** Snapshot of what the app can and cannot do right now. */
 export async function getDegradedModeStatus() {
   const connectivity = await checkConnectivity();
+
+  /**
+   * v10.1 HONESTY CORRECTION.
+   *
+   * v10.0 reported `localCapabilities` as a flat list of 12 ids each stamped
+   * `available: true, requiresNetwork: false`, and told the user "Every local diagnostic
+   * still runs". That was an over-claim: it was established by reading our own source,
+   * not by exercising the product on a genuinely disconnected machine, and at least one
+   * entry (local network diagnostics) is in fact degraded when offline.
+   *
+   * The authoritative answer now comes from the per-capability declared contract in
+   * capability-requirements.js, which distinguishes ONLINE_REQUIRED / ONLINE_OPTIONAL /
+   * OFFLINE_SUPPORTED / OFFLINE_DEGRADED / UNSUPPORTED and tracks, separately, whether
+   * each declaration has ever actually been VERIFIED offline.
+   */
+  const posture = buildOfflinePosture();
+
   return {
-    version: '10.0',
+    version: '10.1',
     online: connectivity.online,
     connectivityMethod: connectivity.method,
     checkedAt: new Date(connectivity.checkedAt).toISOString(),
     offlineFirst: true,
-    localCapabilities: LOCAL_CAPABILITIES.map((id) => ({ id, available: true, requiresNetwork: false })),
+
+    /** Per-capability declared contract + verification state. */
+    capabilities: posture.capabilities,
+    offlineSummary: posture.totals,
+    /** The softened, defensible claim — replaces the "all 12 work offline" assertion. */
+    claim: posture.claim,
+    verificationOutstanding: posture.verificationOutstanding,
+    contradictions: posture.contradictions,
+
+    /**
+     * Retained for backwards compatibility with existing callers, but no longer
+     * asserts `requiresNetwork: false` on faith — each entry now carries its declared
+     * requirement and whether that declaration has been tested.
+     */
+    localCapabilities: posture.capabilities
+      .filter((c) => c.requirement === NETWORK_REQUIREMENT.OFFLINE_SUPPORTED
+        || c.requirement === NETWORK_REQUIREMENT.OFFLINE_DEGRADED)
+      .map((c) => ({
+        id: c.id,
+        available: c.requirement === NETWORK_REQUIREMENT.OFFLINE_SUPPORTED || connectivity.online,
+        networkRequirement: c.requirement,
+        verificationState: c.verification,
+        offlineCaveat: c.offlineCaveat || null,
+      })),
+
     onlineOnlyCapabilities: ONLINE_ONLY_CAPABILITIES.map((c) => ({
       ...c,
       available: connectivity.online,
       optional: true,
       status: connectivity.online ? 'AVAILABLE' : 'SKIPPED_OFFLINE',
     })),
+
     message: connectivity.online
-      ? 'Online. All local diagnostics plus optional online checks are available.'
-      : 'Offline. Every local diagnostic still runs; only optional online checks are skipped and clearly marked.',
+      ? 'Online. Local diagnostics plus optional online checks are available.'
+      : `Offline. ${posture.totals.byRequirement[NETWORK_REQUIREMENT.OFFLINE_SUPPORTED]} capabilities are designed to run without a network and ${posture.totals.byRequirement[NETWORK_REQUIREMENT.OFFLINE_DEGRADED]} run with reduced fidelity; online-only checks are skipped and clearly marked. ${posture.claim}`,
   };
 }

@@ -480,7 +480,47 @@ export async function runV10Tests() {
     const status = await getDegradedModeStatus();
     assert.strictEqual(status.offlineFirst, true);
     for (const c of status.onlineOnlyCapabilities) assert.strictEqual(c.optional, true);
-    assert.ok(status.localCapabilities.every((c) => c.requiresNetwork === false));
+
+    /**
+     * v10.1: this assertion used to read `c.requiresNetwork === false` for every local
+     * capability — i.e. the test encoded the blanket "it all works offline" claim we
+     * were asked to withdraw. A capability now DECLARES a network requirement, and
+     * that declaration is separate from whether it has been verified offline.
+     */
+    for (const c of status.localCapabilities) {
+      assert.ok(
+        ['OFFLINE_SUPPORTED', 'OFFLINE_DEGRADED'].includes(c.networkRequirement),
+        `${c.id} is listed as local but declares ${c.networkRequirement}`,
+      );
+      if (c.networkRequirement === 'OFFLINE_DEGRADED') {
+        assert.ok(c.offlineCaveat, `${c.id} is degraded offline and must disclose how`);
+      }
+    }
+  });
+
+  await test('P0 #9 (v10.1): the offline claim is never stronger than the evidence for it', async () => {
+    const status = await getDegradedModeStatus();
+    assert.strictEqual(status.version, '10.1');
+
+    // Nothing has been exercised on a genuinely disconnected machine yet, so the
+    // published claim must say so rather than promising offline support.
+    const unverified = status.verificationOutstanding.length;
+    if (unverified > 0) {
+      assert.match(
+        status.claim,
+        /code inspection|not been (verified|exercised)|no offline guarantee/i,
+        'an unverified offline claim must be labelled as unverified',
+      );
+      assert.doesNotMatch(
+        status.claim,
+        /all .*capabilit.* work/i,
+        'the withdrawn blanket claim must not reappear',
+      );
+    }
+    // A contradiction must escalate to an explicit retraction.
+    if (status.contradictions.length > 0) {
+      assert.match(status.claim, /FALSE|must not be published/i);
+    }
   });
 
   /* ── P0 #10 — privacy ───────────────────────────────────────────────────── */

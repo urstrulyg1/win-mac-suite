@@ -32,6 +32,7 @@ import { runGuardedOperation } from '../runtime/operation-executor.js';
 import { operationRegistry } from '../runtime/operations.js';
 import { validateRequest, createErrorResponse } from '../contracts/api-schemas.js';
 import { COMMAND_ALLOWLIST } from '../security/allowlist.js';
+import { validateDeletionTarget, assertUnchanged, releaseGuard } from '../security/protected-paths.js';
 import { logAuditEntry } from '../audit/audit-logger.js';
 import {
   recordCleanupTransaction,
@@ -393,14 +394,64 @@ router.post('/eject-drive', async (req, res) => {
 });
 
 // ── POST /api/actions/clean-docker ──────────────────────────────────────────
+/**
+ * Parse the "Total reclaimed space: 1.234GB" line docker prune prints.
+ *
+ * Returns null when the line is absent or unparseable. Null means "we do not know how
+ * much was freed" and must be reported as such — the previous implementation returned a
+ * hardcoded 6200 MB regardless of what Docker actually did, which is precisely the kind
+ * of fabricated metric the evidence model exists to prevent.
+ */
+function parseDockerReclaimed(output) {
+  const m = /Total reclaimed space:\s*([\d.]+)\s*([KMGT]?B)/i.exec(output || '');
+  if (!m) return null;
+  const value = Number(m[1]);
+  if (!Number.isFinite(value)) return null;
+  const unit = m[2].toUpperCase();
+  const toMB = { B: 1 / (1024 * 1024), KB: 1 / 1024, MB: 1, GB: 1024, TB: 1024 * 1024 };
+  const mb = value * (toMB[unit] ?? 0);
+  return Math.round(mb * 10) / 10;
+}
+
 router.post('/clean-docker', async (req, res) => {
   const { pruneImages, pruneBuildCache, pruneContainers } = req.body;
   const dockerPath = fs.existsSync('/usr/local/bin/docker') ? '/usr/local/bin/docker' : 'docker';
 
   try {
-    if (pruneBuildCache) await runSafeCommand(dockerPath, ['builder', 'prune', '-f'], 6000);
-    if (pruneImages) await runSafeCommand(dockerPath, ['image', 'prune', '-f'], 6000);
-    if (pruneContainers) await runSafeCommand(dockerPath, ['container', 'prune', '-f'], 6000);
+    // Each prune reports its own reclaimed total; we sum only the ones we could read.
+    const steps = [];
+    if (pruneBuildCache) steps.push(['build cache', ['builder', 'prune', '-f']]);
+    if (pruneImages) steps.push(['images', ['image', 'prune', '-f']]);
+    if (pruneContainers) steps.push(['containers', ['container', 'prune', '-f']]);
+
+    if (steps.length === 0) {
+      return res.status(400).json(createErrorResponse({
+        code: 'NOTHING_SELECTED',
+        error: 'No Docker prune target was selected.',
+        remediation: 'Set at least one of pruneImages, pruneBuildCache or pruneContainers.',
+      }));
+    }
+
+    const changesMade = [];
+    let reclaimedMB = 0;
+    let unmeasured = 0;
+
+    for (const [label, args] of steps) {
+      const out = await runSafeCommand(dockerPath, args, 6000);
+      const mb = parseDockerReclaimed(out);
+      if (mb === null) {
+        unmeasured += 1;
+        changesMade.push(`Pruned Docker ${label} — reclaimed space not reported by Docker.`);
+      } else {
+        reclaimedMB += mb;
+        changesMade.push(`Pruned Docker ${label} — reclaimed ${mb} MB (reported by Docker).`);
+      }
+    }
+
+    // If Docker reported nothing for any step, we do not know the total. Say so.
+    const measurement = unmeasured === 0 ? 'observed'
+      : unmeasured === steps.length ? 'unavailable'
+      : 'partial';
 
     const audit = logAuditEntry({
       operation: 'Selective Docker Storage Pruning',
@@ -408,24 +459,93 @@ router.post('/clean-docker', async (req, res) => {
       risk: 'moderate',
       permissionLevel: 'Standard User',
       result: 'success',
-      durationSeconds: 1.4,
-      changesMade: ['Pruned dangling Docker images, stopped containers, and build cache buffers.'],
-      reclaimedBytes: 1024 * 1024 * 1024 * 6.2,
+      changesMade,
+      reclaimedBytes: measurement === 'unavailable' ? null : Math.round(reclaimedMB * 1024 * 1024),
     });
 
-    res.json({ success: true, reclaimedMB: 6200, audit, message: 'Docker storage cleaned successfully.' });
+    res.json({
+      success: true,
+      reclaimedMB: measurement === 'unavailable' ? null : Math.round(reclaimedMB * 10) / 10,
+      measurement,
+      unmeasuredSteps: unmeasured,
+      audit,
+      message: measurement === 'unavailable'
+        ? 'Docker prune completed, but Docker did not report how much space was reclaimed.'
+        : measurement === 'partial'
+          ? `Docker storage cleaned. ${unmeasured} step(s) did not report a reclaimed total, so this figure is a lower bound.`
+          : 'Docker storage cleaned successfully.',
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json(createErrorResponse({
+      code: 'DOCKER_PRUNE_FAILED',
+      error: err.message,
+      remediation: 'Confirm Docker Desktop is running and the docker CLI is on the expected path.',
+    }));
   }
 });
 
 // ── POST /api/actions/clean-xcode ───────────────────────────────────────────
-router.post('/clean-xcode', async (_req, res) => {
-  try {
-    const derivedPath = path.join(os.homedir(), 'Library/Developer/Xcode/DerivedData');
-    if (fs.existsSync(derivedPath)) {
-      await runSafeCommand('/bin/rm', ['-rf', derivedPath], 5000).catch(() => {});
+/**
+ * Sum the on-disk size of a directory tree without following symlinks.
+ *
+ * Uses lstat so a link inside the tree contributes the size of the link, never the
+ * size of whatever it points at — otherwise a link into /System would be counted as
+ * reclaimable space we are about to "free".
+ */
+function measureDirectorySize(root) {
+  let total = 0;
+  const stack = [root];
+  while (stack.length) {
+    const current = stack.pop();
+    let st;
+    try { st = fs.lstatSync(current); } catch { continue; }
+    if (st.isSymbolicLink()) { total += st.size; continue; }
+    if (st.isDirectory()) {
+      let entries = [];
+      try { entries = fs.readdirSync(current); } catch { continue; }
+      for (const e of entries) stack.push(path.join(current, e));
+    } else {
+      total += st.size;
     }
+  }
+  return total;
+}
+
+/**
+ * SECURITY (P1-C #15/#16). This endpoint previously ran `rm -rf` on a path built from
+ * homedir() with NO protected-path validation and NO re-check before the delete, and
+ * then reported a hardcoded 4800 MB whether or not anything was removed.
+ *
+ * It now goes through the full guard chain:
+ *   validateDeletionTarget → (classification + symlink/traversal screening + open fd)
+ *   assertUnchanged        → (target not swapped/unlinked between check and delete)
+ *   releaseGuard           → (always, in finally)
+ * and it reports the size it actually measured, or reports nothing to reclaim.
+ */
+router.post('/clean-xcode', async (_req, res) => {
+  const derivedPath = path.join(os.homedir(), 'Library', 'Developer', 'Xcode', 'DerivedData');
+  let guard = null;
+  try {
+    let validation;
+    try {
+      validation = validateDeletionTarget(derivedPath);
+      guard = validation.guard;
+    } catch (err) {
+      // A refused path is a policy outcome, not a server fault. Never report success.
+      return res.status(409).json(createErrorResponse({
+        code: 'CLEANUP_TARGET_REJECTED',
+        error: err.message,
+        remediation: 'DerivedData was not removed. If this path is a symlink or is missing, resolve that before retrying.',
+      }));
+    }
+
+    // Measure before deleting so the reclaimed figure is observed, not invented.
+    const reclaimedBytes = measureDirectorySize(validation.realPath);
+
+    // Last-moment re-verification: the window between validation and rm is the
+    // TOCTOU window this call closes.
+    assertUnchanged(guard, { maxAgeMs: 30_000 });
+    await runSafeCommand('/bin/rm', ['-rf', validation.realPath], 5000);
 
     const audit = logAuditEntry({
       operation: 'Purge Xcode DerivedData & Build Caches',
@@ -433,14 +553,32 @@ router.post('/clean-xcode', async (_req, res) => {
       risk: 'safe',
       permissionLevel: 'Standard User',
       result: 'success',
-      durationSeconds: 0.6,
-      changesMade: ['Purged Xcode DerivedData build artifacts and indexed module cache.'],
-      reclaimedBytes: 1024 * 1024 * 1024 * 4.8,
+      durationSeconds: 0,
+      changesMade: [`Purged Xcode DerivedData at ${validation.realPath}.`],
+      reclaimedBytes,
     });
 
-    res.json({ success: true, reclaimedMB: 4800, audit, message: 'Xcode DerivedData purged successfully.' });
+    res.json({
+      success: true,
+      reclaimedMB: Math.round(reclaimedBytes / (1024 * 1024)),
+      measurement: 'observed',
+      path: validation.realPath,
+      audit,
+      message: reclaimedBytes > 0
+        ? 'Xcode DerivedData purged successfully.'
+        : 'DerivedData was already empty; nothing was reclaimed.',
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    const toctou = /^\[TOCTOU\]/.test(err.message);
+    res.status(toctou ? 409 : 500).json(createErrorResponse({
+      code: toctou ? 'TARGET_CHANGED_DURING_OPERATION' : 'CLEANUP_FAILED',
+      error: err.message,
+      remediation: toctou
+        ? 'The directory changed between validation and deletion, so nothing was deleted. Re-run the scan.'
+        : 'No cleanup was performed. Check disk permissions and retry.',
+    }));
+  } finally {
+    releaseGuard(guard);
   }
 });
 

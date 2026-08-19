@@ -4,7 +4,8 @@ import {
   Shield, Search, Bell, RotateCw, ArrowLeft, X,
   User, CheckCircle2, AlertTriangle, Info, Moon, Sun, Monitor,
   Activity, Sparkles, HardDrive, FileText, Layers, Lock, HelpCircle,
-  Cpu, Wifi, MessageSquareCode, Code, Clock, Flame, Laptop, Wrench
+  Cpu, Wifi, MessageSquareCode, Code, Clock, Flame, Laptop, Wrench,
+  Brain, Siren, FlaskConical
 } from 'lucide-react';
 import type { AppPhase, RunSummary, SystemInfo } from '../types';
 import { usePlatform } from '../platform';
@@ -38,6 +39,9 @@ const primaryNavRow = [
 
 // Group 2: Deep Diagnostics & Specialist Doctors
 const secondaryNavRow = [
+  { id: 'whynot',       label: 'Why NOT? (Causes)',    icon: Brain },
+  { id: 'incidents',    label: 'Incident Center',      icon: Siren },
+  { id: 'experiments',  label: 'Experiments',          icon: FlaskConical },
   { id: 'timeline',     label: 'Incidents & Timeline', icon: Clock },
   { id: 'crashes',      label: 'Crashes & Stability',  icon: Flame },
   { id: 'hardware',     label: 'Hardware & Displays',  icon: Monitor },
@@ -85,7 +89,7 @@ export default function TopNav({
                 {brandPrefix}<span style={{ color: config.accentColor }}>{brandSuffix}</span>
               </span>
               <span className="text-[9px] font-mono tracking-wider opacity-60 mt-0.5" style={{ color: 'var(--color-ink-3)' }}>
-                v8.0 Trustworthy Intelligence
+                v10.1 Validation &amp; Trust
               </span>
             </div>
           </button>

@@ -17,6 +17,10 @@ export default defineConfig({
     },
   },
   server: {
+    host: true,
+    // Sandboxed/proxied preview hosts (e.g. *.e2b.app) must be accepted, otherwise the
+    // dev server answers 403 to the very host the browser is loading it from.
+    allowedHosts: true,
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:3131',
