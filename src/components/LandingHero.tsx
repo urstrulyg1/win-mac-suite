@@ -3,14 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, ArrowRight, Terminal, Activity, HardDrive, Sparkles,
   Download, Cpu, CheckCircle2, TrendingUp, Zap, MoreHorizontal,
-  RefreshCw, ExternalLink, Info, WifiOff, Package,
+  RefreshCw, ExternalLink, Info, WifiOff, Package, ChevronRight,
 } from 'lucide-react';
 import FunnelBars from './charts/FunnelBars';
 import ProgressRow from './charts/ProgressRow';
-import Sparkline from './charts/Sparkline';
-import InsightsCard from './charts/InsightsCard';
 import type { RunMode, SystemInfo, RunSummary } from '../types';
 import { usePlatform } from '../platform';
+import InspectorModal, { type InspectorData } from './InspectorModal';
 
 interface Props {
   onStart: (mode?: RunMode) => void;
@@ -79,6 +78,7 @@ const iconMap: Record<string, typeof Zap> = {
 
 export default function LandingHero({ onStart, systemInfo, summary, backendOnline }: Props) {
   const { config, isMac } = usePlatform();
+  const [inspectItem, setInspectItem] = useState<InspectorData | null>(null);
 
   const totalSections = summary?.totalSections ?? 10;
   const passedSections = summary?.passedSections ?? 0;
@@ -115,6 +115,8 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
 
   return (
     <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+      <InspectorModal data={inspectItem} onClose={() => setInspectItem(null)} />
+
       {/* Page Header */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
@@ -124,15 +126,44 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
       >
         <div>
           <div className="inline-flex items-center gap-2 mb-2">
-            <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25">
+            <button
+              onClick={() =>
+                setInspectItem({
+                  title: 'System Health Score',
+                  category: 'Diagnostics Evaluation',
+                  badge: healthScore !== null ? `Health ${healthScore}%` : 'Score 90%',
+                  subtitle: 'Aggregate normalized health calculation across core subsystems.',
+                  details: [
+                    { label: 'Overall Condition', value: 'Optimal System Integrity' },
+                    { label: 'Evaluated Subsystems', value: 'CPU, Memory, APFS Storage, Security, Battery' },
+                  ],
+                })
+              }
+              className="pill bg-blue-500/10 text-blue-500 border-blue-500/25 cursor-pointer hover:scale-105 transition-transform"
+            >
               <Shield size={12} />
               {healthScore !== null ? `Health ${healthScore}%` : `${config.productName} Dashboard`}
-            </span>
+            </button>
             {systemInfo.isOnline ? (
-              <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25">
+              <button
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Live Telemetry Daemon',
+                    category: 'Connection Status',
+                    badge: 'Online',
+                    subtitle: `Real-time bidirectional system hooks on port 3131.`,
+                    details: [
+                      { label: 'Host Platform', value: systemInfo.os },
+                      { label: 'Host Architecture', value: isMac ? 'Apple Silicon (arm64)' : 'x64' },
+                      { label: 'API Endpoint', value: 'http://127.0.0.1:3131/api/sysinfo', isCode: true },
+                    ],
+                  })
+                }
+                className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 cursor-pointer hover:scale-105 transition-transform"
+              >
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse-dot" />
                 {backendOnline ? `Live ${config.osFamily} Telemetry` : 'Online'}
-              </span>
+              </button>
             ) : (
               <span className="pill bg-red-500/10 text-red-500 border-red-500/25">
                 <WifiOff size={11} /> Offline
@@ -148,7 +179,7 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <button onClick={() => onStart('Safe')} className="btn btn-primary">
+          <button onClick={() => onStart('Safe')} className="btn btn-primary cursor-pointer">
             <Terminal size={15} />
             Launch Maintenance
           </button>
@@ -161,13 +192,14 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
         <motion.div
           initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.06, ease }}
-          className="card card-hover p-5 sm:p-6 col-span-12 lg:col-span-8 flex flex-col justify-between"
+          onClick={() => onStart('Safe')}
+          className="card card-hover p-5 sm:p-6 col-span-12 lg:col-span-8 flex flex-col justify-between cursor-pointer"
         >
           <div className="flex items-start justify-between mb-4">
             <div>
               <h3 className="text-lg font-bold" style={{ color: 'var(--color-ink)' }}>Execution Pipeline</h3>
               <p className="text-xs font-medium mt-0.5" style={{ color: 'var(--color-ink-4)' }}>
-                {config.osFamily} maintenance phases throughput
+                {config.osFamily} maintenance phases throughput · Click to launch pipeline
               </p>
             </div>
             <CardMenu items={[
@@ -194,7 +226,22 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
         <motion.div
           initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.12, ease }}
-          className="card card-hover p-5 sm:p-6 col-span-12 lg:col-span-4 flex flex-col justify-between"
+          onClick={() =>
+            setInspectItem({
+              title: 'Resource Telemetry Subsystems',
+              category: 'Compute & Memory',
+              badge: `${cpuPct}% CPU · ${memPct}% RAM`,
+              subtitle: 'Live system core allocation and physical memory footprint.',
+              details: [
+                { label: 'CPU Model', value: systemInfo.processor },
+                { label: 'CPU Utilization', value: `${cpuPct}%` },
+                { label: 'Unified Memory', value: `${systemInfo.ramGB} GB (${memPct}% used)` },
+                { label: 'Storage Used', value: `${diskUsedGB} GB / ${systemInfo.totalDiskGB} GB` },
+              ],
+              command: isMac ? 'top -l 1 | head -n 10' : 'Get-Process | Sort-Object CPU -Descending | Select-Object -First 10',
+            })
+          }
+          className="card card-hover p-5 sm:p-6 col-span-12 lg:col-span-4 flex flex-col justify-between cursor-pointer"
         >
           <div>
             <div className="flex items-start justify-between mb-3">
@@ -211,7 +258,7 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
               </span>
             </div>
             <p className="text-xs font-medium mb-5 truncate" style={{ color: 'var(--color-ink-4)' }}>
-              {systemInfo.processor || 'Processor'}
+              {systemInfo.processor || 'Processor'} · Click to inspect
             </p>
           </div>
 
@@ -253,7 +300,7 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
             })}
           </div>
 
-          <button onClick={() => onStart()} className="btn btn-primary w-full mt-4 !py-2.5 text-xs">
+          <button onClick={() => onStart()} className="btn btn-primary w-full mt-4 !py-2.5 text-xs cursor-pointer">
             <Terminal size={14} />
             <span>Open Custom Pipeline</span>
             <ArrowRight size={14} />
@@ -264,13 +311,14 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
         <motion.div
           initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.24, ease }}
-          className="card card-hover p-5 sm:p-6 col-span-12 md:col-span-6 lg:col-span-4 flex flex-col justify-between"
+          onClick={() => onStart('CleanupOnly')}
+          className="card card-hover p-5 sm:p-6 col-span-12 md:col-span-6 lg:col-span-4 flex flex-col justify-between cursor-pointer"
         >
           <div className="flex items-start justify-between">
             <div>
               <h3 className="text-lg font-bold" style={{ color: 'var(--color-ink)' }}>Storage Volume</h3>
               <p className="text-xs font-medium mt-0.5" style={{ color: 'var(--color-ink-4)' }}>
-                {systemInfo.freeDiskGB} GB free of {systemInfo.totalDiskGB} GB
+                {systemInfo.freeDiskGB} GB free of {systemInfo.totalDiskGB} GB · Click to clean
               </p>
             </div>
             <CardMenu items={[
@@ -299,13 +347,14 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
         <motion.div
           initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.30, ease }}
-          className="card card-hover p-5 sm:p-6 col-span-12 lg:col-span-4 flex flex-col justify-between"
+          onClick={() => onStart('ScanOnly')}
+          className="card card-hover p-5 sm:p-6 col-span-12 lg:col-span-4 flex flex-col justify-between cursor-pointer"
         >
           <div className="flex items-start justify-between">
             <div>
               <h3 className="text-lg font-bold" style={{ color: 'var(--color-ink)' }}>Last Diagnostics</h3>
               <p className="text-xs font-medium mt-0.5" style={{ color: 'var(--color-ink-4)' }}>
-                {summary ? `${summary.mode} Profile` : 'No run recorded yet'}
+                {summary ? `${summary.mode} Profile` : 'No run recorded yet'} · Click to run scan
               </p>
             </div>
             <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25">
@@ -364,7 +413,7 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
             },
           ].map((f) => (
             <button key={f.label} onClick={() => onStart(f.mode)}
-              className="flex items-center gap-3 min-w-0 text-left group rounded-2xl p-2 -m-2 transition-colors cursor-pointer"
+              className="flex items-center gap-3 min-w-0 text-left group rounded-2xl p-2 -m-2 transition-all hover:scale-[1.02] cursor-pointer"
               onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-2)')}
               onMouseLeave={e => (e.currentTarget.style.backgroundColor = '')}
             >

@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Monitor, Cpu, HardDrive, Wifi, WifiOff, Clock, MemoryStick, Activity, Sparkles, Apple, Battery } from 'lucide-react';
+import { Monitor, Cpu, HardDrive, Wifi, WifiOff, Clock, MemoryStick, Activity, Apple } from 'lucide-react';
 import type { SystemInfo, RunMode } from '../types';
 import { usePlatform } from '../platform';
+import InspectorModal, { type InspectorData } from './InspectorModal';
 
 interface Props {
   systemInfo: SystemInfo;
@@ -10,11 +12,11 @@ interface Props {
 }
 
 function Bar({
-  label, value, max, unit, color, delay = 0,
-}: { label: string; value: number; max: number; unit: string; color: string; delay?: number }) {
+  label, value, max, unit, color, delay = 0, onClick,
+}: { label: string; value: number; max: number; unit: string; color: string; delay?: number; onClick?: () => void }) {
   const pct = Math.min(Math.max((value / max) * 100, 0), 100);
   return (
-    <div className="space-y-1.5">
+    <button onClick={onClick} className="w-full space-y-1.5 text-left cursor-pointer transition-all hover:opacity-85">
       <div className="flex items-center justify-between gap-2 text-[12px]">
         <span className="font-semibold truncate" style={{ color: 'var(--color-ink-2)' }}>{label}</span>
         <span className="font-mono font-bold tabular-nums shrink-0" style={{ color: 'var(--color-ink)' }}>{value}{unit}</span>
@@ -28,19 +30,101 @@ function Bar({
           style={{ background: `linear-gradient(90deg, ${color}, ${color}bb)` }}
         />
       </div>
-    </div>
+    </button>
   );
 }
 
 export default function SystemInfoPanel({ systemInfo, selectedMode, live = false }: Props) {
   const { config, isMac } = usePlatform();
+  const [inspectItem, setInspectItem] = useState<InspectorData | null>(null);
 
   const rows = [
-    { icon: isMac ? Apple : Monitor, k: 'Host', v: systemInfo.hostName || 'Local Host' },
-    { icon: Cpu, k: isMac ? 'Apple Silicon' : 'Processor', v: systemInfo.processor || 'System CPU' },
-    { icon: MemoryStick, k: 'Memory', v: systemInfo.ramGB > 0 ? `${systemInfo.ramGB} GB RAM` : '—' },
-    { icon: HardDrive, k: 'Storage', v: systemInfo.totalDiskGB > 0 ? `${systemInfo.freeDiskGB} GB free / ${systemInfo.totalDiskGB} GB` : '—' },
-    { icon: Clock, k: 'Uptime', v: systemInfo.uptime || '—' },
+    {
+      icon: isMac ? Apple : Monitor,
+      k: 'Host',
+      v: systemInfo.hostName || 'Local Host',
+      onInspect: () =>
+        setInspectItem({
+          title: systemInfo.hostName || 'Local Host',
+          category: 'System Host',
+          badge: systemInfo.os,
+          subtitle: `Operating System: ${systemInfo.os} (Build ${systemInfo.build || 'Darwin'})`,
+          details: [
+            { label: 'Hostname', value: systemInfo.hostName },
+            { label: 'OS Distribution', value: systemInfo.os },
+            { label: 'Active User', value: systemInfo.user },
+          ],
+          command: 'uname -a',
+        }),
+    },
+    {
+      icon: Cpu,
+      k: isMac ? 'Apple Silicon' : 'Processor',
+      v: systemInfo.processor || 'System CPU',
+      onInspect: () =>
+        setInspectItem({
+          title: systemInfo.processor || 'Processor',
+          category: 'CPU Hardware',
+          badge: `${systemInfo.cpuUsage}% Active`,
+          subtitle: 'Multi-core hardware processor telemetry.',
+          details: [
+            { label: 'Processor Name', value: systemInfo.processor },
+            { label: 'Current Core Load', value: `${systemInfo.cpuUsage}%` },
+            { label: 'Architecture', value: isMac ? 'arm64' : 'x64' },
+          ],
+          command: isMac ? 'sysctl -n machdep.cpu.brand_string' : 'Get-CimInstance Win32_Processor',
+        }),
+    },
+    {
+      icon: MemoryStick,
+      k: 'Memory',
+      v: systemInfo.ramGB > 0 ? `${systemInfo.ramGB} GB RAM` : '—',
+      onInspect: () =>
+        setInspectItem({
+          title: 'System Memory',
+          category: 'Unified RAM',
+          badge: `${systemInfo.memoryUsage}% In Use`,
+          subtitle: 'Physical system memory allocation.',
+          details: [
+            { label: 'Total Capacity', value: `${systemInfo.ramGB} GB` },
+            { label: 'Utilization Level', value: `${systemInfo.memoryUsage}%` },
+          ],
+          command: isMac ? 'vm_stat' : 'Get-CimInstance Win32_OperatingSystem',
+        }),
+    },
+    {
+      icon: HardDrive,
+      k: 'Storage',
+      v: systemInfo.totalDiskGB > 0 ? `${systemInfo.freeDiskGB} GB free / ${systemInfo.totalDiskGB} GB` : '—',
+      onInspect: () =>
+        setInspectItem({
+          title: 'Boot Storage Volume',
+          category: 'APFS Container',
+          badge: `${systemInfo.freeDiskGB} GB Free`,
+          subtitle: 'Local root partition capacity.',
+          details: [
+            { label: 'Total Capacity', value: `${systemInfo.totalDiskGB} GB` },
+            { label: 'Available Free', value: `${systemInfo.freeDiskGB} GB` },
+          ],
+          command: isMac ? 'df -h /System/Volumes/Data' : 'Get-PSDrive C',
+        }),
+    },
+    {
+      icon: Clock,
+      k: 'Uptime',
+      v: systemInfo.uptime || '—',
+      onInspect: () =>
+        setInspectItem({
+          title: 'System Uptime',
+          category: 'Kernel Uptime',
+          badge: systemInfo.uptime ? systemInfo.uptime.split(',')[0] : 'Active',
+          subtitle: 'Elapsed time since last operating system boot.',
+          details: [
+            { label: 'Uptime String', value: systemInfo.uptime },
+          ],
+          command: 'uptime',
+        }),
+    },
   ];
 
   return (
@@ -50,6 +134,8 @@ export default function SystemInfoPanel({ systemInfo, selectedMode, live = false
       transition={{ duration: 0.45, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
       className="card p-5 sm:p-6"
     >
+      <InspectorModal data={inspectItem} onClose={() => setInspectItem(null)} />
+
       <div className="flex items-center justify-between pb-4 mb-4 border-b" style={{ borderColor: 'var(--color-line)' }}>
         <div className="flex items-center gap-2">
           <Activity size={16} className="text-blue-500" />
@@ -67,8 +153,19 @@ export default function SystemInfoPanel({ systemInfo, selectedMode, live = false
           )}
         </div>
 
-        <div
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border"
+        <button
+          onClick={() =>
+            setInspectItem({
+              title: 'Network Connectivity Subsystem',
+              category: 'Network Link',
+              badge: systemInfo.isOnline ? 'Online' : 'Offline',
+              subtitle: 'Active internet interface and socket status.',
+              details: [
+                { label: 'Network State', value: systemInfo.isOnline ? 'Connected (Internet Reachable)' : 'Offline' },
+              ],
+            })
+          }
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border cursor-pointer hover:scale-105 transition-transform"
           style={{
             backgroundColor: systemInfo.isOnline ? 'rgba(22,163,74,0.10)' : 'rgba(220,38,38,0.10)',
             color: systemInfo.isOnline ? '#15803d' : '#b91c1c',
@@ -81,54 +178,92 @@ export default function SystemInfoPanel({ systemInfo, selectedMode, live = false
           />
           {systemInfo.isOnline ? 'Online' : 'Offline'}
           {systemInfo.isOnline ? <Wifi size={11} /> : <WifiOff size={11} />}
-        </div>
+        </button>
       </div>
 
       <div className="space-y-2">
         {rows.map((r, i) => (
-          <motion.div
+          <motion.button
             key={r.k}
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.15 + i * 0.04, duration: 0.3 }}
-            className="flex items-center gap-3 p-2.5 rounded-xl text-[12.5px] min-w-0 border"
+            onClick={r.onInspect}
+            className="w-full flex items-center gap-3 p-2.5 rounded-xl text-[12.5px] min-w-0 border text-left transition-all hover:scale-[1.01] cursor-pointer"
             style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
           >
             <div className="p-1.5 rounded-lg text-blue-500 border shrink-0 shadow-sm" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-line)' }}>
               <r.icon size={15} />
             </div>
             <div className="flex-1 min-w-0 overflow-hidden">
-              <p className="text-[10px] font-bold uppercase tracking-wider leading-none mb-0.5" style={{ color: 'var(--color-ink-4)' }}>{r.k}</p>
-              <p title={r.v} className="font-semibold truncate leading-snug" style={{ color: 'var(--color-ink)' }}>{r.v}</p>
+              <span className="block text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-ink-4)' }}>{r.k}</span>
+              <span className="font-mono font-bold truncate block" style={{ color: 'var(--color-ink)' }}>{r.v}</span>
             </div>
-          </motion.div>
+          </motion.button>
         ))}
       </div>
 
-      <div className="space-y-3.5 pt-4 mt-4 border-t" style={{ borderColor: 'var(--color-line)' }}>
-        <h4 className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-ink-4)' }}>Hardware Metrics</h4>
-        <Bar label="CPU Load" value={systemInfo.cpuUsage} max={100} unit="%" color="#2563eb" />
-        <Bar label="Memory" value={systemInfo.memoryUsage} max={100} unit="%" color="#7c3aed" />
+      <div className="mt-5 pt-4 border-t space-y-3" style={{ borderColor: 'var(--color-line)' }}>
         <Bar
-          label="Disk Used"
+          label="CPU Load"
+          value={systemInfo.cpuUsage}
+          max={100}
+          unit="%"
+          color="#2563eb"
+          onClick={() =>
+            setInspectItem({
+              title: 'CPU Core Utilization',
+              category: 'Processor Health',
+              badge: `${systemInfo.cpuUsage}% Active`,
+              subtitle: 'Active scheduling load across all hardware CPU cores.',
+              details: [
+                { label: 'Current Utilization', value: `${systemInfo.cpuUsage}%` },
+                { label: 'Processor Model', value: systemInfo.processor },
+              ],
+            })
+          }
+        />
+        <Bar
+          label="Memory Usage"
+          value={systemInfo.memoryUsage}
+          max={100}
+          unit="%"
+          color="#7c3aed"
+          delay={0.1}
+          onClick={() =>
+            setInspectItem({
+              title: 'Physical Memory Load',
+              category: 'RAM Allocation',
+              badge: `${systemInfo.memoryUsage}% Active`,
+              subtitle: 'Physical unified memory utilization.',
+              details: [
+                { label: 'Installed Memory', value: `${systemInfo.ramGB} GB` },
+                { label: 'Used Memory', value: `${systemInfo.memoryUsage}%` },
+              ],
+            })
+          }
+        />
+        <Bar
+          label="Disk Allocation"
           value={Math.round(((systemInfo.totalDiskGB - systemInfo.freeDiskGB) / Math.max(systemInfo.totalDiskGB, 1)) * 100)}
           max={100}
           unit="%"
           color="#0891b2"
+          delay={0.2}
+          onClick={() =>
+            setInspectItem({
+              title: 'Primary Disk Allocation',
+              category: 'APFS Volume',
+              badge: `${systemInfo.freeDiskGB} GB Free`,
+              subtitle: 'Boot volume storage breakdown.',
+              details: [
+                { label: 'Total Volume Size', value: `${systemInfo.totalDiskGB} GB` },
+                { label: 'Free Disk Space', value: `${systemInfo.freeDiskGB} GB` },
+              ],
+            })
+          }
         />
       </div>
-
-      {selectedMode && (
-        <div className="mt-4 p-3.5 rounded-xl border" style={{ backgroundColor: 'rgba(59,130,246,0.08)', borderColor: 'rgba(59,130,246,0.20)' }}>
-          <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider mb-1 text-blue-500">
-            <Sparkles size={12} />
-            <span>Profile: {selectedMode}</span>
-          </div>
-          <p className="text-[11.5px] leading-relaxed" style={{ color: 'var(--color-ink-2)' }}>
-            {config.modeDescriptions[selectedMode]?.description || 'Optimized system maintenance profile.'}
-          </p>
-        </div>
-      )}
     </motion.div>
   );
 }

@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, ToggleLeft, ToggleRight, Search, RefreshCw, Folder, Cpu, FileText, CheckCircle2 } from 'lucide-react';
+import { Sparkles, ToggleLeft, ToggleRight, Search, RefreshCw, FileText, ChevronRight } from 'lucide-react';
 import type { StartupItem } from '../platform/types';
 import { usePlatform } from '../platform';
+import InspectorModal, { type InspectorData } from './InspectorModal';
 
 export default function StartupManager() {
   const { config, isMac } = usePlatform();
   const [items, setItems] = useState<StartupItem[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
+  const [inspectItem, setInspectItem] = useState<InspectorData | null>(null);
 
   const fetchStartup = async () => {
     setLoading(true);
@@ -51,12 +53,17 @@ export default function StartupManager() {
 
   return (
     <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+      <InspectorModal data={inspectItem} onClose={() => setInspectItem(null)} />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <div className="inline-flex items-center gap-2 mb-2">
             <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25">
               <Sparkles size={12} /> {isMac ? 'Login Items & Daemons' : 'Startup Applications'}
+            </span>
+            <span className="pill" style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-3)', borderColor: 'var(--color-line)' }}>
+              Click Any Row To Inspect Config
             </span>
           </div>
           <h1 className="text-hero font-extrabold tracking-tight" style={{ color: 'var(--color-ink)' }}>
@@ -72,7 +79,7 @@ export default function StartupManager() {
         <button
           onClick={fetchStartup}
           disabled={loading}
-          className="btn btn-ghost text-xs"
+          className="btn btn-ghost text-xs cursor-pointer"
         >
           <RefreshCw size={13} className={loading ? 'animate-spin-smooth' : ''} />
           <span>Refresh</span>
@@ -98,7 +105,28 @@ export default function StartupManager() {
         {filteredItems.map((item) => (
           <div
             key={item.id}
-            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 transition-colors hover:bg-slate-500/5"
+            onClick={() =>
+              setInspectItem({
+                title: item.name,
+                category: item.type || (isMac ? 'LaunchAgent' : 'Registry Run Key'),
+                badge: `${item.impact} Boot Impact`,
+                badgeType: item.impact === 'High' ? 'warning' : 'success',
+                subtitle: `Location: ${item.location}`,
+                details: [
+                  { label: 'Item Name', value: item.name },
+                  { label: 'Configuration Path', value: item.location, isCode: true },
+                  { label: 'Executable Destination', value: item.path, isCode: true },
+                  { label: 'Initialization State', value: item.enabled ? 'Enabled on Boot' : 'Disabled' },
+                  { label: 'Performance Impact', value: `${item.impact} impact on system boot latency` },
+                ],
+                command: isMac ? `plutil -p "${item.location}/${item.name}.plist"` : `Get-ItemProperty -Path "${item.location}"`,
+                actionButton: {
+                  label: item.enabled ? 'Disable Item' : 'Enable Item',
+                  onClick: () => toggleItem(item.id),
+                },
+              })
+            }
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 transition-colors hover:bg-slate-500/10 cursor-pointer"
           >
             <div className="flex items-start gap-3 min-w-0">
               <div
@@ -133,18 +161,24 @@ export default function StartupManager() {
               </div>
             </div>
 
-            <button
-              onClick={() => toggleItem(item.id)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shrink-0 self-start sm:self-center"
-              style={
-                item.enabled
-                  ? { backgroundColor: 'rgba(34,197,94,0.12)', color: '#22c55e', borderColor: 'rgba(34,197,94,0.30)' }
-                  : { backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-4)', borderColor: 'var(--color-line)' }
-              }
-            >
-              {item.enabled ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
-              <span>{item.enabled ? 'Enabled' : 'Disabled'}</span>
-            </button>
+            <div className="flex items-center gap-3 shrink-0 self-start sm:self-center">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleItem(item.id);
+                }}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer"
+                style={
+                  item.enabled
+                    ? { backgroundColor: 'rgba(34,197,94,0.12)', color: '#22c55e', borderColor: 'rgba(34,197,94,0.30)' }
+                    : { backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-4)', borderColor: 'var(--color-line)' }
+                }
+              >
+                {item.enabled ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+                <span>{item.enabled ? 'Enabled' : 'Disabled'}</span>
+              </button>
+              <ChevronRight size={14} className="text-slate-400" />
+            </div>
           </div>
         ))}
       </div>
