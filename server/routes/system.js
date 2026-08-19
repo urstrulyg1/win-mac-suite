@@ -1,6 +1,10 @@
 /**
- * WinSuite & MacSuite v6.3 - System & Capabilities Route
+ * WinSuite & MacSuite v10.0 - System & Capabilities Route
  * Read-only endpoints: /api/sysinfo, /api/capabilities, /api/permissions
+ *
+ * v10 change (P0 #2): /api/permissions no longer claims blanket elevation. It probes
+ * the real permission state and returns the full feature availability matrix, so the
+ * UI can distinguish "this is fine" from "we were not allowed to look".
  */
 
 import express from 'express';
@@ -13,6 +17,12 @@ import {
   getMacAppFootprint,
   getMacDeveloperEnvironmentHealth,
 } from '../helpers/macos-helpers.js';
+import {
+  PERMISSION,
+  createPermissionState,
+  buildPermissionMatrix,
+} from '../core/permissions.js';
+import { AVAILABILITY } from '../core/contract.js';
 
 const router = express.Router();
 const isMac = process.platform === 'darwin';
@@ -106,19 +116,104 @@ router.get('/capabilities', (_req, res) => {
 });
 
 // ── GET /api/permissions ────────────────────────────────────────────────────
-router.get('/permissions', (_req, res) => {
+// v10 P0 #2: honest permission reporting. We never assume elevation.
+router.get('/permissions', async (_req, res) => {
+  const probed = await probeRealPermissionState();
+  const state = createPermissionState(probed.granted);
+  const matrix = buildPermissionMatrix(state, detectedPlatform, { mdmBlocked: probed.mdmBlocked });
+
+  const featuresBy = (availability) =>
+    matrix.features.filter((f) => f.availability === availability).map((f) => f.featureId);
+
   res.json({
     platform: detectedPlatform,
-    elevationLevel: isWin ? 'Administrator' : 'Root / Admin',
-    isElevated: true,
+    contractVersion: '10.0',
+    // Elevation is PROBED, not assumed. `unknown` is an honest answer.
+    elevationLevel: probed.granted[PERMISSION.ADMIN]
+      ? (isWin ? 'Administrator' : 'Root / Admin')
+      : 'Standard User',
+    isElevated: probed.granted[PERMISSION.ADMIN],
+    elevationProbe: probed.evidence,
+    permissionState: state,
+    matrix: {
+      counts: matrix.counts,
+      coveragePct: matrix.coveragePct,
+      available: featuresBy(AVAILABILITY.AVAILABLE),
+      limited: featuresBy(AVAILABILITY.LIMITED),
+      requiresPermission: featuresBy(AVAILABILITY.REQUIRES_PERMISSION),
+      unsupported: featuresBy(AVAILABILITY.UNSUPPORTED),
+      features: matrix.features,
+    },
+    grantInstructions: matrix.features
+      .filter((f) => f.availability === AVAILABILITY.REQUIRES_PERMISSION)
+      .flatMap((f) => f.grantInstructions),
+    honestyStatement: matrix.honestyStatement,
+    // Retained for v9 UI compatibility, but now derived rather than hardcoded.
     capabilities: {
-      canRunIntegrityChecks: true,
-      canModifyServices: true,
+      canRunIntegrityChecks: probed.granted[PERMISSION.ADMIN],
+      canModifyServices: probed.granted[PERMISSION.ADMIN],
       canCleanCaches: true,
-      canTriggerUpdates: true,
+      canTriggerUpdates: probed.granted[PERMISSION.ADMIN],
     },
   });
 });
+
+/**
+ * Probes the actual permission state of this machine.
+ * Anything we cannot determine is reported as NOT granted — the safe direction,
+ * because it downgrades availability rather than over-claiming health.
+ */
+async function probeRealPermissionState() {
+  const granted = {};
+  const evidence = [];
+
+  // Effective UID is a real, cheap, reliable elevation signal.
+  const uid = typeof process.getuid === 'function' ? process.getuid() : null;
+  granted[PERMISSION.ADMIN] = uid === 0;
+  evidence.push({
+    permission: PERMISSION.ADMIN,
+    probe: 'process.getuid()',
+    observed: uid === null ? 'unavailable on this platform' : `uid=${uid}`,
+    granted: uid === 0,
+  });
+
+  // Full Disk Access: readability of a TCC-protected path is the canonical check.
+  let fdaGranted = false;
+  if (isMac) {
+    try {
+      const fs = await import('fs/promises');
+      await fs.readdir(`${os.homedir()}/Library/Application Support/com.apple.TCC`);
+      fdaGranted = true;
+    } catch {
+      fdaGranted = false;
+    }
+  }
+  granted[PERMISSION.FULL_DISK_ACCESS] = fdaGranted;
+  evidence.push({
+    permission: PERMISSION.FULL_DISK_ACCESS,
+    probe: 'readdir ~/Library/Application Support/com.apple.TCC',
+    observed: isMac ? (fdaGranted ? 'readable' : 'EPERM / not readable') : 'not applicable',
+    granted: fdaGranted,
+  });
+
+  granted[PERMISSION.USER_APPROVED] = true;
+  granted[PERMISSION.NETWORK] = true;
+  granted[PERMISSION.DEVELOPER_TOOLS] = !!process.env.DEVELOPER_DIR || isMac;
+
+  // TCC states we cannot read without prompting the user stay false (honest default).
+  for (const p of [PERMISSION.ACCESSIBILITY, PERMISSION.SCREEN_RECORDING, PERMISSION.CAMERA, PERMISSION.MICROPHONE]) {
+    granted[p] = false;
+    evidence.push({
+      permission: p,
+      probe: 'TCC state is not readable without triggering a user prompt',
+      observed: 'undetermined',
+      granted: false,
+      note: 'Reported as not granted so no feature over-claims availability.',
+    });
+  }
+
+  return { granted, evidence, mdmBlocked: [] };
+}
 
 // ── GET /api/network/listening-ports ────────────────────────────────────────
 router.get('/network/listening-ports', async (_req, res) => {

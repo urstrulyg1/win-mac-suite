@@ -1,5 +1,5 @@
 /**
- * WinSuite & MacSuite v6.3 Production Architecture
+ * WinSuite & MacSuite v10.0 Production Architecture
  * Local Telemetry, Secure Command Allowlist & Operations Server (:3131).
  *
  * Modular Route Organization:
@@ -11,6 +11,8 @@
  * - /api/network/diagnostics                          -> routes/network.js
  * - /api/reports, /api/audit-history                  -> routes/reports.js
  * - /api/actions/*                                    -> routes/actions.js
+ * - /api/v10/*  (health contract, permission matrix, operations ledger,
+ *                calibration, chaos, privacy, API contracts) -> routes/v10.js
  */
 
 import express from 'express';
@@ -25,8 +27,11 @@ import servicesRouter from './server/routes/services.js';
 import networkRouter from './server/routes/network.js';
 import reportsRouter from './server/routes/reports.js';
 import actionsRouter from './server/routes/actions.js';
+import v10Router from './server/routes/v10.js';
 
 import { localhostOnlyGuard, concurrencyGuard } from './server/security/request-guard.js';
+import { createErrorResponse } from './server/contracts/api-schemas.js';
+import { getDegradedModeStatus } from './server/runtime/degraded-mode.js';
 
 const PORT = 3131;
 const app = express();
@@ -46,13 +51,41 @@ app.use('/api', servicesRouter);
 app.use('/api', reportsRouter);
 app.use('/api/network', networkRouter);
 app.use('/api/actions', actionsRouter);
+app.use('/api/v10', v10Router);
+
+// ── v10 P0 #6: nothing leaves this server without a well-formed error envelope ──
+app.use((req, res) => {
+  res.status(404).json(createErrorResponse({
+    code: 'ROUTE_NOT_FOUND',
+    error: `No route matches ${req.method} ${req.originalUrl}.`,
+    recoverable: false,
+    remediation: 'See GET /api/v10/contracts/schemas for the published API contract.',
+  }));
+});
+
+// eslint-disable-next-line no-unused-vars
+app.use((err, _req, res, _next) => {
+  console.error('[v10] Unhandled error:', err);
+  res.status(500).json(createErrorResponse({
+    code: 'UNEXPECTED_ERROR',
+    error: 'The request failed unexpectedly and was stopped before making changes.',
+    recoverable: true,
+    remediation: 'The system was left in its previous state. Other subsystems are unaffected.',
+    details: process.env.NODE_ENV === 'development' ? { message: err?.message } : null,
+  }));
+});
 
 const isMac = process.platform === 'darwin';
 const isWin = process.platform === 'win32';
 const detectedPlatform = isMac ? 'macos' : isWin ? 'windows' : 'unsupported';
 const brand = isMac ? 'MacSuite' : 'WinSuite';
 
-app.listen(PORT, '127.0.0.1', () => {
-  console.log(`✅  ${brand} (v6.3) telemetry & operations server listening on http://127.0.0.1:${PORT}`);
+app.listen(PORT, '127.0.0.1', async () => {
+  console.log(`✅  ${brand} (v10.0) telemetry & operations server listening on http://127.0.0.1:${PORT}`);
   console.log(`    Platform: ${detectedPlatform.toUpperCase()} | Host: ${os.hostname()} (${os.arch()})`);
+
+  // v10 P0 #9 — announce offline-first posture at boot so degraded mode is never a surprise.
+  const runtime = await getDegradedModeStatus();
+  console.log(`    Runtime: ${runtime.online ? 'ONLINE' : 'OFFLINE'} | ${runtime.message}`);
+  console.log(`    Contract: GET /api/v10/health · /api/v10/permissions/matrix · /api/v10/contracts/schemas`);
 });

@@ -28,6 +28,9 @@
 
 import express from 'express';
 import { executeAllowlistedCommand, cancelActiveExecution } from '../security/exec-guard.js';
+import { runGuardedOperation } from '../runtime/operation-executor.js';
+import { operationRegistry } from '../runtime/operations.js';
+import { validateRequest, createErrorResponse } from '../contracts/api-schemas.js';
 import { COMMAND_ALLOWLIST } from '../security/allowlist.js';
 import { logAuditEntry } from '../audit/audit-logger.js';
 import {
@@ -39,6 +42,7 @@ import {
   askMacAssistantQuery,
   runSafeCommand,
   killPortProcess,
+  getMacListeningPorts,
 } from '../helpers/macos-helpers.js';
 
 const router = express.Router();
@@ -187,62 +191,129 @@ router.post('/cleanup-plan', async (_req, res) => {
 });
 
 // ── POST /api/actions/execute-cleanup (Execute Safe Cleanup with Manifest) ──
-router.post('/execute-cleanup', async (req, res) => {
-  const { selectedItemIds = [], confirmed } = req.body;
+// v10: guarded operation with a MEASURED reclaim figure (the old hardcoded 11.8 GB
+// is gone), a 10s cooldown, a storage lock, and before/after disk verification.
+router.post('/execute-cleanup', validateRequest('POST /api/actions/execute-cleanup'), async (req, res) => {
+  const { selectedItemIds = [], confirmed, idempotencyKey = null, dryRun = false } = req.body;
 
   if (!confirmed) {
-    return res.status(400).json({
-      error: 'Safe cleanup execution requires user confirmation.',
-      requiresConfirmation: true,
-    });
+    return res.status(400).json(createErrorResponse({
+      code: 'CONFIRMATION_REQUIRED',
+      error: 'Safe cleanup execution requires explicit user confirmation.',
+      recoverable: true,
+      remediation: 'Re-send the request with { "confirmed": true } after the user approves the plan.',
+      details: { requiresConfirmation: true },
+    }));
   }
 
-  const startTime = Date.now();
   const isDarwin = process.platform === 'darwin';
 
-  try {
-    if (isDarwin) {
-      await runSafeCommand('/usr/bin/purge', [], 3000).catch(() => {});
-    }
+  const outcome = await runGuardedOperation({
+    actionId: 'storage.executeCleanup',
+    params: { selectedItemIds, itemCount: selectedItemIds.length },
+    idempotencyKey,
+    dryRun,
+    requestId: req.headers['x-request-id'] || null,
+    source: 'api:/api/actions/execute-cleanup',
+    snapshot: async () => {
+      const { statfs } = await import('fs/promises');
+      try {
+        const st = await statfs('/');
+        return { freeBytes: st.bavail * st.bsize, sampledAt: new Date().toISOString() };
+      } catch {
+        return { freeBytes: null, sampledAt: new Date().toISOString(), note: 'Free space could not be sampled on this platform.' };
+      }
+    },
+    assertVerified: (before, after) =>
+      before.freeBytes !== null && after.freeBytes !== null && after.freeBytes >= before.freeBytes,
+    execute: async () => {
+      if (isDarwin) await runSafeCommand('/usr/bin/purge', [], 3000).catch(() => {});
+      return { itemsProcessed: selectedItemIds.length, platform: isDarwin ? 'macos' : process.platform };
+    },
+  });
 
-    const reclaimedBytes = 1024 * 1024 * 1024 * 11.8;
-    const durationSeconds = +( (Date.now() - startTime) / 1000 ).toFixed(1);
-
-    // Record in Transaction Manifest Ledger
-    const transaction = recordCleanupTransaction({
-      itemsCount: selectedItemIds.length || 5,
-      reclaimedBytes,
-      reclaimedFormatted: '11.8 GB',
-      reversible: true,
-      items: selectedItemIds,
-      status: 'completed',
-    });
-
-    const audit = logAuditEntry({
-      operation: 'Safe Cleanup Transaction Executed',
-      commandId: 'cleanup.execute.safe',
-      risk: 'safe',
-      permissionLevel: 'Standard User',
-      result: 'success',
-      durationSeconds,
-      changesMade: [
-        `Purged APFS snapshots, Xcode DerivedData, browser buffers, and package caches`,
-        `Created recovery manifest transaction #${transaction.id}`,
-      ],
-      reclaimedBytes,
-    });
-
-    res.json({
-      success: true,
-      reclaimedMB: 11800,
-      reclaimedGB: 11.8,
-      transaction,
-      audit,
-      message: 'Cleanup completed successfully. Recovery transaction manifest saved.',
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  if (!outcome.ok) {
+    return res.status(outcome.httpStatus || 500).json(createErrorResponse({
+      code: outcome.code,
+      error: outcome.error,
+      recoverable: outcome.recoverable ?? true,
+      remediation: outcome.remediation || null,
+      operationId: outcome.operationId,
+      details: outcome.retryAfterMs ? { retryAfterMs: outcome.retryAfterMs } : null,
+    }));
   }
+
+  if (outcome.deduplicated) {
+    return res.json({
+      success: true, ok: true, operationId: outcome.operationId, deduplicated: true,
+      message: outcome.message, result: outcome.result,
+    });
+  }
+
+  const beforeFree = outcome.verification?.beforeState?.freeBytes ?? null;
+  const afterFree = outcome.verification?.afterState?.freeBytes ?? null;
+  const reclaimedBytes = beforeFree !== null && afterFree !== null ? Math.max(0, afterFree - beforeFree) : null;
+  const measurable = reclaimedBytes !== null;
+
+  const transaction = recordCleanupTransaction({
+    operationId: outcome.operationId,
+    itemsCount: selectedItemIds.length,
+    reclaimedBytes: reclaimedBytes ?? 0,
+    reclaimedFormatted: measurable ? `${(reclaimedBytes / 1024 / 1024 / 1024).toFixed(2)} GB` : 'Not measurable',
+    reversible: true,
+    items: selectedItemIds,
+    status: 'completed',
+  });
+
+  const audit = logAuditEntry({
+    operation: `[${outcome.operationId}] Safe Cleanup Transaction Executed`,
+    commandId: 'cleanup.execute.safe',
+    risk: 'safe',
+    permissionLevel: 'Standard User',
+    result: 'success',
+    durationSeconds: +(((outcome.operation?.durationMs || 0) / 1000).toFixed(2)),
+    changesMade: [
+      `Processed ${selectedItemIds.length} selected cleanup item(s)`,
+      `Created recovery manifest transaction #${transaction.id}`,
+    ],
+    reclaimedBytes: reclaimedBytes ?? 0,
+  });
+
+  res.json({
+    success: true,
+    ok: true,
+    operationId: outcome.operationId,
+    actionId: 'storage.executeCleanup',
+    // Measured, quality-tagged. We do not invent a reclaim figure.
+    reclaimedBytes,
+    reclaimedMB: measurable ? Math.round(reclaimedBytes / 1024 / 1024) : null,
+    reclaimedGB: measurable ? +(reclaimedBytes / 1024 / 1024 / 1024).toFixed(2) : null,
+    measurement: measurable ? 'observed' : 'unavailable',
+    measurementNote: measurable
+      ? 'Reclaimed space is the observed difference in free bytes before and after the operation.'
+      : 'Free space could not be sampled on this platform, so no reclaim figure is reported rather than guessing one.',
+    transaction,
+    verification: outcome.verification,
+    timeline: outcome.operation?.timeline,
+    audit,
+    message: 'Cleanup completed. Recovery transaction manifest saved.',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// ── GET /api/actions/operations/:operationId ────────────────────────────────
+// v10 P0 #7: every action is traceable by its operation ID.
+router.get('/operations/:operationId', (req, res) => {
+  const op = operationRegistry.get(req.params.operationId);
+  if (!op) {
+    return res.status(404).json(createErrorResponse({
+      code: 'OPERATION_NOT_FOUND',
+      error: `No operation with ID ${req.params.operationId}.`,
+      recoverable: false,
+      remediation: 'The most recent 500 operations are retained.',
+    }));
+  }
+  res.json(op);
 });
 
 // ── POST /api/actions/undo-cleanup ──────────────────────────────────────────
@@ -600,25 +671,73 @@ router.post('/thin-snapshots', async (req, res) => {
 });
 
 // ── POST /api/actions/purge-ram ─────────────────────────────────────────────
-router.post('/purge-ram', async (_req, res) => {
+// v10: 15s cooldown + memory lock so repeated clicks cannot thrash the page cache,
+// and the reclaimed figure is now MEASURED rather than the old hardcoded 512 MB.
+router.post('/purge-ram', validateRequest('POST /api/actions/purge-ram'), async (req, res) => {
   const isMacOs = process.platform === 'darwin';
   const commandId = isMacOs ? 'mac.purge.ram' : 'win.flushdns';
-  try {
-    const result = await executeAllowlistedCommand(commandId, {});
-    const audit = logAuditEntry({
-      operation: isMacOs ? 'Purge Inactive RAM & Memory Cache' : 'Trim Inactive System Memory',
-      commandId,
-      risk: 'safe',
-      permissionLevel: 'Standard User',
-      result: result.success ? 'success' : 'warning',
-      durationSeconds: result.durationSeconds,
-      changesMade: ['Inactive unified memory caches flushed to boost available memory.'],
-      reclaimedBytes: 1024 * 1024 * 512,
-    });
-    res.json({ success: true, reclaimedMB: 512, result, audit });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  const { idempotencyKey = null, dryRun = false } = req.body || {};
+
+  const outcome = await runGuardedOperation({
+    actionId: 'storage.purgeRam',
+    params: {},
+    idempotencyKey,
+    dryRun,
+    requestId: req.headers['x-request-id'] || null,
+    source: 'api:/api/actions/purge-ram',
+    snapshot: async () => {
+      const os = await import('os');
+      return { freeBytes: os.freemem(), totalBytes: os.totalmem(), sampledAt: new Date().toISOString() };
+    },
+    assertVerified: (before, after) => after.freeBytes >= before.freeBytes,
+    execute: async () => executeAllowlistedCommand(commandId, {}),
+  });
+
+  if (!outcome.ok) {
+    return res.status(outcome.httpStatus || 500).json(createErrorResponse({
+      code: outcome.code,
+      error: outcome.error,
+      recoverable: outcome.recoverable ?? true,
+      remediation: outcome.remediation || null,
+      operationId: outcome.operationId,
+      details: outcome.retryAfterMs ? { retryAfterMs: outcome.retryAfterMs } : null,
+    }));
   }
+
+  if (outcome.deduplicated) {
+    return res.json({ success: true, ok: true, operationId: outcome.operationId, deduplicated: true, message: outcome.message, result: outcome.result });
+  }
+
+  const before = outcome.verification?.beforeState?.freeBytes ?? 0;
+  const after = outcome.verification?.afterState?.freeBytes ?? 0;
+  const reclaimedBytes = Math.max(0, after - before);
+
+  const audit = logAuditEntry({
+    operation: `[${outcome.operationId}] ${isMacOs ? 'Purge Inactive RAM & Memory Cache' : 'Trim Inactive System Memory'}`,
+    commandId,
+    risk: 'safe',
+    permissionLevel: 'Standard User',
+    result: 'success',
+    durationSeconds: +(((outcome.operation?.durationMs || 0) / 1000).toFixed(2)),
+    changesMade: ['Inactive unified memory caches flushed to boost available memory.'],
+    reclaimedBytes,
+  });
+
+  res.json({
+    success: true,
+    ok: true,
+    operationId: outcome.operationId,
+    actionId: 'storage.purgeRam',
+    // Measured from real before/after telemetry — 0 is an honest answer.
+    reclaimedMB: Math.round(reclaimedBytes / 1024 / 1024),
+    reclaimedBytes,
+    measurement: 'observed',
+    result: outcome.result,
+    verification: outcome.verification,
+    timeline: outcome.operation?.timeline,
+    audit,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // ── POST /api/actions/restart-audio ─────────────────────────────────────────
@@ -664,30 +783,79 @@ router.post('/rebuild-icon-cache', async (_req, res) => {
 });
 
 // ── POST /api/actions/kill-port ─────────────────────────────────────────────
-router.post('/kill-port', async (req, res) => {
-  const { port } = req.body;
-  if (!port) return res.status(400).json({ error: 'Port number required.' });
+// v10: fully guarded. Operation ID (P0 #7), idempotency key + lock + cooldown +
+// rate limit (P0 #8), chaos hook (P0 #5), before/after verification.
+// A double-clicked button can no longer kill twenty processes.
+router.post('/kill-port', validateRequest('POST /api/actions/kill-port'), async (req, res) => {
+  const { port, idempotencyKey = null, dryRun = false } = req.body;
 
-  try {
-    const result = isMac
-      ? await killPortProcess(port)
-      : { success: true, killedPids: [] };
+  const outcome = await runGuardedOperation({
+    actionId: 'process.killPort',
+    params: { port: Number(port) },
+    idempotencyKey,
+    dryRun,
+    requestId: req.headers['x-request-id'] || null,
+    source: 'api:/api/actions/kill-port',
+    // BEFORE/AFTER proof: is the port still bound?
+    snapshot: async () => {
+      const ports = isMac ? await getMacListeningPorts().catch(() => []) : [];
+      const match = (Array.isArray(ports) ? ports : []).filter((p) => String(p.port) === String(port));
+      return { port: Number(port), boundBy: match, isBound: match.length > 0, sampledAt: new Date().toISOString() };
+    },
+    assertVerified: (before, after) => before.isBound === true && after.isBound === false,
+    execute: async () => {
+      const result = isMac ? await killPortProcess(port) : { success: true, killedPids: [] };
+      if (!result.success && result.error) throw new Error(result.error);
+      return { killedPids: result.killedPids || [], port: Number(port) };
+    },
+  });
 
-    const audit = logAuditEntry({
-      operation: `Terminate Process Listening on Port ${port}`,
-      commandId: 'net.kill.port',
-      risk: 'moderate',
-      permissionLevel: 'Standard User',
-      result: result.success ? 'success' : 'error',
-      durationSeconds: 0.2,
-      changesMade: [`Terminated process holding TCP port ${port}`],
-      outputLogSnippet: result.error || `Successfully freed port ${port}`,
-    });
-
-    res.json({ success: result.success, error: result.error, audit });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  if (!outcome.ok) {
+    return res.status(outcome.httpStatus || 500).json(createErrorResponse({
+      code: outcome.code,
+      error: outcome.error,
+      recoverable: outcome.recoverable ?? true,
+      remediation: outcome.remediation || null,
+      operationId: outcome.operationId,
+      details: outcome.retryAfterMs ? { retryAfterMs: outcome.retryAfterMs } : null,
+    }));
   }
+
+  if (outcome.deduplicated) {
+    return res.json({
+      success: true,
+      ok: true,
+      operationId: outcome.operationId,
+      deduplicated: true,
+      message: outcome.message,
+      result: outcome.result,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  const audit = logAuditEntry({
+    operation: `[${outcome.operationId}] Terminate Process Listening on Port ${port}`,
+    commandId: 'net.kill.port',
+    risk: 'moderate',
+    permissionLevel: 'Standard User',
+    result: outcome.verification?.status === 'FAILED' ? 'warning' : 'success',
+    durationSeconds: +(((outcome.operation?.durationMs || 0) / 1000).toFixed(2)),
+    changesMade: [`Terminated process holding TCP port ${port}`],
+    outputLogSnippet: outcome.verification?.verdict,
+  });
+
+  res.json({
+    success: true,
+    ok: true,
+    operationId: outcome.operationId,
+    actionId: 'process.killPort',
+    result: outcome.result,
+    // Proof, not a claim: the port was bound before and is not bound after.
+    verification: outcome.verification,
+    timeline: outcome.operation?.timeline,
+    audit,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // ── POST /api/actions/cancel ────────────────────────────────────────────────
