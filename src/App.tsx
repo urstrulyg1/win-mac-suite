@@ -8,6 +8,7 @@ import SecurityHub from './components/SecurityHub';
 import StorageHub from './components/StorageHub';
 import SystemAppsHub from './components/SystemAppsHub';
 import ReportsPage from './components/ReportsPage';
+import MacUtilitiesHub from './components/MacUtilitiesHub';
 import UnsupportedPlatformView from './components/UnsupportedPlatformView';
 import { useDarkMode } from './hooks/useDarkMode';
 import { useToast } from './components/Toast';
@@ -307,6 +308,14 @@ function MainApp() {
             transition={{ duration: 0.2 }} className="w-full"
           >
             <DiagnosticsHub systemInfo={realSysInfo} onStartAction={handleStartWithMode} />
+          </motion.div>
+        ) : activeTab === 'utilities' ? (
+          <motion.div
+            key="utilities-tab"
+            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.2 }} className="w-full"
+          >
+            <MacUtilitiesHub />
           </motion.div>
         ) : activeTab === 'security' ? (
           <motion.div

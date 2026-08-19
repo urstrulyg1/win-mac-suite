@@ -165,6 +165,16 @@ router.get('/packages', async (_req, res) => {
   }
 });
 
+// ── GET /api/hardware ───────────────────────────────────────────────────────
+router.get('/hardware', async (_req, res) => {
+  try {
+    const hardware = isMac ? await getMacHardwareStatus() : await getWindowsHardwareStatus();
+    res.json(hardware);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── GET /api/spotlight ──────────────────────────────────────────────────────
 router.get('/spotlight', async (_req, res) => {
   try {

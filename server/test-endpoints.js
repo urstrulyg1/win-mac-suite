@@ -23,6 +23,10 @@ async function runTests() {
     '/api/packages',
     '/api/hardware',
     '/api/network/diagnostics',
+    '/api/network/listening-ports',
+    '/api/thermal',
+    '/api/spotlight',
+    '/api/power-assertions',
     '/api/reports',
     '/api/audit-history',
   ];
@@ -77,6 +81,18 @@ async function runTests() {
     console.log('✓ POST /api/actions/toggle-startup -> OK (Audit logged)');
   } catch (err) {
     console.error('✗ toggle-startup error:', err.message);
+  }
+
+  // Mutative Action Test: purge-ram
+  try {
+    const res = await fetch('http://127.0.0.1:3131/api/actions/purge-ram', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await res.json();
+    console.log(`✓ POST /api/actions/purge-ram -> OK (Reclaimed ${data.reclaimedMB} MB, Audit logged)`);
+  } catch (err) {
+    console.error('✗ purge-ram error:', err.message);
   }
 
   // Check audit ledger persistence

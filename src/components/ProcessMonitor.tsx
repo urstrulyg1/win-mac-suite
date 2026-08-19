@@ -131,8 +131,8 @@ export default function ProcessMonitor() {
 
       {/* Processes Table */}
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+        <div className="overflow-x-auto min-w-0">
+          <table className="w-full text-left text-xs border-collapse min-w-[480px]">
             <thead>
               <tr className="border-b text-[11px] font-bold uppercase tracking-wider" style={{ borderColor: 'var(--color-line)', color: 'var(--color-ink-4)' }}>
                 <th className="p-3.5 pl-5">PID</th>
@@ -165,13 +165,13 @@ export default function ProcessMonitor() {
                   }
                   className="transition-colors hover:bg-slate-500/10 cursor-pointer"
                 >
-                  <td className="p-3.5 pl-5 font-mono text-[11px]" style={{ color: 'var(--color-ink-4)' }}>{p.pid}</td>
-                  <td className="p-3.5 font-bold" style={{ color: 'var(--color-ink)' }}>{p.name}</td>
-                  <td className="p-3.5 font-mono text-[11px]" style={{ color: 'var(--color-ink-3)' }}>{p.user}</td>
-                  <td className="p-3.5 text-right font-mono font-bold" style={{ color: p.cpu > 15 ? '#ef4444' : 'var(--color-ink)' }}>
+                  <td className="p-3.5 pl-5 font-mono text-[11px] shrink-0" style={{ color: 'var(--color-ink-4)' }}>{p.pid}</td>
+                  <td className="p-3.5 font-bold truncate max-w-[200px]" title={p.name} style={{ color: 'var(--color-ink)' }}>{p.name}</td>
+                  <td className="p-3.5 font-mono text-[11px] truncate max-w-[100px]" style={{ color: 'var(--color-ink-3)' }}>{p.user}</td>
+                  <td className="p-3.5 text-right font-mono font-bold shrink-0" style={{ color: p.cpu > 15 ? '#ef4444' : 'var(--color-ink)' }}>
                     {p.cpu}%
                   </td>
-                  <td className="p-3.5 pr-5 text-right font-mono font-bold" style={{ color: p.mem > 15 ? '#a855f7' : 'var(--color-ink)' }}>
+                  <td className="p-3.5 pr-5 text-right font-mono font-bold shrink-0" style={{ color: p.mem > 15 ? '#a855f7' : 'var(--color-ink)' }}>
                     {p.mem}%
                   </td>
                 </tr>

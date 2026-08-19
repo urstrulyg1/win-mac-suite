@@ -6,6 +6,7 @@
 import express from 'express';
 import os from 'os';
 import si from 'systeminformation';
+import { getMacListeningPorts, getMacThermalState } from '../helpers/macos-helpers.js';
 
 const router = express.Router();
 const isMac = process.platform === 'darwin';
@@ -111,6 +112,30 @@ router.get('/permissions', (_req, res) => {
       canTriggerUpdates: true,
     },
   });
+});
+
+// ── GET /api/network/listening-ports ────────────────────────────────────────
+router.get('/network/listening-ports', async (_req, res) => {
+  try {
+    const ports = isMac ? await getMacListeningPorts() : [];
+    res.json({
+      platform: detectedPlatform,
+      count: ports.length,
+      ports,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/thermal ────────────────────────────────────────────────────────
+router.get('/thermal', async (_req, res) => {
+  try {
+    const thermal = isMac ? await getMacThermalState() : { state: 'Nominal', pressureLevel: 'Normal', detail: 'Hardware temperatures nominal.' };
+    res.json(thermal);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 export default router;
