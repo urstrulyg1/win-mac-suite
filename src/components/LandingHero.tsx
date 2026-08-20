@@ -17,6 +17,7 @@ interface Props {
   onStart: (mode?: RunMode) => void;
   systemInfo: SystemInfo;
   summary: RunSummary | null;
+  lastRunTimestamp?: string | null;
   backendOnline: boolean;
   onNavigateTab?: (tab: string) => void;
 }
@@ -75,7 +76,7 @@ const iconMap: Record<string, typeof Zap> = {
   Package,
 };
 
-export default function LandingHero({ onStart, systemInfo, summary, backendOnline, onNavigateTab }: Props) {
+export default function LandingHero({ onStart, systemInfo, summary, lastRunTimestamp, backendOnline, onNavigateTab }: Props) {
   const { config, isMac } = usePlatform();
   const [inspectItem, setInspectItem] = useState<InspectorData | null>(null);
 
@@ -209,6 +210,57 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
           </button>
         </div>
       </motion.div>
+
+      {/* Persistent Previous Run Results Banner */}
+      {summary && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm"
+          style={{ backgroundColor: 'rgba(59,130,246,0.06)', borderColor: 'rgba(59,130,246,0.25)' }}
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-500 border border-blue-500/25 flex items-center justify-center shrink-0">
+              <CheckCircle2 size={20} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                <span className="text-xs font-bold text-blue-400">Previous Run Results</span>
+                <span className="pill text-[10px] bg-emerald-500/10 text-emerald-500 border-emerald-500/25">
+                  {summary.passedPhases} of {summary.totalPhases} Phases Passed
+                </span>
+                {lastRunTimestamp && (
+                  <span className="text-[11px] text-slate-400">
+                    · Executed {new Date(lastRunTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-300">
+                Reclaimed <span className="font-bold text-emerald-400">{summary.spaceReclaimed >= 1024 ? `${(summary.spaceReclaimed / 1024).toFixed(1)} GB` : `${summary.spaceReclaimed} MB`}</span> · Updated <span className="font-bold text-blue-400">{summary.packagesUpdated} packages</span> · {summary.issuesFixed} issues resolved.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {onNavigateTab && (
+              <button
+                onClick={() => onNavigateTab('reports')}
+                className="btn btn-secondary text-xs flex items-center gap-1 cursor-pointer"
+              >
+                <span>View Full Report</span>
+                <ArrowRight size={13} />
+              </button>
+            )}
+            <button
+              onClick={() => onStart('Safe')}
+              className="btn btn-primary text-xs flex items-center gap-1 cursor-pointer"
+            >
+              <RefreshCw size={12} />
+              <span>Run Again</span>
+            </button>
+          </div>
+        </motion.div>
+      )}
 
       {/* Main Grid */}
       <motion.div className="grid grid-cols-12 gap-4 sm:gap-5" variants={staggerContainer} initial="initial" animate="animate">

@@ -68,10 +68,32 @@ function MainApp() {
   const [allLogs, setAllLogs] = useState<LogEntry[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [summary, setSummary] = useState<RunSummary | null>(null);
+  const [lastRunTimestamp, setLastRunTimestamp] = useState<string | null>(null);
   const [overallProgress, setOverallProgress] = useState(0);
   const [currentSectionName, setCurrentSectionName] = useState('');
   const [noReboot, setNoReboot] = useState(false);
   const [exportJson, setExportJson] = useState(false);
+
+  // Restore previous run results from localStorage on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('macsuite_last_run_state');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.summary && Array.isArray(parsed.sections)) {
+          setSummary(parsed.summary);
+          setSections(parsed.sections);
+          sectionsRef.current = parsed.sections;
+          if (parsed.timestamp) setLastRunTimestamp(parsed.timestamp);
+          if (parsed.mode) setMode(parsed.mode);
+          if (Array.isArray(parsed.logs)) {
+            setAllLogs(parsed.logs);
+            logsRef.current = parsed.logs;
+          }
+        }
+      }
+    } catch {}
+  }, []);
 
   // Real system telemetry
   const [realSysInfo, setRealSysInfo] = useState<SystemInfo>({
@@ -217,6 +239,33 @@ function MainApp() {
     );
 
     setSummary(finalSummary);
+    const nowIso = new Date().toISOString();
+    setLastRunTimestamp(nowIso);
+
+    // Persist completed run in localStorage
+    try {
+      localStorage.setItem('macsuite_last_run_state', JSON.stringify({
+        timestamp: nowIso,
+        mode,
+        summary: finalSummary,
+        sections: sectionsRef.current,
+        logs: logsRef.current.slice(-150),
+      }));
+    } catch {}
+
+    // Save report to SQLite database in background
+    try {
+      fetch('http://127.0.0.1:3131/api/reports/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: `${config.productName} Maintenance Run (${mode} Mode)`,
+          reportType: 'maintenance-run',
+          summary: `Completed ${finalSummary.passedPhases} of ${finalSummary.totalPhases} phases. Reclaimed ${finalSummary.spaceReclaimed >= 1024 ? `${(finalSummary.spaceReclaimed / 1024).toFixed(1)} GB` : `${finalSummary.spaceReclaimed} MB`} disk space.`,
+        }),
+      }).catch(() => null);
+    } catch {}
+
     setRealSysInfo((prev) => ({
       ...prev,
       freeDiskGB: +(prev.freeDiskGB + (finalSummary.spaceReclaimed / 1024)).toFixed(1),
@@ -440,6 +489,7 @@ function MainApp() {
               onStart={handleStartWithMode}
               systemInfo={realSysInfo}
               summary={summary}
+              lastRunTimestamp={lastRunTimestamp}
               backendOnline={backendOnline}
               onNavigateTab={handleNavTab}
             />

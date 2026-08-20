@@ -4,7 +4,7 @@ import { easeOut, tabTransition, tapPress } from '../motion';
 import {
   Play, Sliders, CheckSquare, Square,
   SquareX, Timer, Search, Filter, ChevronsUpDown, ChevronsDownUp,
-  TrendingUp, Package, ShieldCheck, AlertTriangle,
+  TrendingUp, Package, ShieldCheck, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
 import type { Section, RunMode, LogEntry, AppPhase, SystemInfo, RunSummary } from '../types';
 import { useElapsedTimer, formatDuration } from '../hooks/useElapsedTimer';
@@ -201,6 +201,30 @@ export default function RunningDashboard({
             className="grid grid-cols-12 gap-4 sm:gap-5 items-start"
           >
             <div className="col-span-12 lg:col-span-8 space-y-5">
+              {summary && (
+                <div
+                  className="p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm"
+                  style={{ backgroundColor: 'rgba(59,130,246,0.06)', borderColor: 'rgba(59,130,246,0.25)' }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-500 border border-blue-500/25 flex items-center justify-center shrink-0">
+                      <CheckCircle2 size={18} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-xs font-bold text-blue-400">Previous Run Completed</span>
+                        <span className="pill text-[10px] bg-emerald-500/10 text-emerald-500 border-emerald-500/25">
+                          {summary.passedPhases} of {summary.totalPhases} Phases Passed
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400">
+                        Reclaimed {summary.spaceReclaimed >= 1024 ? `${(summary.spaceReclaimed / 1024).toFixed(1)} GB` : `${summary.spaceReclaimed} MB`} · Updated {summary.packagesUpdated} pkgs · Phase outcomes retained below until you launch a new run.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <ModeSelector selectedMode={mode} onSelect={onModeChange} />
 
               <div className="card p-5 sm:p-6">

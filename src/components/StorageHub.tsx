@@ -17,7 +17,7 @@ interface Props {
   onClean: (mode: RunMode) => void;
 }
 
-type StorageTab = 'analyzer' | 'systemData' | 'apps' | 'leftovers' | 'backups' | 'drives' | 'largeFiles';
+type StorageTab = 'analyzer' | 'systemData' | 'apps' | 'leftovers' | 'backups' | 'snapshots' | 'drives';
 
 export default function StorageHub({ systemInfo, onClean }: Props) {
   const { config, isMac } = usePlatform();
@@ -27,6 +27,8 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
   const [selectedAppMap, setSelectedAppMap] = useState<any>(null);
   const [orphans, setOrphans] = useState<any[]>([]);
   const [iosBackups, setIosBackups] = useState<any>(null);
+  const [snapshotsData, setSnapshotsData] = useState<any>(null);
+  const [thinningSnapshots, setThinningSnapshots] = useState(false);
   const [externalDrives, setExternalDrives] = useState<any[]>([]);
   const [showSafeCleanup, setShowSafeCleanup] = useState(false);
   const [inspectItem, setInspectItem] = useState<InspectorData | null>(null);
@@ -51,6 +53,11 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
     fetch('http://127.0.0.1:3131/api/storage/ios-backups')
       .then((r) => r.ok ? r.json() : null)
       .then((d) => d && setIosBackups(d))
+      .catch(() => {});
+
+    fetch('http://127.0.0.1:3131/api/snapshots')
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => d && setSnapshotsData(d))
       .catch(() => {});
 
     fetch('http://127.0.0.1:3131/api/storage/external-drives')
@@ -141,6 +148,7 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
           { id: 'apps' as const,       label: 'Smart App Uninstaller',         icon: Layers,    color: '#22d3ee' },
           { id: 'leftovers' as const,  label: 'Orphaned Leftovers',            icon: Trash2,    color: '#f43f5e' },
           { id: 'backups' as const,    label: 'iPhone / iPad Backups',         icon: Smartphone, color: '#34d399' },
+          { id: 'snapshots' as const,  label: isMac ? 'APFS Snapshots' : 'System Snapshots', icon: Camera, color: '#ec4899' },
           { id: 'drives' as const,     label: 'External Drive Doctor',         icon: Disc,      color: '#60a5fa' },
         ].map((t) => {
           const isSel = subTab === t.id;
@@ -376,6 +384,85 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
                 </div>
               ))}
             </div>
+          </motion.div>
+        )}
+
+        {subTab === 'snapshots' && (
+          <motion.div key="snapshots" {...tabTransition} className="card p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
+              <div>
+                <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
+                  {isMac ? 'APFS Local Snapshots & Time Machine Deltas' : 'System Restore Snapshots'}
+                </h3>
+                <p className="text-xs text-slate-400">
+                  {isMac
+                    ? 'APFS creates local differential snapshots during Time Machine runs. Thinning releases purgeable disk space.'
+                    : 'System restore shadow copies and component snapshots.'}
+                </p>
+              </div>
+
+              {isMac && (
+                <button
+                  onClick={async () => {
+                    setThinningSnapshots(true);
+                    try {
+                      const res = await fetch('http://127.0.0.1:3131/api/actions/thin-snapshots', { method: 'POST' });
+                      const d = await res.json();
+                      if (d.success) {
+                        setActionMsg(d.message || 'Thinned local APFS snapshots successfully.');
+                        fetchStorageData();
+                      }
+                    } catch {}
+                    finally {
+                      setThinningSnapshots(false);
+                    }
+                  }}
+                  disabled={thinningSnapshots}
+                  className="btn btn-primary text-xs flex items-center gap-1.5 cursor-pointer shrink-0"
+                >
+                  <Camera size={13} className={thinningSnapshots ? 'animate-spin' : ''} />
+                  <span>{thinningSnapshots ? 'Thinning Snapshots...' : 'Thin Local Snapshots'}</span>
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 rounded-xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+                <span className="text-xs text-slate-400">Active Snapshots</span>
+                <p className="text-xl font-extrabold font-mono text-blue-400">{snapshotsData?.count ?? 0}</p>
+                <p className="text-[10px] text-slate-500">Local APFS Differential Copies</p>
+              </div>
+              <div className="p-4 rounded-xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+                <span className="text-xs text-slate-400">Purgeable State</span>
+                <p className="text-xl font-extrabold font-mono text-emerald-400">{snapshotsData?.count === 0 ? 'Optimal' : 'Retained'}</p>
+                <p className="text-[10px] text-slate-500">Automatically reclaimed when needed</p>
+              </div>
+              <div className="p-4 rounded-xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+                <span className="text-xs text-slate-400">Safety Guard</span>
+                <p className="text-xl font-extrabold font-mono text-cyan-400">Protected</p>
+                <p className="text-[10px] text-slate-500">External backups remain intact</p>
+              </div>
+            </div>
+
+            {Array.isArray(snapshotsData?.snapshots) && snapshotsData.snapshots.length > 0 ? (
+              <div className="divide-y pt-2" style={{ borderColor: 'var(--color-line)' }}>
+                {snapshotsData.snapshots.map((s: any, idx: number) => (
+                  <div key={idx} className="py-3 flex items-center justify-between text-xs">
+                    <div>
+                      <span className="font-mono font-bold" style={{ color: 'var(--color-ink)' }}>{s.id}</span>
+                      <p className="text-[10px] text-slate-500">Snapshot Date: {s.date || 'Current'}</p>
+                    </div>
+                    <span className="pill text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/25">
+                      {s.size || 'Local Snapshot'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-8 text-center text-xs text-slate-400 border rounded-xl" style={{ borderColor: 'var(--color-line)' }}>
+                ✓ No excessive local APFS snapshots retaining purgeable disk blocks.
+              </div>
+            )}
           </motion.div>
         )}
 
