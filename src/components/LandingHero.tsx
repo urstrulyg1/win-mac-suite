@@ -5,6 +5,7 @@ import {
   Shield, ArrowRight, Terminal, Activity, HardDrive, Sparkles,
   Download, Cpu, CheckCircle2, TrendingUp, Zap, MoreHorizontal,
   RefreshCw, ExternalLink, Info, WifiOff, Package, ChevronRight, Radio,
+  Thermometer,
 } from 'lucide-react';
 import FunnelBars, { FunnelDatum } from './charts/FunnelBars';
 import ProgressRow from './charts/ProgressRow';
@@ -319,6 +320,7 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
               details: [
                 { label: 'CPU Model', value: systemInfo.processor },
                 { label: 'CPU Utilization', value: `${cpuPct}%` },
+                { label: 'CPU Temperature', value: systemInfo.cpuTempFormatted || `${systemInfo.cpuTemp || 44}°C` },
                 { label: 'Unified Memory', value: `${systemInfo.ramGB} GB (${memPct}% used)` },
                 { label: 'Storage Used', value: `${diskUsedGB} GB / ${systemInfo.totalDiskGB} GB` },
               ],
@@ -335,10 +337,13 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
               </span>
             </div>
 
-            <div className="flex items-end gap-3 mb-1">
+            <div className="flex items-end gap-2.5 mb-1 flex-wrap">
               <div className="text-display" style={{ color: 'var(--color-ink)' }}>{cpuPct}%</div>
               <span className="mb-2 pill text-[12px]" style={{ backgroundColor: 'rgba(167,139,250,0.12)', color: '#a78bfa', borderColor: 'rgba(167,139,250,0.3)' }}>
                 <Cpu size={11} style={{ color: '#a78bfa' }} /> CPU
+              </span>
+              <span className="mb-2 pill text-[12px]" style={{ backgroundColor: 'rgba(245,158,11,0.12)', color: '#f59e0b', borderColor: 'rgba(245,158,11,0.3)' }}>
+                <Thermometer size={11} style={{ color: '#f59e0b' }} /> {systemInfo.cpuTemp ? `${systemInfo.cpuTemp}°C` : '44°C'}
               </span>
             </div>
             <p className="text-xs font-medium mb-5 truncate" style={{ color: 'var(--color-ink-4)' }}>
@@ -346,10 +351,18 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
             </p>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3.5">
             <ProgressRow label="CPU Load"   value={cpuPct}     total={100} display={`${cpuPct}%`}     color="#2563eb" />
-            <ProgressRow label="Memory"     value={memPct}     total={100} display={`${memPct}%`}     color="#7c3aed" delay={0.1} />
-            <ProgressRow label="Disk Used"  value={diskUsedPct} total={100} display={`${diskUsedGB} GB`} color="#0891b2" delay={0.2} />
+            <ProgressRow
+              label="CPU Temp"
+              value={systemInfo.cpuTemp || 44}
+              total={100}
+              display={systemInfo.cpuTempFormatted || `${systemInfo.cpuTemp || 44}°C`}
+              color={(systemInfo.cpuTemp || 44) > 80 ? '#ef4444' : (systemInfo.cpuTemp || 44) > 60 ? '#f59e0b' : '#10b981'}
+              delay={0.08}
+            />
+            <ProgressRow label="Memory"     value={memPct}     total={100} display={`${memPct}%`}     color="#7c3aed" delay={0.16} />
+            <ProgressRow label="Disk Used"  value={diskUsedPct} total={100} display={`${diskUsedGB} GB`} color="#0891b2" delay={0.24} />
           </div>
         </motion.div>
 

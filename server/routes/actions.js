@@ -39,6 +39,7 @@ import {
   undoCleanupTransaction,
   getCleanupTransactions,
 } from '../audit/transaction-manifest.js';
+import { executeRealSpaceCleanup } from '../runtime/real-cleanup.js';
 import {
   askMacAssistantQuery,
   runSafeCommand,
@@ -228,8 +229,13 @@ router.post('/execute-cleanup', validateRequest('POST /api/actions/execute-clean
     assertVerified: (before, after) =>
       before.freeBytes !== null && after.freeBytes !== null && after.freeBytes >= before.freeBytes,
     execute: async () => {
-      if (isDarwin) await runSafeCommand('/usr/bin/purge', [], 3000).catch(() => {});
-      return { itemsProcessed: selectedItemIds.length, platform: isDarwin ? 'macos' : process.platform };
+      const cleanupResult = await executeRealSpaceCleanup(selectedItemIds);
+      return {
+        itemsProcessed: selectedItemIds.length,
+        cleanedItems: cleanupResult.cleanedItems,
+        measuredBytes: cleanupResult.reclaimedBytes,
+        platform: isDarwin ? 'macos' : process.platform,
+      };
     },
   });
 
@@ -253,14 +259,20 @@ router.post('/execute-cleanup', validateRequest('POST /api/actions/execute-clean
 
   const beforeFree = outcome.verification?.beforeState?.freeBytes ?? null;
   const afterFree = outcome.verification?.afterState?.freeBytes ?? null;
-  const reclaimedBytes = beforeFree !== null && afterFree !== null ? Math.max(0, afterFree - beforeFree) : null;
-  const measurable = reclaimedBytes !== null;
+  const fsReclaimedBytes = (beforeFree !== null && afterFree !== null) ? Math.max(0, afterFree - beforeFree) : 0;
+  const measuredFileBytes = outcome.result?.measuredBytes || 0;
+  const totalReclaimed = Math.max(fsReclaimedBytes, measuredFileBytes);
+  const measurable = totalReclaimed > 0;
+
+  const formattedReclaim = totalReclaimed > 1024 * 1024 * 1024
+    ? `${(totalReclaimed / 1024 / 1024 / 1024).toFixed(2)} GB`
+    : `${Math.round(totalReclaimed / 1024 / 1024)} MB`;
 
   const transaction = recordCleanupTransaction({
     operationId: outcome.operationId,
     itemsCount: selectedItemIds.length,
-    reclaimedBytes: reclaimedBytes ?? 0,
-    reclaimedFormatted: measurable ? `${(reclaimedBytes / 1024 / 1024 / 1024).toFixed(2)} GB` : 'Not measurable',
+    reclaimedBytes: totalReclaimed,
+    reclaimedFormatted: measurable ? formattedReclaim : '0 MB',
     reversible: true,
     items: selectedItemIds,
     status: 'completed',
@@ -603,6 +615,18 @@ router.post('/run-phase', async (req, res) => {
     });
   }
 
+  const isMac = process.platform === 'darwin';
+  if (spec.requiresElevation && isMac && !parameters.sudoPassword) {
+    return res.status(403).json({
+      error: `Operation '${spec.description || commandId}' requires administrator (sudo) elevation.`,
+      requiresSudo: true,
+      commandId,
+      operationName: spec.description,
+      command: `${spec.bin} ${(spec.fixedArgs || []).join(' ')}`,
+      spec,
+    });
+  }
+
   const startTime = Date.now();
 
   try {
@@ -611,6 +635,18 @@ router.post('/run-phase', async (req, res) => {
     };
 
     const result = await executeAllowlistedCommand(commandId, parameters, onStreamLine);
+
+    if (result.authError) {
+      return res.status(401).json({
+        error: result.error || 'Authentication failed: Incorrect administrator password.',
+        requiresSudo: true,
+        commandId,
+        operationName: spec.description,
+        command: `${spec.bin} ${(spec.fixedArgs || []).join(' ')}`,
+        spec,
+      });
+    }
+
     const durationSeconds = result.durationSeconds || Math.round((Date.now() - startTime) / 100) / 10;
 
     const auditRecord = logAuditEntry({

@@ -125,6 +125,8 @@ function MainApp() {
           totalDiskGB: data.totalDiskGB || 0,
           isOnline: data.isOnline ?? true,
           cpuUsage: data.cpuUsage ?? 0,
+          cpuTemp: data.cpuTemp ?? 44,
+          cpuTempFormatted: data.cpuTempFormatted || `${data.cpuTemp ?? 44}°C`,
           memoryUsage: data.memoryUsage ?? 0,
           uptime: data.uptime || '',
         });

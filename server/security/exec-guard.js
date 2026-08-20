@@ -131,8 +131,16 @@ export async function executeAllowlistedCommand(commandId, params = {}, onStream
     throw new Error(`Another operation ('${activeExecution.commandId}') is currently executing. Please wait.`);
   }
 
-  const binaryPath = resolveBinaryPath(spec.bin, spec.platform);
-  const args = validation.sanitizedArgs;
+  const isMac = spec.platform === 'macos';
+  const requiresSudo = spec.requiresElevation && isMac;
+  const sudoPassword = params.sudoPassword || null;
+  // Strip password from params immediately
+  delete params.sudoPassword;
+
+  const binaryPath = requiresSudo ? '/usr/bin/sudo' : resolveBinaryPath(spec.bin, spec.platform);
+  const args = requiresSudo
+    ? ['-S', '-p', '', resolveBinaryPath(spec.bin, spec.platform), ...validation.sanitizedArgs]
+    : validation.sanitizedArgs;
   const timeoutMs = spec.timeoutMs || 120000;
   const startTime = Date.now();
 
@@ -158,6 +166,12 @@ export async function executeAllowlistedCommand(commandId, params = {}, onStream
             LANG: 'en_US.UTF-8',
           },
         });
+
+        // If sudo password is provided, securely write to stdin and close
+        if (requiresSudo && sudoPassword && childProcess.stdin) {
+          childProcess.stdin.write(`${sudoPassword}\n`);
+          childProcess.stdin.end();
+        }
       } catch (err) {
         return reject(new Error(`Failed to spawn process for '${commandId}': ${err.message}`));
       }
@@ -210,9 +224,17 @@ export async function executeAllowlistedCommand(commandId, params = {}, onStream
         clearTimeout(timer);
         if (timedOut) return;
         const durationSeconds = Math.round((Date.now() - startTime) / 100) / 10;
+        const isAuthError = requiresSudo && code !== 0 && (
+          stderrAccum.toLowerCase().includes('incorrect password') ||
+          stderrAccum.toLowerCase().includes('sorry, try again') ||
+          stderrAccum.toLowerCase().includes('password is required')
+        );
+
         resolve({
           success: code === 0,
           exitCode: code ?? 0,
+          authError: isAuthError,
+          error: isAuthError ? 'Authentication failed: Incorrect administrator password.' : undefined,
           stdout: redactSensitiveOutput(stdoutAccum),
           stderr: redactSensitiveOutput(stderrAccum),
           durationSeconds,

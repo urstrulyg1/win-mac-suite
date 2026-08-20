@@ -47,6 +47,8 @@ export interface SystemInfo {
   cpuUsage: number;
   memoryUsage: number;
   uptime: string;
+  cpuTemp?: number;
+  cpuTempFormatted?: string;
 }
 
 export interface BeforeAfterSnapshot {

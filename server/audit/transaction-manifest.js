@@ -1,34 +1,18 @@
 /**
- * WinSuite & MacSuite v6.5 - Safe Cleanup Transaction Manifest Ledger
- * Implements: Preview -> Risk Assessment -> User Approval -> Backup/Manifest -> Execution -> Verification -> Undo
+ * WinSuite & MacSuite v10.0 - Safe Cleanup Transaction Manifest Ledger
+ * Connected to persistent SQLite database in MacSuite/WinSuite folder.
  */
 
-import fs from 'fs';
-import path from 'path';
-
-const MANIFEST_FILE = path.join(process.cwd(), 'cleanup-transactions.json');
-
-// In-memory cache synced with disk
-let transactions = [];
-
-try {
-  if (fs.existsSync(MANIFEST_FILE)) {
-    const raw = fs.readFileSync(MANIFEST_FILE, 'utf-8');
-    transactions = JSON.parse(raw);
-  }
-} catch {
-  transactions = [];
-}
-
-function saveToDisk() {
-  try {
-    fs.writeFileSync(MANIFEST_FILE, JSON.stringify(transactions, null, 2), 'utf-8');
-  } catch {}
-}
+import {
+  saveCleanupManifest,
+  getCleanupManifests as getManifestsFromDb,
+  updateCleanupManifestStatus,
+} from '../db/database.js';
 
 export function recordCleanupTransaction({
   id = `tx-${Date.now()}`,
   timestamp = new Date().toISOString(),
+  operationId = null,
   itemsCount = 0,
   reclaimedBytes = 0,
   reclaimedFormatted = '0 MB',
@@ -36,29 +20,27 @@ export function recordCleanupTransaction({
   items = [],
   status = 'completed',
 }) {
-  const record = {
+  return saveCleanupManifest({
     id,
     timestamp,
+    operationId,
     itemsCount,
     reclaimedBytes,
     reclaimedFormatted,
     reversible,
     items,
     status,
-  };
-
-  transactions.unshift(record);
-  if (transactions.length > 50) transactions.pop();
-  saveToDisk();
-  return record;
+  });
 }
 
 export function getCleanupTransactions() {
-  return transactions;
+  return getManifestsFromDb();
 }
 
 export function undoCleanupTransaction(transactionId) {
-  const tx = transactions.find(t => t.id === transactionId);
+  const manifests = getManifestsFromDb();
+  const tx = manifests.find((t) => t.id === transactionId);
+
   if (!tx) {
     return { success: false, error: `Transaction '${transactionId}' not found in manifest ledger.` };
   }
@@ -67,9 +49,8 @@ export function undoCleanupTransaction(transactionId) {
     return { success: false, error: `Transaction '${transactionId}' contains irreversible purge items.` };
   }
 
-  tx.status = 'restored';
-  tx.restoredAt = new Date().toISOString();
-  saveToDisk();
+  const restoredAt = new Date().toISOString();
+  updateCleanupManifestStatus(transactionId, 'restored', restoredAt);
 
   return {
     success: true,

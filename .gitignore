@@ -28,3 +28,8 @@ audit-history.json
 # v10 runtime state (generated at runtime, never committed)
 cleanup-transactions.json
 server/state/*.json
+MacSuite/
+WinSuite/
+*.db
+*.db-wal
+*.db-shm

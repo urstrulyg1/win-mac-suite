@@ -79,46 +79,46 @@ export default function TopNav({
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 px-3 sm:px-6 pt-2 sm:pt-3">
-      <div className="max-w-[1600px] mx-auto card px-4 sm:px-5 py-2 rounded-2xl flex flex-col gap-2 shadow-xl border border-slate-700/50">
+    <header className="sticky top-0 z-40 px-3 sm:px-6 pt-2.5 sm:pt-3.5">
+      <div className="max-w-[1600px] mx-auto card px-4 sm:px-6 py-3 sm:py-3.5 rounded-2xl flex flex-col gap-3 shadow-xl border border-slate-700/50">
 
         {/* Top Brand & Status Controls Bar */}
         <div className="flex items-center justify-between gap-4 w-full">
           {/* Brand */}
           <button
             onClick={onHome}
-            className="flex items-center gap-2.5 shrink-0 group outline-none cursor-pointer text-left"
+            className="flex items-center gap-3 shrink-0 group outline-none cursor-pointer text-left"
             aria-label="Go to overview"
           >
             <img
               src="/logo.png"
               alt="Win/Mac Suite Logo"
-              className="w-8 h-8 object-contain drop-shadow-md group-hover:scale-105 transition-transform shrink-0"
+              className="w-9 h-9 object-contain drop-shadow-md group-hover:scale-105 transition-transform shrink-0"
             />
             <div className="flex flex-col">
-              <span className="text-base sm:text-lg font-extrabold tracking-tight leading-none" style={{ color: 'var(--color-ink)' }}>
+              <span className="text-lg sm:text-xl font-extrabold tracking-tight leading-none" style={{ color: 'var(--color-ink)' }}>
                 {brandPrefix}<span style={{ color: config.accentColor }}>{brandSuffix}</span>
               </span>
-              <span className="text-[9px] font-mono tracking-wider opacity-60 mt-0.5" style={{ color: 'var(--color-ink-3)' }}>
+              <span className="text-[10px] font-mono tracking-wider opacity-60 mt-0.5" style={{ color: 'var(--color-ink-3)' }}>
                 v10.1 System Intelligence
               </span>
             </div>
           </button>
 
           {/* Controls Right */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0">
             {/* Safe Diagnostic Mode Toggle */}
             {onToggleDiagnosticOnly && (
               <button
                 onClick={onToggleDiagnosticOnly}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-[11px] font-bold border transition-all cursor-pointer shadow-sm ${
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-sm ${
                   diagnosticOnly
                     ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/15'
                     : 'bg-blue-500/10 text-blue-400 border-blue-500/30 hover:bg-blue-500/15'
                 }`}
                 title={diagnosticOnly ? 'Read-only diagnostic mode guaranteed (No write actions)' : 'Repair mode active (Guided remediations enabled)'}
               >
-                {diagnosticOnly ? <Shield size={12} /> : <Wrench size={12} />}
+                {diagnosticOnly ? <Shield size={14} /> : <Wrench size={14} />}
                 <span>{diagnosticOnly ? 'Safe Mode' : 'Repair Mode'}</span>
               </button>
             )}
@@ -126,82 +126,82 @@ export default function TopNav({
             {/* Theme Toggle */}
             <button
               onClick={onToggleDark}
-              className="w-8 h-8 rounded-xl border flex items-center justify-center transition-colors cursor-pointer"
+              className="w-9 h-9 rounded-xl border flex items-center justify-center transition-colors cursor-pointer"
               style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)', color: 'var(--color-ink-3)' }}
               title="Toggle Dark/Light theme"
             >
-              {dark ? <Sun size={14} /> : <Moon size={14} />}
+              {dark ? <Sun size={15} /> : <Moon size={15} />}
             </button>
           </div>
         </div>
 
         {/* Navigation Bar */}
-        <div className="pt-1.5 border-t px-6" style={{ borderColor: 'var(--color-line)' }}>
-        <div className="flex items-center gap-1.5">
-          {primaryNavTabs.map((t) => {
-            const isActive = t.id === active;
-            return (
+        <div className="pt-2.5 border-t" style={{ borderColor: 'var(--color-line)' }}>
+          <div className="flex items-center gap-2">
+            {primaryNavTabs.map((t) => {
+              const isActive = t.id === active;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => {
+                    setDropdownOpen(false);
+                    onNavTab(t.id);
+                  }}
+                  disabled={isRunning}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs sm:text-[13px] font-bold transition-all whitespace-nowrap cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={
+                    isActive
+                      ? {
+                          backgroundColor: config.accentColor || '#3b82f6',
+                          color: '#ffffff',
+                          boxShadow: '0 2px 8px rgba(59,130,246,0.3)',
+                        }
+                      : {
+                          backgroundColor: 'var(--color-surface-2)',
+                          color: 'var(--color-ink-2)',
+                          border: '1px solid var(--color-line)',
+                        }
+                  }
+                >
+                  <t.icon size={15} className="shrink-0" style={{ color: isActive ? '#ffffff' : t.color }} />
+                  <span>{t.label}</span>
+                </button>
+              );
+            })}
+
+            {/* Specialist / More Tools Dropdown */}
+            <div className="relative shrink-0" ref={dropdownRef}>
               <button
-                key={t.id}
-                onClick={() => {
-                  setDropdownOpen(false);
-                  onNavTab(t.id);
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDropdownOpen((prev) => !prev);
                 }}
                 disabled={isRunning}
-                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-[13px] font-bold transition-all whitespace-nowrap cursor-pointer border shadow-md"
                 style={
-                  isActive
+                  activeSpecialist
                     ? {
                         backgroundColor: config.accentColor || '#3b82f6',
                         color: '#ffffff',
-                        boxShadow: '0 2px 8px rgba(59,130,246,0.3)',
+                        borderColor: config.accentColor || '#3b82f6',
                       }
                     : {
                         backgroundColor: 'var(--color-surface-2)',
-                        color: 'var(--color-ink-2)',
-                        border: '1px solid var(--color-line)',
+                        color: 'var(--color-ink)',
+                        borderColor: 'var(--color-line)',
                       }
                 }
               >
-                <t.icon size={13} className="shrink-0" style={{ color: isActive ? '#ffffff' : t.color }} />
-                <span>{t.label}</span>
+                {activeSpecialist ? (
+                  <>
+                    <activeSpecialist.icon size={15} className="shrink-0" />
+                    <span className="max-w-[110px] truncate">{activeSpecialist.label}</span>
+                  </>
+                ) : (
+                  <span>More Tools</span>
+                )}
+                <ChevronDown size={14} className={`transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} />
               </button>
-            );
-          })}
-
-          {/* Specialist / More Tools Dropdown */}
-          <div className="relative shrink-0" ref={dropdownRef}>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setDropdownOpen((prev) => !prev);
-              }}
-              disabled={isRunning}
-              className="flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer border shadow-md"
-              style={
-                activeSpecialist
-                  ? {
-                      backgroundColor: config.accentColor || '#3b82f6',
-                      color: '#ffffff',
-                      borderColor: config.accentColor || '#3b82f6',
-                    }
-                  : {
-                      backgroundColor: 'var(--color-surface-2)',
-                      color: 'var(--color-ink)',
-                      borderColor: 'var(--color-line)',
-                    }
-              }
-            >
-              {activeSpecialist ? (
-                <>
-                  <activeSpecialist.icon size={13} className="shrink-0" />
-                  <span className="max-w-[100px] truncate">{activeSpecialist.label}</span>
-                </>
-              ) : (
-                <span>More Tools</span>
-              )}
-              <ChevronDown size={13} className={`transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} />
-            </button>
 
             <AnimatePresence>
               {dropdownOpen && (

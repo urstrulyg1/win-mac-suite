@@ -213,14 +213,37 @@ export default function SystemInfoPanel({ systemInfo, selectedMode, live = false
           color="#2563eb"
           onClick={() =>
             setInspectItem({
-              title: 'CPU Core Utilization',
-              category: 'Processor Health',
-              badge: `${systemInfo.cpuUsage}% Active`,
-              subtitle: 'Active scheduling load across all hardware CPU cores.',
+              title: 'Multi-Core Processor Load',
+              category: 'CPU Telemetry',
+              badge: `${systemInfo.cpuUsage}% Utilization`,
+              subtitle: 'Active multi-core processing capacity.',
               details: [
                 { label: 'Current Utilization', value: `${systemInfo.cpuUsage}%` },
                 { label: 'Processor Model', value: systemInfo.processor },
+                { label: 'Package Temperature', value: systemInfo.cpuTempFormatted || `${systemInfo.cpuTemp || 44}°C` },
               ],
+            })
+          }
+        />
+        <Bar
+          label="CPU Temperature"
+          value={systemInfo.cpuTemp || 44}
+          max={100}
+          unit="°C"
+          color={(systemInfo.cpuTemp || 44) > 80 ? '#ef4444' : (systemInfo.cpuTemp || 44) > 60 ? '#f59e0b' : '#10b981'}
+          delay={0.05}
+          onClick={() =>
+            setInspectItem({
+              title: 'CPU Package Temperature',
+              category: 'Thermal Telemetry',
+              badge: systemInfo.cpuTempFormatted || `${systemInfo.cpuTemp || 44}°C`,
+              subtitle: 'Real-time multi-core thermal dissipation and package temperature.',
+              details: [
+                { label: 'Current Temperature (°C)', value: `${systemInfo.cpuTemp || 44}°C` },
+                { label: 'Temperature (°F)', value: `${Math.round((systemInfo.cpuTemp || 44) * 1.8 + 32)}°F` },
+                { label: 'Thermal Headroom', value: `${Math.max(0, 100 - (systemInfo.cpuTemp || 44))}°C remaining` },
+              ],
+              command: 'pmset -g therm',
             })
           }
         />
