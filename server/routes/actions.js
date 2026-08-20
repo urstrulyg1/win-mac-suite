@@ -657,9 +657,21 @@ router.post('/clean-storage', async (req, res) => {
   const commandId = isMacOs ? 'mac.brew.cleanup' : 'win.storage.tempclean';
   const startTime = Date.now();
 
+  // Measure free space before and after to compute real reclaim
+  const getFreebytes = async () => {
+    try {
+      const { statfs } = await import('fs/promises');
+      const st = await statfs('/');
+      return st.bavail * st.bsize;
+    } catch { return null; }
+  };
+
   try {
+    const before = await getFreebytes();
     const result = await executeAllowlistedCommand(commandId, {});
-    const reclaimedBytes = isMacOs ? 2400000000 : 1800000000;
+    const after = await getFreebytes();
+    const reclaimedBytes = (before !== null && after !== null) ? Math.max(0, after - before) : null;
+    const measurable = reclaimedBytes !== null;
     const durationSeconds = result.durationSeconds || Math.round((Date.now() - startTime) / 100) / 10;
 
     const audit = logAuditEntry({
@@ -670,15 +682,15 @@ router.post('/clean-storage', async (req, res) => {
       result: 'success',
       durationSeconds,
       changesMade: [
-        isMacOs ? 'Purged 2.4 GB of stale user cache and brew packages' : 'Purged 1.8 GB of temporary staging files',
-        'Flushed DNS resolver cache',
+        isMacOs ? 'Ran brew cleanup and purged stale caches' : 'Purged temporary staging files',
       ],
-      reclaimedBytes,
+      reclaimedBytes: reclaimedBytes ?? 0,
     });
 
     res.json({
       success: true,
-      reclaimedMB: Math.round(reclaimedBytes / 1024 / 1024),
+      reclaimedMB: measurable ? Math.round(reclaimedBytes / 1024 / 1024) : null,
+      measurement: measurable ? 'observed' : 'unavailable',
       audit,
     });
   } catch (err) {
@@ -789,8 +801,21 @@ router.post('/thin-snapshots', async (req, res) => {
     });
   }
 
+  const getFreebytes = async () => {
+    try {
+      const { statfs } = await import('fs/promises');
+      const st = await statfs('/');
+      return st.bavail * st.bsize;
+    } catch { return null; }
+  };
+
   try {
+    const before = await getFreebytes();
     const result = await executeAllowlistedCommand('mac.tmutil.thin', {});
+    const after = await getFreebytes();
+    const reclaimedBytes = (before !== null && after !== null) ? Math.max(0, after - before) : null;
+    const measurable = reclaimedBytes !== null;
+
     const audit = logAuditEntry({
       operation: 'Time Machine Local Snapshot Thinning',
       commandId: 'mac.tmutil.thin',
@@ -799,10 +824,16 @@ router.post('/thin-snapshots', async (req, res) => {
       result: result.success ? 'success' : 'warning',
       durationSeconds: result.durationSeconds,
       changesMade: ['Thinned local Time Machine snapshots to reclaim APFS purgeable space.'],
-      reclaimedBytes: 3100000000,
+      reclaimedBytes: reclaimedBytes ?? 0,
     });
 
-    res.json({ success: true, reclaimedMB: 3100, result, audit });
+    res.json({
+      success: true,
+      reclaimedMB: measurable ? Math.round(reclaimedBytes / 1024 / 1024) : null,
+      measurement: measurable ? 'observed' : 'unavailable',
+      result,
+      audit,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

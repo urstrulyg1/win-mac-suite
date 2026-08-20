@@ -336,17 +336,7 @@ export async function getMacIosBackups() {
     } catch {}
   }
 
-  if (backups.length === 0) {
-    backups.push({
-      id: '00008101-001234567890123A',
-      deviceName: 'iPhone 15 Pro Max',
-      deviceModel: 'iOS 18.2 Backup',
-      backupDate: '2 weeks ago',
-      sizeGB: 18.4,
-      encrypted: true,
-      path: '~/Library/Application Support/MobileSync/Backup/...',
-    });
-  }
+  // No backups found — report honestly, do not fabricate
 
   return {
     count: backups.length,
@@ -498,8 +488,8 @@ export async function getMacOrphanedLeftovers() {
                 id: `orphan-${entry}`,
                 originalApp: entry.replace(/^com\./, '').replace(/\.plist$/, ''),
                 location: `${loc}/${entry}`,
-                sizeMB: 35 + Math.round(Math.random() * 80),
-                safety: 'Definitely Orphaned',
+                sizeMB: null, // Real size not measured here to keep scan fast; use getDirSizeMB separately if needed
+                safety: 'Possibly Orphaned',
                 description: 'Remnant directory belonging to an application that has already been uninstalled from /Applications.',
               });
             }
@@ -587,42 +577,57 @@ export async function getMacDeepStartupInventory() {
 
 export async function getMacBatteryIntelligence() {
   const [batt, assertions, pmLog] = await Promise.all([
-    si.battery().catch(() => ({ hasBattery: true, percent: 88, isCharging: false })),
+    si.battery().catch(() => ({ hasBattery: false, percent: 100, isCharging: false })),
     getMacPowerAssertions(),
-    runSafeCommand('/usr/bin/pmset', ['-g', 'log'], 3000),
+    runSafeCommand('/usr/bin/pmset', ['-g', 'log'], 5000),
   ]);
 
-  // Hourly battery drain timeline
-  const now = new Date();
-  const currentPct = batt.percent ?? 88;
+  const currentPct = batt.percent ?? 100;
+
+  // Current live snapshot — historical drain data requires persistent sampling
   const drainTimeline = [
-    { time: '4h ago', percent: Math.min(100, currentPct + 24), majorDrain: 'Chrome (8.4%)' },
-    { time: '3h ago', percent: Math.min(100, currentPct + 18), majorDrain: 'Docker (6.7%)' },
-    { time: '2h ago', percent: Math.min(100, currentPct + 11), majorDrain: 'VS Code (4.1%)' },
-    { time: '1h ago', percent: Math.min(100, currentPct + 5), majorDrain: 'Slack (2.2%)' },
-    { time: 'Now', percent: currentPct, majorDrain: 'Display & Wi-Fi' },
+    { time: 'Now', percent: currentPct, isCharging: !!batt.isCharging, note: 'Current live reading' },
   ];
 
-  // Parse wake reasons from pmset log
-  const wakeReasons = [
-    { time: '07:15 AM', reason: 'User Wake (Lid Open)', sleepDuration: '7h 20m', batteryLost: '3%' },
-    { time: '03:42 AM', reason: 'DarkWake (com.apple.alarm.user-visible-com.apple.donotdisturb)', sleepDuration: '12s', batteryLost: '0%' },
-    { time: '11:55 PM', reason: 'Maintenance Wake (RTC Alarm / Power Nap)', sleepDuration: '45s', batteryLost: '1%' },
-  ];
+  // Parse real wake reasons from pmset log
+  const wakeReasons = [];
+  if (pmLog) {
+    const lines = pmLog.split('\n');
+    for (const line of lines) {
+      // pmset log format: "2026-08-18 07:15:30 -0700 Wake Reason: ..."
+      const wakeMatch = line.match(/(\d{1,2}:\d{2}:\d{2}).*Wake\s+Reason:\s*([^(]+)/i);
+      if (!wakeMatch) continue;
+      const reason = wakeMatch[2]?.trim() || 'Unknown wake reason';
+      wakeReasons.push({
+        time: wakeMatch[1],
+        reason,
+        sleepDuration: null,
+        batteryAtWake: null,
+      });
+      if (wakeReasons.length >= 5) break;
+    }
+  }
+
+  const healthPct = batt.maxCapacity && batt.designedCapacity
+    ? Math.round((batt.maxCapacity / batt.designedCapacity) * 100)
+    : null;
 
   return {
-    hasBattery: batt.hasBattery !== false,
+    hasBattery: !!batt.hasBattery,
     percent: currentPct,
     isCharging: !!batt.isCharging,
     acConnected: !!batt.acConnected,
-    cycleCount: batt.cycleCount || 142,
-    healthPct: batt.maxCapacity && batt.designedCapacity ? Math.round((batt.maxCapacity / batt.designedCapacity) * 100) : 96,
-    temperatureC: 31,
-    timeRemainingHours: 7.5,
-    sleepDrainVerdict: 'Overnight sleep drain was 4% (Nominal). No runaway DarkWake loops detected.',
+    cycleCount: batt.cycleCount || null,
+    healthPct,
+    timeRemainingMin: batt.timeRemaining || null,
+    sleepDrainVerdict: wakeReasons.length > 0
+      ? `${wakeReasons.length} wake event(s) found in pmset log.`
+      : 'No wake events detected in recent pmset log.',
     activeSleepBlockers: assertions.activeBlockers,
     drainTimeline,
     wakeReasons,
+    note: 'Battery drain history requires persistent sampling — only current state and pmset log are shown.',
+    timestamp: new Date().toISOString(),
   };
 }
 
@@ -751,40 +756,122 @@ export async function getMacNetworkDoctor() {
 }
 
 export async function getMacBluetoothAirDropDoctor() {
+  const btRaw = await runSafeCommand('/usr/sbin/system_profiler', ['SPBluetoothDataType', '-json'], 6000);
+
+  const pairedDevices = [];
+  let controllerStatus = 'Unknown';
+  let stalePairingsCount = 0;
+
+  try {
+    const btJson = JSON.parse(btRaw);
+    const ctrl = btJson?.SPBluetoothDataType?.[0] || {};
+    const ctrlInfo = ctrl.controller_state || ctrl['controller_properties'] || {};
+    const state = ctrlInfo?.controller_state || ctrlInfo?.['device_state'] || '';
+    controllerStatus = state || 'Powered On';
+
+    const connected = ctrl['device_connected'] || ctrl['devices_connected'] || [];
+    const notConnected = ctrl['device_not_connected'] || ctrl['devices_not_connected'] || [];
+
+    const parseDevs = (devList, isConn) => {
+      if (!Array.isArray(devList)) return;
+      for (const d of devList) {
+        if (typeof d !== 'object') continue;
+        for (const [name, info] of Object.entries(d)) {
+          pairedDevices.push({
+            name,
+            type: info?.device_minorClassOfDevice_string || info?.device_majorClassOfDevice_string || 'Bluetooth Device',
+            connected: isConn,
+            batteryPct: info?.device_batteryLevelMain_string ? parseInt(info.device_batteryLevelMain_string, 10) || null : null,
+            address: info?.device_address || null,
+          });
+        }
+      }
+    };
+    parseDevs(connected, true);
+    parseDevs(notConnected, false);
+    stalePairingsCount = pairedDevices.filter(d => !d.connected).length;
+  } catch {}
+
+  // AirDrop: check sharingd daemon
+  const sharingdRaw = await runSafeCommand('/bin/launchctl', ['list', 'com.apple.sharingd'], 3000);
+  const sharingdRunning = sharingdRaw && !sharingdRaw.includes('Could not find');
+
+  // Check firewall
+  const fwRaw = await runSafeCommand('/usr/libexec/ApplicationFirewall/socketfilterfw', ['--getglobalstate'], 3000);
+  const firewallBlocking = fwRaw.toLowerCase().includes('enabled');
+
   return {
     bluetooth: {
-      controllerStatus: 'Powered On & Operational',
-      pairedDevices: [
-        { name: 'AirPods Pro', type: 'Audio', connected: true, batteryPct: 92 },
-        { name: 'Magic Keyboard', type: 'HID', connected: true, batteryPct: 78 },
-        { name: 'Magic Mouse', type: 'HID', connected: false, batteryPct: 45 },
-      ],
-      stalePairingsCount: 1,
+      controllerStatus: controllerStatus || 'Powered On',
+      pairedDevices,
+      stalePairingsCount,
     },
     airDrop: {
-      functional: true,
-      wifiEnabled: true,
-      bluetoothEnabled: true,
-      firewallBlocking: false,
-      visibilityMode: 'Contacts Only',
-      sharingDaemonStatus: 'Active (sharingd)',
-      verdict: 'AirDrop is ready for incoming and outgoing transfers.',
+      functional: sharingdRunning,
+      sharingDaemonStatus: sharingdRunning ? 'Active (sharingd)' : 'Not running',
+      firewallBlockingNote: firewallBlocking ? 'Firewall active — ensure AirDrop is not blocked in Firewall settings.' : 'Firewall not blocking AirDrop.',
+      verdict: sharingdRunning
+        ? 'AirDrop sharing daemon (sharingd) is active.'
+        : 'AirDrop daemon not detected. AirDrop may be unavailable.',
     },
+    timestamp: new Date().toISOString(),
   };
 }
 
 export async function getMacWifiIntelligence() {
+  const netIfaces = await si.networkInterfaces().catch(() => []);
+  const active = Array.isArray(netIfaces)
+    ? netIfaces.find(n => n.operstate === 'up' && !n.internal && n.type === 'wireless') ||
+      netIfaces.find(n => n.operstate === 'up' && !n.internal)
+    : null;
+
+  // Try airport CLI for SSID/signal — path varies
+  const airportPaths = [
+    '/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport',
+    '/usr/sbin/airport',
+  ];
+  let airportPath = airportPaths.find(p => fs.existsSync(p)) || null;
+  let currentSsid = null;
+  let signalStrengthDbm = null;
+  let channel = null;
+  let txRateMbps = active?.speed || null;
+
+  if (airportPath) {
+    const airportRaw = await runSafeCommand(airportPath, ['-I'], 4000);
+    const ssidMatch = airportRaw.match(/\s+SSID:\s*(.+)/);
+    const rssiMatch = airportRaw.match(/\s+agrCtlRSSI:\s*(-?\d+)/);
+    const chanMatch = airportRaw.match(/\s+channel:\s*(.+)/);
+    const rateMatch = airportRaw.match(/\s+lastTxRate:\s*(\d+)/);
+    if (ssidMatch) currentSsid = ssidMatch[1].trim();
+    if (rssiMatch) signalStrengthDbm = parseInt(rssiMatch[1], 10);
+    if (chanMatch) channel = chanMatch[1].trim();
+    if (rateMatch) txRateMbps = parseInt(rateMatch[1], 10);
+  }
+
+  // Fallback to si data
+  if (!currentSsid && active?.ssid) currentSsid = active.ssid;
+  if (!signalStrengthDbm && active?.ssid) signalStrengthDbm = null;
+
+  // Reliability heuristic based on RSSI
+  let reliabilityScore = 90;
+  if (signalStrengthDbm !== null) {
+    if (signalStrengthDbm > -50) reliabilityScore = 99;
+    else if (signalStrengthDbm > -65) reliabilityScore = 90;
+    else if (signalStrengthDbm > -75) reliabilityScore = 70;
+    else reliabilityScore = 50;
+  }
+
   return {
-    currentSsid: 'Home-Fiber-5G',
-    signalStrengthDbm: -54,
-    channel: '36 (5 GHz)',
-    txRateMbps: 866,
-    reliabilityScore: 97,
-    savedNetworks: [
-      { ssid: 'Home-Fiber-5G', security: 'WPA3 Personal', reliability: '97%', lastUsed: 'Current' },
-      { ssid: 'Office_Guest', security: 'WPA2 Enterprise', reliability: '89%', lastUsed: '3 days ago' },
-      { ssid: 'Starbucks_WiFi', security: 'Open', reliability: '54%', lastUsed: '2 weeks ago' },
-    ],
+    currentSsid: currentSsid || (active ? 'Connected (SSID unavailable without airport)' : 'Not connected'),
+    interfaceName: active?.iface || 'en0',
+    ipAddress: active?.ip4 || null,
+    signalStrengthDbm,
+    channel,
+    txRateMbps,
+    reliabilityScore,
+    savedNetworks: [],
+    note: 'Saved network list requires Full Disk Access to read Wi-Fi preferences.',
+    timestamp: new Date().toISOString(),
   };
 }
 
@@ -793,32 +880,80 @@ export async function getMacWifiIntelligence() {
 // ══════════════════════════════════════════════════════════════════════════════
 
 export async function getMacFullPrivacyAuditor() {
-  const categories = [
-    { id: 'camera', name: 'Camera', grantedCount: 2, grantedApps: ['FaceTime', 'Safari'], risk: 'Medium' },
-    { id: 'microphone', name: 'Microphone', grantedCount: 3, grantedApps: ['FaceTime', 'Voice Memos', 'Slack'], risk: 'Medium' },
-    { id: 'screen-rec', name: 'Screen Recording', grantedCount: 2, grantedApps: ['Antigravity IDE', 'Zoom'], risk: 'High' },
-    { id: 'accessibility', name: 'Accessibility Control', grantedCount: 2, grantedApps: ['Raycast', 'Rectangle'], risk: 'High' },
-    { id: 'full-disk', name: 'Full Disk Access (FDA)', grantedCount: 2, grantedApps: ['Terminal', 'Antigravity IDE'], risk: 'High' },
-    { id: 'files-folders', name: 'Files and Folders', grantedCount: 4, grantedApps: ['Finder', 'Visual Studio Code', 'Git'], risk: 'Low' },
-    { id: 'location', name: 'Location Services', grantedCount: 2, grantedApps: ['Maps', 'Find My'], risk: 'Low' },
-    { id: 'contacts', name: 'Contacts', grantedCount: 1, grantedApps: ['Mail'], risk: 'Low' },
-    { id: 'calendar', name: 'Calendar', grantedCount: 2, grantedApps: ['Calendar', 'Zoom'], risk: 'Low' },
-    { id: 'photos', name: 'Photos', grantedCount: 1, grantedApps: ['Photos'], risk: 'Low' },
-    { id: 'bluetooth', name: 'Bluetooth Sharing', grantedCount: 2, grantedApps: ['AirDrop', 'Music'], risk: 'Low' },
-    { id: 'automation', name: 'Automation (AppleEvents)', grantedCount: 2, grantedApps: ['Shortcuts', 'Raycast'], risk: 'Medium' },
-    { id: 'input-monitor', name: 'Input Monitoring', grantedCount: 1, grantedApps: ['Raycast'], risk: 'High' },
+  // Probe the TCC database — readable only with Full Disk Access.
+  // Without FDA we report real installed apps from /Applications and mark grants as unknown.
+  const home = os.homedir();
+  const tccDbPath = path.join(home, 'Library/Application Support/com.apple.TCC/TCC.db');
+  const hasFDA = fs.existsSync(tccDbPath);
+
+  // Category definitions with risk levels
+  const categoryDefs = [
+    { id: 'camera', name: 'Camera', service: 'kTCCServiceCamera', risk: 'Medium' },
+    { id: 'microphone', name: 'Microphone', service: 'kTCCServiceMicrophone', risk: 'Medium' },
+    { id: 'screen-rec', name: 'Screen Recording', service: 'kTCCServiceScreenCapture', risk: 'High' },
+    { id: 'accessibility', name: 'Accessibility Control', service: 'kTCCServiceAccessibility', risk: 'High' },
+    { id: 'full-disk', name: 'Full Disk Access (FDA)', service: 'kTCCServiceSystemPolicyAllFiles', risk: 'High' },
+    { id: 'files-folders', name: 'Files and Folders', service: 'kTCCServiceSystemPolicyDocumentsFolder', risk: 'Low' },
+    { id: 'location', name: 'Location Services', service: 'kTCCServiceLocation', risk: 'Low' },
+    { id: 'contacts', name: 'Contacts', service: 'kTCCServiceAddressBook', risk: 'Low' },
+    { id: 'calendar', name: 'Calendar', service: 'kTCCServiceCalendar', risk: 'Low' },
+    { id: 'photos', name: 'Photos', service: 'kTCCServicePhotos', risk: 'Low' },
+    { id: 'bluetooth', name: 'Bluetooth', service: 'kTCCServiceBluetooth', risk: 'Low' },
+    { id: 'automation', name: 'Automation (AppleEvents)', service: 'kTCCServiceAppleEvents', risk: 'Medium' },
+    { id: 'input-monitor', name: 'Input Monitoring', service: 'kTCCServiceListenEvent', risk: 'High' },
   ];
 
-  const recentChanges = [
-    { date: 'Today', app: 'Antigravity IDE', permission: 'Full Disk Access', action: 'Granted' },
-    { date: 'Yesterday', app: 'Zoom', permission: 'Screen Recording', action: 'Verified' },
-  ];
+  let categories = categoryDefs.map(def => ({
+    ...def,
+    grantedCount: 0,
+    grantedApps: [],
+    note: hasFDA ? 'Read from TCC database' : 'TCC database not readable without Full Disk Access',
+  }));
+
+  if (hasFDA) {
+    try {
+      // Use sqlite3 to read TCC grants
+      const sqliteRaw = await runSafeCommand('/usr/bin/sqlite3', [
+        tccDbPath,
+        'SELECT service, client, auth_value FROM access WHERE auth_value = 2;',
+      ], 5000);
+
+      if (sqliteRaw) {
+        const lines = sqliteRaw.split('\n').filter(Boolean);
+        for (const line of lines) {
+          const parts = line.split('|');
+          if (parts.length >= 2) {
+            const service = parts[0];
+            const client = parts[1].split('.').pop() || parts[1];
+            const cat = categories.find(c => c.service === service);
+            if (cat) {
+              cat.grantedCount++;
+              if (!cat.grantedApps.includes(client)) cat.grantedApps.push(client);
+            }
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // Privacy score: penalise high-risk grants
+  let score = 100;
+  for (const cat of categories) {
+    if (cat.risk === 'High' && cat.grantedCount > 0) score -= Math.min(cat.grantedCount * 3, 10);
+    if (cat.risk === 'Medium' && cat.grantedCount > 3) score -= 2;
+  }
+  score = Math.max(50, Math.min(100, score));
 
   return {
-    privacyScore: 92,
-    status: 'Protected',
+    privacyScore: score,
+    status: score >= 90 ? 'Protected' : score >= 75 ? 'Review Needed' : 'At Risk',
     categories,
-    recentChanges,
+    recentChanges: [],
+    fda: hasFDA,
+    note: hasFDA
+      ? 'TCC database was read directly for real grant counts.'
+      : 'Full Disk Access is not granted — app names per category cannot be determined. Grant FDA to MacSuite for complete audit.',
+    timestamp: new Date().toISOString(),
   };
 }
 
@@ -913,25 +1048,11 @@ export async function getMacExternalDrives() {
       usedGB: Math.round(d.used / 1024 / 1024 / 1024),
       freeGB: +((d.size - d.used) / 1024 / 1024 / 1024).toFixed(1),
       fsType: d.type || 'ExFAT',
-      appleDoubleJunkMB: 48,
       canEject: true,
       lockingProcess: null,
     }));
 
-    if (drives.length === 0) {
-      drives.push({
-        mount: '/Volumes/SanDisk_Extreme',
-        name: 'SanDisk_Extreme',
-        sizeGB: 512,
-        usedGB: 184,
-        freeGB: 328,
-        fsType: 'APFS (Encrypted)',
-        appleDoubleJunkMB: 120,
-        canEject: true,
-        lockingProcess: null,
-      });
-    }
-
+    // Return empty array if no external volumes found — do not fabricate
     return drives;
   } catch {
     return [];
@@ -1474,10 +1595,10 @@ export async function getMacSnapshotsList() {
   try {
     const out = await runSafeCommand('/usr/bin/tmutil', ['listlocalsnapshots', '/']);
     const lines = out ? out.split('\n').filter((l) => l.includes('com.apple.TimeMachine')) : [];
-    return lines.map((line, idx) => ({
+    return lines.map((line) => ({
       id: line.trim(),
       date: line.replace('com.apple.TimeMachine.', ''),
-      size: idx === 0 ? '1.4 GB' : '850 MB',
+      size: null, // Real size requires tmutil/apfs analysis with sudo — not reported here
     }));
   } catch {
     return [];

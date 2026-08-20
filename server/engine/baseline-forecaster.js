@@ -3,118 +3,95 @@
  * Evaluates multi-period baselines and computes predictive storage & battery trends.
  */
 
+import si from 'systeminformation';
+import os from 'os';
+import path from 'path';
+import fs from 'fs';
+
 export class BaselineForecaster {
   /**
-   * Returns multi-baseline comparison for the requested baseline profile.
+   * Returns a real-time snapshot comparison.
+   * Since we have no persistent baseline store, all values are sampled live
+   * and labeled as "current" with an honest note about what a stored baseline
+   * would provide. No fabricated historical data.
+   *
    * @param {'firstRun' | '7day' | '30day' | 'developer'} profile
    */
-  static getBaselineComparison(profile = '7day') {
-    const baselines = {
-      firstRun: {
-        id: 'firstRun',
-        name: 'First-Run Baseline (Initial Setup)',
-        date: 'August 10, 2026',
-        daysAgo: 9,
-        storageUsedGB: 142.0,
-        ramUsedGB: 4.2,
-        startupItemsCount: 3,
-        batteryHealthPct: 97,
-        securityScore: 96,
-      },
-      '7day': {
-        id: '7day',
-        name: '7-Day Rolling Baseline',
-        date: 'August 12, 2026',
-        daysAgo: 7,
-        storageUsedGB: 148.2,
-        ramUsedGB: 4.6,
-        startupItemsCount: 4,
-        batteryHealthPct: 96,
-        securityScore: 96,
-      },
-      '30day': {
-        id: '30day',
-        name: '30-Day Normal Operating Baseline',
-        date: 'July 20, 2026',
-        daysAgo: 30,
-        storageUsedGB: 134.5,
-        ramUsedGB: 4.1,
-        startupItemsCount: 3,
-        batteryHealthPct: 98,
-        securityScore: 94,
-      },
-      developer: {
-        id: 'developer',
-        name: 'Developer Toolchain Baseline (with Docker & Xcode)',
-        date: 'August 15, 2026',
-        daysAgo: 4,
-        storageUsedGB: 156.0,
-        ramUsedGB: 6.4,
-        startupItemsCount: 4,
-        batteryHealthPct: 96,
-        securityScore: 96,
-      },
+  static async getBaselineComparison(profile = '7day') {
+    const [mem, fsSize, batt] = await Promise.all([
+      si.mem(),
+      si.fsSize(),
+      si.battery().catch(() => ({ hasBattery: false })),
+    ]);
+
+    const primary = Array.isArray(fsSize)
+      ? fsSize.find(f => f.mount === '/System/Volumes/Data' || f.mount === '/') || fsSize[0]
+      : null;
+
+    const storageUsedGB = primary ? Math.round(primary.used / 1024 / 1024 / 1024) : 0;
+    const freeDiskGB = primary ? +((primary.size - primary.used) / 1024 / 1024 / 1024).toFixed(1) : 0;
+    const ramActiveGB = +(mem.active / 1024 / 1024 / 1024).toFixed(2);
+    const ramTotalGB = Math.round(mem.total / 1024 / 1024 / 1024);
+    const battHealthPct = batt.hasBattery && batt.maxCapacity && batt.designedCapacity
+      ? Math.round((batt.maxCapacity / batt.designedCapacity) * 100)
+      : null;
+
+    // Count real startup items
+    const launchAgentDir = path.join(os.homedir(), 'Library/LaunchAgents');
+    let startupItemsCount = 0;
+    if (fs.existsSync(launchAgentDir)) {
+      try { startupItemsCount = fs.readdirSync(launchAgentDir).filter(f => f.endsWith('.plist')).length; } catch {}
+    }
+
+    const profileNames = {
+      firstRun: 'First-Run Baseline',
+      '7day': '7-Day Rolling Baseline',
+      '30day': '30-Day Baseline',
+      developer: 'Developer Toolchain Baseline',
     };
 
-    const current = {
-      storageUsedGB: 160.4,
-      ramUsedGB: 5.1,
-      startupItemsCount: 4,
-      batteryHealthPct: 96,
-      securityScore: 96,
-    };
-
-    const base = baselines[profile] || baselines['7day'];
-    const storageDelta = +(current.storageUsedGB - base.storageUsedGB).toFixed(1);
-    const ramDelta = +(current.ramUsedGB - base.ramUsedGB).toFixed(1);
+    const metrics = [
+      {
+        name: 'Storage Used',
+        current: `${storageUsedGB} GB`,
+        freeDiskGB,
+        severity: freeDiskGB < 10 ? 'critical' : freeDiskGB < 20 ? 'warning' : 'nominal',
+        note: `${freeDiskGB} GB free`,
+      },
+      {
+        name: 'RAM Active Usage',
+        current: `${ramActiveGB} GB / ${ramTotalGB} GB`,
+        severity: ramActiveGB / ramTotalGB > 0.9 ? 'critical' : ramActiveGB / ramTotalGB > 0.75 ? 'warning' : 'nominal',
+        note: `${Math.round((ramActiveGB / ramTotalGB) * 100)}% active`,
+      },
+      {
+        name: 'Startup Background Items',
+        current: `${startupItemsCount} LaunchAgent(s)`,
+        severity: startupItemsCount > 10 ? 'warning' : 'nominal',
+        note: 'Counted from ~/Library/LaunchAgents',
+      },
+      ...(battHealthPct !== null ? [{
+        name: 'Battery Health Condition',
+        current: `${battHealthPct}%`,
+        severity: battHealthPct < 80 ? 'warning' : 'nominal',
+        note: battHealthPct < 80 ? 'Battery degraded — consider service' : 'Battery health nominal',
+      }] : []),
+    ];
 
     return {
-      activeBaseline: base,
-      availableProfiles: Object.values(baselines).map(b => ({ id: b.id, name: b.name, date: b.date })),
-      metrics: [
-        {
-          name: 'Storage Capacity Footprint',
-          baseline: `${base.storageUsedGB} GB`,
-          current: `${current.storageUsedGB} GB`,
-          delta: `${storageDelta >= 0 ? '+' : ''}${storageDelta} GB`,
-          severity: storageDelta > 15 ? 'warning' : 'nominal',
-        },
-        {
-          name: 'Memory (RAM) Footprint on Idle',
-          baseline: `${base.ramUsedGB} GB`,
-          current: `${current.ramUsedGB} GB`,
-          delta: `${ramDelta >= 0 ? '+' : ''}${ramDelta} GB`,
-          severity: ramDelta > 2 ? 'warning' : 'nominal',
-        },
-        {
-          name: 'Startup Background Items',
-          baseline: `${base.startupItemsCount} items`,
-          current: `${current.startupItemsCount} items`,
-          delta: `${current.startupItemsCount - base.startupItemsCount >= 0 ? '+' : ''}${current.startupItemsCount - base.startupItemsCount}`,
-          severity: 'nominal',
-        },
-        {
-          name: 'Battery Health Condition',
-          baseline: `${base.batteryHealthPct}%`,
-          current: `${current.batteryHealthPct}%`,
-          delta: `${current.batteryHealthPct - base.batteryHealthPct}%`,
-          severity: 'nominal',
-        },
-        {
-          name: 'Security Posture Score',
-          baseline: `${base.securityScore}/100`,
-          current: `${current.securityScore}/100`,
-          delta: `${current.securityScore - base.securityScore}`,
-          severity: 'nominal',
-        },
-      ],
+      profileRequested: profile,
+      profileName: profileNames[profile] || profile,
+      availableProfiles: Object.entries(profileNames).map(([id, name]) => ({ id, name })),
+      note: 'No persistent baseline store exists yet — all values are live snapshots. Run this endpoint periodically and store results to build a real baseline.',
+      metrics,
+      sampledAt: new Date().toISOString(),
     };
   }
 
   /**
-   * Computes predictive storage and battery forecasts.
+   * Computes predictive storage forecast from real free disk space.
    */
-  static getForecast(freeDiskGB = 184, averageDailyGrowthGB = 1.4) {
+  static getForecast(freeDiskGB = 0, averageDailyGrowthGB = 1.4) {
     const criticalThresholdGB = 15;
     const daysUntilCritical = freeDiskGB > criticalThresholdGB
       ? Math.round((freeDiskGB - criticalThresholdGB) / Math.max(averageDailyGrowthGB, 0.1))
@@ -126,16 +103,16 @@ export class BaselineForecaster {
         averageDailyGrowthGB,
         criticalThresholdGB,
         estimatedDaysUntilCritical: daysUntilCritical,
-        forecastTrend: daysUntilCritical > 60 ? 'Healthy (>90 Days Horizon)' : daysUntilCritical > 20 ? 'Moderate Depletion' : 'Critical Warning',
-        confidence: 'High (Based on 14-day APFS extent tracking)',
+        forecastTrend: daysUntilCritical > 90
+          ? 'Healthy (>90 days)'
+          : daysUntilCritical > 30
+            ? 'Moderate Depletion'
+            : daysUntilCritical > 0
+              ? 'Critical Warning — reclaim space soon'
+              : 'Already below critical threshold',
+        note: 'Growth rate is a configurable estimate. Provide actual measured growth for higher-confidence forecasting.',
       },
-      batteryForecast: {
-        currentCapacityPct: 96,
-        sixMonthProjectedCapacityPct: 94,
-        cycleCount: 142,
-        estimatedServiceMonths: 38,
-        conditionTrend: 'Gradual Nominal Aging',
-      },
+      sampledAt: new Date().toISOString(),
     };
   }
 }

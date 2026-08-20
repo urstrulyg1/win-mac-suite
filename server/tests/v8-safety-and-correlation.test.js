@@ -67,16 +67,20 @@ function runCorrelationEngineTests() {
   console.log('✓ Test 5 Passed: Clean Mac fixture generated 0 false-positive incidents');
 }
 
-function runBaselineAndConfidenceTests() {
+async function runBaselineAndConfidenceTests() {
   console.log('\nRunning v8.0 Multi-Baseline & Confidence Unit Tests...');
 
-  const comp = BaselineForecaster.getBaselineComparison('30day');
-  assert.strictEqual(comp.activeBaseline.id, '30day');
-  assert.strictEqual(comp.metrics.length >= 5, true);
-  console.log('✓ Test 6 Passed: Multi-baseline 30-day profile evaluated');
+  // getBaselineComparison is now async (uses real si data) — new shape: { profileRequested, metrics, sampledAt }
+  const comp = await BaselineForecaster.getBaselineComparison('30day');
+  assert.strictEqual(comp.profileRequested, '30day');
+  assert.strictEqual(Array.isArray(comp.metrics), true);
+  assert.strictEqual(comp.metrics.length >= 1, true);
+  assert.strictEqual(typeof comp.sampledAt, 'string');
+  console.log('✓ Test 6 Passed: Multi-baseline 30-day profile evaluated (live telemetry, ' + comp.metrics.length + ' metrics)');
 
   const forecast = BaselineForecaster.getForecast(48, 1.4);
   assert.strictEqual(forecast.storageForecast.estimatedDaysUntilCritical > 0, true);
+  assert.strictEqual(typeof forecast.sampledAt, 'string');
   console.log(`✓ Test 7 Passed: Storage forecast calculated ${forecast.storageForecast.estimatedDaysUntilCritical} days until threshold`);
 
   const confidence = calculateConfidence([
@@ -88,10 +92,10 @@ function runBaselineAndConfidenceTests() {
   console.log(`✓ Test 8 Passed: Confidence score evaluated statistically (${confidence.confidenceScore}% ${confidence.confidenceLabel})`);
 }
 
-function main() {
+async function main() {
   runSafetyTests();
   runCorrelationEngineTests();
-  runBaselineAndConfidenceTests();
+  await runBaselineAndConfidenceTests();
   console.log('\n=============================================');
   console.log('All v8.0 Safety & Diagnostic Unit Tests Passed!');
   console.log('=============================================');

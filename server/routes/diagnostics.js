@@ -81,17 +81,42 @@ router.get('/diagnostics/run-experiment', async (req, res) => {
 // ── GET /api/diagnostics/correlation-incidents ──────────────────────────────
 router.get('/diagnostics/correlation-incidents', async (_req, res) => {
   try {
-    const mem = await si.mem();
-    const memUsagePct = Math.round((mem.active / mem.total) * 100);
+    // Individual .catch() so a slow si.processes() never kills the whole handler
+    const [mem, fsSize, processes] = await Promise.all([
+      si.mem().catch(() => ({ active: 0, total: 1, swapused: 0 })),
+      si.fsSize().catch(() => []),
+      si.processes().catch(() => ({ list: [] })),
+    ]);
+
+    const memUsagePct = mem.total > 0 ? Math.round((mem.active / mem.total) * 100) : 0;
+    const swapUsedGB = +(( mem.swapused || 0) / 1024 / 1024 / 1024).toFixed(2);
+
+    const primary = Array.isArray(fsSize)
+      ? fsSize.find(f => f.mount === '/System/Volumes/Data' || f.mount === '/') || fsSize[0]
+      : null;
+    const freeDiskGB = primary ? +((primary.size - primary.used) / 1024 / 1024 / 1024).toFixed(1) : 0;
+    const usedDiskGB = primary ? Math.round(primary.used / 1024 / 1024 / 1024) : 0;
+
+    // Detect real Docker & Chrome memory from process list
+    const procList = (processes && Array.isArray(processes.list)) ? processes.list : [];
+    const dockerProc = procList.find(p => p && /docker/i.test(p.name));
+    const dockerActive = !!dockerProc;
+    const dockerCpuPct = dockerProc ? (dockerProc.cpu || 0) : 0;
+    const chromeProcs = procList.filter(p => p && /chrome/i.test(p.name));
+    const chromeTotalMem = chromeProcs.reduce((s, p) => s + (p.mem || 0), 0);
+    const chromeMemoryMB = mem.total > 0
+      ? Math.round((chromeTotalMem / 100) * (mem.total / 1024 / 1024))
+      : 0;
+
     const results = CorrelationEngine.correlate({
-      memoryUsagePct: memUsagePct || 74,
-      swapUsedGB: 0.8,
-      dockerActive: true,
-      dockerCpuPct: 68.4,
-      chromeMemoryMB: 3800,
+      memoryUsagePct: memUsagePct,
+      swapUsedGB,
+      dockerActive,
+      dockerCpuPct,
+      chromeMemoryMB,
       thermalLevel: 'Nominal',
-      systemDataGB: 48.2,
-      freeDiskGB: 18.4,
+      systemDataGB: usedDiskGB,
+      freeDiskGB,
     });
     res.json(results);
   } catch (err) {
@@ -100,10 +125,10 @@ router.get('/diagnostics/correlation-incidents', async (_req, res) => {
 });
 
 // ── GET /api/diagnostics/multi-baseline ──────────────────────────────────────
-router.get('/diagnostics/multi-baseline', (req, res) => {
+router.get('/diagnostics/multi-baseline', async (req, res) => {
   try {
     const profile = req.query.profile || '7day';
-    const comp = BaselineForecaster.getBaselineComparison(profile);
+    const comp = await BaselineForecaster.getBaselineComparison(profile);
     res.json(comp);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -111,9 +136,15 @@ router.get('/diagnostics/multi-baseline', (req, res) => {
 });
 
 // ── GET /api/diagnostics/predictive-forecast ────────────────────────────────
-router.get('/diagnostics/predictive-forecast', (req, res) => {
+router.get('/diagnostics/predictive-forecast', async (req, res) => {
   try {
-    const freeDiskGB = parseFloat(req.query.freeDiskGB) || 184;
+    const fsSize = await si.fsSize();
+    const primary = Array.isArray(fsSize)
+      ? fsSize.find(f => f.mount === '/System/Volumes/Data' || f.mount === '/') || fsSize[0]
+      : null;
+    const freeDiskGB = primary
+      ? +((primary.size - primary.used) / 1024 / 1024 / 1024).toFixed(1)
+      : parseFloat(req.query.freeDiskGB) || 0;
     const forecast = BaselineForecaster.getForecast(freeDiskGB, 1.4);
     res.json(forecast);
   } catch (err) {

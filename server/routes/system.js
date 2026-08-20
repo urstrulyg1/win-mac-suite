@@ -1,14 +1,14 @@
 /**
- * WinSuite & MacSuite v10.0 - System & Capabilities Route
+ * WinSuite & MacSuite v10.1 - System & Capabilities Route
  * Read-only endpoints: /api/sysinfo, /api/capabilities, /api/permissions
  *
  * v10 change (P0 #2): /api/permissions no longer claims blanket elevation. It probes
- * the real permission state and returns the full feature availability matrix, so the
- * UI can distinguish "this is fine" from "we were not allowed to look".
+ * the real permission state and returns the full feature availability matrix.
  */
 
 import express from 'express';
 import os from 'os';
+import fs from 'fs';
 import si from 'systeminformation';
 import {
   getMacListeningPorts,
@@ -85,7 +85,7 @@ router.get('/sysinfo', async (_req, res) => {
 });
 
 // ── GET /api/capabilities ───────────────────────────────────────────────────
-router.get('/capabilities', (_req, res) => {
+router.get('/capabilities', async (_req, res) => {
   const capabilities = isWin
     ? [
         { id: 'win.ps', name: 'PowerShell 7/5.1', command: 'powershell', status: 'available', version: '5.1.22621', description: 'Windows Management & Automation Engine' },
@@ -98,15 +98,31 @@ router.get('/capabilities', (_req, res) => {
         { id: 'win.bitlocker', name: 'BitLocker Drive Encryption', command: 'manage-bde', status: 'available', description: 'Full Volume Cryptographic Protection' },
       ]
     : isMac
-    ? [
-        { id: 'mac.brew', name: 'Homebrew Package Manager', command: 'brew', status: 'available', version: '4.2.14', description: 'The Missing Package Manager for macOS' },
-        { id: 'mac.diskutil', name: 'APFS Disk Utility (diskutil)', command: 'diskutil', status: 'available', description: 'APFS Container & File System Management Subsystem' },
-        { id: 'mac.tmutil', name: 'Time Machine Manager (tmutil)', command: 'tmutil', status: 'available', description: 'APFS Local Snapshot Thinning & Backup Coordination' },
-        { id: 'mac.swup', name: 'macOS Software Update', command: 'softwareupdate', status: 'available', description: 'Apple Software Update Server Query Engine' },
-        { id: 'mac.spctl', name: 'Gatekeeper Assessment Engine', command: 'spctl', status: 'available', description: 'Application Code Signing & Notarization Policy' },
-        { id: 'mac.sip', name: 'System Integrity Protection (SIP)', command: 'csrutil', status: 'available', description: 'Rootless Kernel Security Subsystem' },
-        { id: 'mac.fda', name: 'Full Disk Access (TCC)', command: 'tccutil', status: 'permission-required', description: 'macOS Privacy & Transparency Consent and Control' },
-      ]
+    ? await (async () => {
+        const brewPath = fs.existsSync('/opt/homebrew/bin/brew') ? '/opt/homebrew/bin/brew' : '/usr/local/bin/brew';
+        const brewExists = fs.existsSync(brewPath) || fs.existsSync('/usr/local/bin/brew');
+        let brewVersion = null;
+        if (brewExists) {
+          try {
+            const { stdout } = await import('child_process').then(m => m.execFile ? new Promise((res, rej) => m.execFile(brewPath, ['--version'], {timeout: 4000}, (e,o) => e ? rej(e) : res({stdout:o}))) : Promise.resolve({stdout:''}));
+            brewVersion = (stdout || '').split('\n')[0].replace('Homebrew ', '').trim() || null;
+          } catch {}
+        }
+        const diskutilExists = fs.existsSync('/usr/sbin/diskutil');
+        const tmutilExists = fs.existsSync('/usr/bin/tmutil');
+        const swupExists = fs.existsSync('/usr/sbin/softwareupdate');
+        const spctlExists = fs.existsSync('/usr/sbin/spctl');
+        const csrutilExists = fs.existsSync('/usr/bin/csrutil');
+        return [
+          { id: 'mac.brew', name: 'Homebrew Package Manager', command: 'brew', status: brewExists ? 'available' : 'not-installed', version: brewVersion, description: 'The Missing Package Manager for macOS' },
+          { id: 'mac.diskutil', name: 'APFS Disk Utility (diskutil)', command: 'diskutil', status: diskutilExists ? 'available' : 'not-found', description: 'APFS Container & File System Management Subsystem' },
+          { id: 'mac.tmutil', name: 'Time Machine Manager (tmutil)', command: 'tmutil', status: tmutilExists ? 'available' : 'not-found', description: 'APFS Local Snapshot Thinning & Backup Coordination' },
+          { id: 'mac.swup', name: 'macOS Software Update', command: 'softwareupdate', status: swupExists ? 'available' : 'not-found', description: 'Apple Software Update Server Query Engine' },
+          { id: 'mac.spctl', name: 'Gatekeeper Assessment Engine', command: 'spctl', status: spctlExists ? 'available' : 'not-found', description: 'Application Code Signing & Notarization Policy' },
+          { id: 'mac.sip', name: 'System Integrity Protection (SIP)', command: 'csrutil', status: csrutilExists ? 'available' : 'not-found', description: 'Rootless Kernel Security Subsystem' },
+          { id: 'mac.fda', name: 'Full Disk Access (TCC)', command: 'tccutil', status: 'permission-required', description: 'macOS Privacy & Transparency Consent and Control' },
+        ];
+      })()
     : [];
 
   res.json({

@@ -44,23 +44,31 @@ router.get('/diagnostics', async (_req, res) => {
       dnsTimeMs = 38;
     }
 
+    // Measure real gateway latency using ping (1 packet)
+    let gatewayLatencyMs = null;
+    if (defaultGateway && defaultGateway !== '192.168.1.1') {
+      try {
+        const { execFile } = await import('child_process');
+        const { promisify } = await import('util');
+        const execAsync = promisify(execFile);
+        const pingStart = performance.now();
+        await execAsync('/sbin/ping', ['-c', '1', '-t', '2', defaultGateway], { timeout: 3000 });
+        gatewayLatencyMs = +(performance.now() - pingStart).toFixed(1);
+      } catch {}
+    }
+
     res.json({
       online: activeIface?.operstate === 'up',
       defaultGateway,
       dnsResolutionTimeMs: Math.max(dnsTimeMs, 1),
-      gatewayLatencyMs: +(1.2 + Math.random() * 0.8).toFixed(1),
-      externalLatencyMs: +(14.0 + Math.random() * 6.0).toFixed(1),
+      gatewayLatencyMs,
       packetLossPct: 0,
       activeAdapter: {
         name: activeIface?.iface || 'en0',
         type: activeIface?.type || 'wireless',
-        ip: activeIface?.ip4 || '192.168.1.50',
-        speed: activeIface?.speed || 866,
-        mac: activeIface?.mac || '00:00:00:00:00:00',
-      },
-      bluetooth: {
-        available: true,
-        state: 'Active',
+        ip: activeIface?.ip4 || '',
+        speed: activeIface?.speed || null,
+        mac: activeIface?.mac || '',
       },
     });
   } catch (err) {
