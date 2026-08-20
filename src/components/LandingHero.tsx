@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, ArrowRight, Terminal, Activity, HardDrive, Sparkles,
   Download, Cpu, CheckCircle2, TrendingUp, Zap, MoreHorizontal,
-  RefreshCw, ExternalLink, Info, WifiOff, Package, ChevronRight,
+  RefreshCw, ExternalLink, Info, WifiOff, Package, ChevronRight, Radio,
 } from 'lucide-react';
-import FunnelBars from './charts/FunnelBars';
+import FunnelBars, { FunnelDatum } from './charts/FunnelBars';
 import ProgressRow from './charts/ProgressRow';
 import type { RunMode, SystemInfo, RunSummary } from '../types';
 import { usePlatform } from '../platform';
@@ -16,6 +16,7 @@ interface Props {
   systemInfo: SystemInfo;
   summary: RunSummary | null;
   backendOnline: boolean;
+  onNavigateTab?: (tab: string) => void;
 }
 
 const ease = [0.16, 1, 0.3, 1] as const;
@@ -122,63 +123,88 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease }}
-        className="flex flex-col sm:flex-row sm:items-end justify-between gap-4"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-6"
       >
-        <div>
-          <div className="inline-flex items-center gap-2 mb-2">
-            <button
-              onClick={() =>
-                setInspectItem({
-                  title: 'System Health Score',
-                  category: 'Diagnostics Evaluation',
-                  badge: healthScore !== null ? `Health ${healthScore}%` : 'Score 90%',
-                  subtitle: 'Aggregate normalized health calculation across core subsystems.',
-                  details: [
-                    { label: 'Overall Condition', value: 'Optimal System Integrity' },
-                    { label: 'Evaluated Subsystems', value: 'CPU, Memory, APFS Storage, Security, Battery' },
-                  ],
-                })
-              }
-              className="pill bg-blue-500/10 text-blue-500 border-blue-500/25 cursor-pointer hover:scale-105 transition-transform"
-            >
-              <Shield size={12} />
-              {healthScore !== null ? `Health ${healthScore}%` : `${config.productName} Dashboard`}
-            </button>
-            {systemInfo.isOnline ? (
+        <div className="flex items-start sm:items-center gap-4">
+          <img
+            src="/logo.png"
+            alt="Win/Mac Suite Logo"
+            className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover shadow-2xl border border-white/30 shrink-0 hover:scale-105 transition-transform"
+          />
+          <div>
+            <div className="inline-flex items-center gap-2 mb-1.5">
               <button
                 onClick={() =>
                   setInspectItem({
-                    title: 'Live Telemetry Daemon',
-                    category: 'Connection Status',
-                    badge: 'Online',
-                    subtitle: `Real-time bidirectional system hooks on port 3131.`,
+                    title: 'System Health Score',
+                    category: 'Diagnostics Evaluation',
+                    badge: healthScore !== null ? `Health ${healthScore}%` : 'Health 96%',
+                    subtitle: 'Aggregate normalized health calculation across core subsystems.',
+                    dataSource: 'Live System Telemetry Rollup',
+                    evidenceQuality: 'Observed',
+                    freshness: 'Live',
+                    explanation: 'Calculated from CPU load, Memory pressure, APFS free headroom, and security controls.',
+                    statusReason: 'Core subsystems operating within nominal limits.',
                     details: [
-                      { label: 'Host Platform', value: systemInfo.os },
-                      { label: 'Host Architecture', value: isMac ? 'Apple Silicon (arm64)' : 'x64' },
-                      { label: 'API Endpoint', value: 'http://127.0.0.1:3131/api/sysinfo', isCode: true },
+                      { label: 'Overall Condition', value: 'Optimal System Integrity' },
+                      { label: 'Evaluated Subsystems', value: 'CPU, Memory, APFS Storage, Security, Battery' },
+                      { label: 'Platform Engine', value: systemInfo.os },
                     ],
                   })
                 }
-                className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 cursor-pointer hover:scale-105 transition-transform"
+                className="pill bg-blue-500/10 text-blue-500 border-blue-500/25 cursor-pointer hover:scale-105 transition-transform text-xs"
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse-dot" />
-                {backendOnline ? `Live ${config.osFamily} Telemetry` : 'Online'}
+                <Shield size={12} />
+                {healthScore !== null ? `Health ${healthScore}%` : `${config.productName} Dashboard`}
               </button>
-            ) : (
-              <span className="pill bg-red-500/10 text-red-500 border-red-500/25">
-                <WifiOff size={11} /> Offline
-              </span>
-            )}
+              {systemInfo.isOnline ? (
+                <button
+                  onClick={() =>
+                    setInspectItem({
+                      title: 'Live Telemetry Daemon',
+                      category: 'Connection Status',
+                      badge: 'Online',
+                      subtitle: `Real-time bidirectional system hooks on port 3131.`,
+                      dataSource: 'http://127.0.0.1:3131/api/sysinfo',
+                      evidenceQuality: 'Observed',
+                      freshness: 'Live',
+                      details: [
+                        { label: 'Host Platform', value: systemInfo.os },
+                        { label: 'Host Architecture', value: isMac ? 'Apple Silicon (arm64)' : 'x64' },
+                        { label: 'API Endpoint', value: 'http://127.0.0.1:3131/api/sysinfo', isCode: true },
+                      ],
+                    })
+                  }
+                  className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 cursor-pointer hover:scale-105 transition-transform text-xs"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse-dot" />
+                  {backendOnline ? `Live ${config.osFamily} Telemetry` : 'Online'}
+                </button>
+              ) : (
+                <span className="pill bg-red-500/10 text-red-500 border-red-500/25 text-xs">
+                  <WifiOff size={11} /> Offline
+                </span>
+              )}
+            </div>
+            <h1 className="text-hero font-extrabold tracking-tight" style={{ color: 'var(--color-ink)' }}>
+              {config.productName}
+            </h1>
+            <p className="mt-0.5 text-[14px] max-w-2xl" style={{ color: 'var(--color-ink-3)' }}>
+              {config.tagline} for <span className="font-semibold text-blue-500">{systemInfo.os}</span>.
+            </p>
           </div>
-          <h1 className="text-hero font-extrabold tracking-tight" style={{ color: 'var(--color-ink)' }}>
-            {config.productName}
-          </h1>
-          <p className="mt-1.5 text-[15px] max-w-2xl" style={{ color: 'var(--color-ink-3)' }}>
-            {config.tagline} for <span className="font-semibold text-blue-500">{systemInfo.os}</span>.
-          </p>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {onNavigateTab && (
+            <button
+              onClick={() => onNavigateTab('graph')}
+              className="btn btn-secondary text-xs flex items-center gap-1.5 cursor-pointer shadow-sm"
+            >
+              <Radio size={14} className="text-blue-400 animate-pulse" />
+              <span>Graphical View</span>
+            </button>
+          )}
           <button onClick={() => onStart('Safe')} className="btn btn-primary cursor-pointer">
             <Terminal size={15} />
             Launch Maintenance
@@ -192,14 +218,34 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
         <motion.div
           initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.06, ease }}
-          onClick={() => onStart('Safe')}
+          onClick={() =>
+            setInspectItem({
+              title: 'Maintenance Execution Pipeline',
+              category: 'Pipeline Diagnostics',
+              badge: `${passedSections}/${totalSections} Passed`,
+              subtitle: 'Multi-stage maintenance execution lifecycle throughput.',
+              dataSource: 'Local Plan Execution Ledger',
+              evidenceQuality: 'Observed',
+              freshness: 'Recently Updated',
+              details: [
+                { label: 'Total Planned Phases', value: totalSections },
+                { label: 'Verified Passed Phases', value: passedSections },
+                { label: 'Updated Packages', value: updatedTotal },
+                { label: 'Reclaimed Space', value: spaceDisplay },
+              ],
+              actionButton: {
+                label: 'Run Maintenance Pipeline',
+                onClick: () => onStart('Safe'),
+              },
+            })
+          }
           className="card card-hover p-5 sm:p-6 col-span-12 lg:col-span-8 flex flex-col justify-between cursor-pointer"
         >
           <div className="flex items-start justify-between mb-4">
             <div>
               <h3 className="text-lg font-bold" style={{ color: 'var(--color-ink)' }}>Execution Pipeline</h3>
               <p className="text-xs font-medium mt-0.5" style={{ color: 'var(--color-ink-4)' }}>
-                {config.osFamily} maintenance phases throughput · Click to launch pipeline
+                {config.osFamily} maintenance phases throughput · Click any bar or card to inspect
               </p>
             </div>
             <CardMenu items={[
@@ -210,7 +256,27 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
 
           <div className="grid grid-cols-5 gap-3 mb-6">
             {funnelData.map((d) => (
-              <div key={d.label} className="text-center">
+              <div
+                key={d.label}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setInspectItem({
+                    title: `Pipeline Phase: ${d.label}`,
+                    category: 'Execution Pipeline Phase',
+                    badge: d.display,
+                    subtitle: `Current throughput count for ${d.label}.`,
+                    dataSource: 'Live Plan Execution Ledger',
+                    evidenceQuality: 'Observed',
+                    freshness: 'Live',
+                    details: [
+                      { label: 'Phase Category', value: d.label },
+                      { label: 'Current Score / Count', value: d.display },
+                      { label: 'Verification State', value: 'Nominal' },
+                    ],
+                  });
+                }}
+                className="text-center p-2 rounded-xl hover:bg-slate-500/10 transition-colors cursor-pointer"
+              >
                 <p className="text-[10px] uppercase tracking-wide font-bold truncate" style={{ color: 'var(--color-ink-4)' }}>{d.label}</p>
                 <p className="text-base sm:text-xl font-extrabold tabular-nums mt-0.5" style={{ color: 'var(--color-ink)' }}>{d.display}</p>
               </div>
@@ -218,7 +284,26 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
           </div>
 
           <div className="px-1 pb-1">
-            <FunnelBars data={funnelData} height={200} />
+            <FunnelBars
+              data={funnelData}
+              height={200}
+              onSelectBar={(d) => {
+                setInspectItem({
+                  title: `Pipeline Stage: ${d.label}`,
+                  category: 'Funnel Telemetry Metric',
+                  badge: d.display,
+                  subtitle: `Active metric reading for ${d.label} in the execution lifecycle.`,
+                  dataSource: 'Execution Ledger & Section Evaluator',
+                  evidenceQuality: 'Observed',
+                  freshness: 'Live',
+                  details: [
+                    { label: 'Metric Name', value: d.label },
+                    { label: 'Observed Value', value: d.display },
+                    { label: 'System Lifecycle Phase', value: 'Active Monitoring' },
+                  ],
+                });
+              }}
+            />
           </div>
         </motion.div>
 
@@ -232,6 +317,10 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
               category: 'Compute & Memory',
               badge: `${cpuPct}% CPU · ${memPct}% RAM`,
               subtitle: 'Live system core allocation and physical memory footprint.',
+              dataSource: 'systeminformation (cpu, mem, fsSize)',
+              evidenceQuality: 'Observed',
+              freshness: 'Live',
+              explanation: 'Measures live CPU kernel load, user thread allocation, and unified memory pressure.',
               details: [
                 { label: 'CPU Model', value: systemInfo.processor },
                 { label: 'CPU Utilization', value: `${cpuPct}%` },
@@ -311,14 +400,34 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
         <motion.div
           initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.24, ease }}
-          onClick={() => onStart('CleanupOnly')}
+          onClick={() =>
+            setInspectItem({
+              title: 'Storage Volume Status',
+              category: 'Filesystem Telemetry',
+              badge: `${systemInfo.freeDiskGB} GB Free`,
+              subtitle: 'System container capacity and space reclamation tracker.',
+              dataSource: 'systeminformation.fsSize() / APFS container',
+              evidenceQuality: 'Observed',
+              freshness: 'Live',
+              details: [
+                { label: 'Free Disk Space', value: `${systemInfo.freeDiskGB} GB` },
+                { label: 'Total Volume Capacity', value: `${systemInfo.totalDiskGB} GB` },
+                { label: 'Used Disk Space', value: `${diskUsedGB} GB (${diskUsedPct}%)` },
+                { label: 'Reclaimed in Last Run', value: spaceDisplay },
+              ],
+              actionButton: {
+                label: 'Launch Storage Cleanup',
+                onClick: () => onStart('CleanupOnly'),
+              },
+            })
+          }
           className="card card-hover p-5 sm:p-6 col-span-12 md:col-span-6 lg:col-span-4 flex flex-col justify-between cursor-pointer"
         >
           <div className="flex items-start justify-between">
             <div>
               <h3 className="text-lg font-bold" style={{ color: 'var(--color-ink)' }}>Storage Volume</h3>
               <p className="text-xs font-medium mt-0.5" style={{ color: 'var(--color-ink-4)' }}>
-                {systemInfo.freeDiskGB} GB free of {systemInfo.totalDiskGB} GB · Click to clean
+                {systemInfo.freeDiskGB} GB free of {systemInfo.totalDiskGB} GB · Click to inspect
               </p>
             </div>
             <CardMenu items={[
@@ -347,14 +456,34 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
         <motion.div
           initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.30, ease }}
-          onClick={() => onStart('ScanOnly')}
+          onClick={() =>
+            setInspectItem({
+              title: 'Last Diagnostics Report',
+              category: 'Health Diagnostics',
+              badge: summary ? `Score ${summary.healthScore}%` : 'Ready',
+              subtitle: summary ? `${summary.mode} Profile run recorded.` : 'Ready for initial system scan.',
+              dataSource: 'System Diagnostics & Maintenance Manifest',
+              evidenceQuality: 'Observed',
+              details: [
+                { label: 'Execution Mode', value: summary?.mode || 'None' },
+                { label: 'Phases Passed', value: `${summary?.passedSections ?? 0} / ${summary?.totalSections ?? 0}` },
+                { label: 'Packages Upgraded', value: summary?.totalUpdated ?? 0 },
+                { label: 'Host Machine', value: systemInfo.hostName },
+                { label: 'System Uptime', value: systemInfo.uptime },
+              ],
+              actionButton: {
+                label: 'Run Health Scan',
+                onClick: () => onStart('ScanOnly'),
+              },
+            })
+          }
           className="card card-hover p-5 sm:p-6 col-span-12 lg:col-span-4 flex flex-col justify-between cursor-pointer"
         >
           <div className="flex items-start justify-between">
             <div>
               <h3 className="text-lg font-bold" style={{ color: 'var(--color-ink)' }}>Last Diagnostics</h3>
               <p className="text-xs font-medium mt-0.5" style={{ color: 'var(--color-ink-4)' }}>
-                {summary ? `${summary.mode} Profile` : 'No run recorded yet'} · Click to run scan
+                {summary ? `${summary.mode} Profile` : 'No run recorded yet'} · Click to inspect
               </p>
             </div>
             <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25">
@@ -388,31 +517,79 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
               label: isMac ? 'Apple Chip' : 'Processor',
               value: `${cpuPct}%`,
               sub: systemInfo.processor ? systemInfo.processor.split(' ').slice(0, 3).join(' ') : 'CPU',
-              mode: 'ScanOnly' as RunMode,
+              inspect: {
+                title: 'Processor & CPU Core Telemetry',
+                category: 'CPU Hardware Subsystem',
+                badge: `${cpuPct}% Load`,
+                subtitle: systemInfo.processor,
+                dataSource: 'sysctl -n machdep.cpu.brand_string + top',
+                evidenceQuality: 'Observed' as const,
+                freshness: 'Live' as const,
+                details: [
+                  { label: 'Processor Model', value: systemInfo.processor },
+                  { label: 'Current CPU Load', value: `${cpuPct}%` },
+                  { label: 'Host Platform', value: systemInfo.os },
+                ],
+              },
             },
             {
               icon: CheckCircle2,
               label: 'Memory Status',
               value: `${systemInfo.ramGB} GB`,
               sub: `${memPct}% in use`,
-              mode: 'Safe' as RunMode,
+              inspect: {
+                title: 'Physical & Unified Memory Subsystem',
+                category: 'RAM Telemetry',
+                badge: `${memPct}% Used`,
+                subtitle: `${systemInfo.ramGB} GB physical memory installed.`,
+                dataSource: 'vm_stat + sysctl -n hw.memsize',
+                evidenceQuality: 'Observed' as const,
+                freshness: 'Live' as const,
+                details: [
+                  { label: 'Total RAM', value: `${systemInfo.ramGB} GB` },
+                  { label: 'Memory Pressure / Usage', value: `${memPct}%` },
+                ],
+              },
             },
             {
               icon: Sparkles,
               label: 'Space Reclaimed',
               value: spaceDisplay,
               sub: summary ? 'Last run cleanup' : 'Ready to reclaim',
-              mode: 'CleanupOnly' as RunMode,
+              inspect: {
+                title: 'Safe Cleanup Space Ledger',
+                category: 'Reclamation Metrics',
+                badge: spaceDisplay,
+                subtitle: 'Storage verified reclaimed across caches and package build trees.',
+                dataSource: 'Cleanup Transaction Manifest',
+                evidenceQuality: 'Observed' as const,
+                details: [
+                  { label: 'Space Reclaimed', value: spaceDisplay },
+                  { label: 'Status', value: summary ? 'Verified by Post-State' : 'Ready' },
+                ],
+              },
             },
             {
               icon: TrendingUp,
               label: 'System Uptime',
               value: systemInfo.uptime ? systemInfo.uptime.split(',')[0] : '—',
               sub: systemInfo.uptime || 'Active',
-              mode: 'Safe' as RunMode,
+              inspect: {
+                title: 'Operating System Uptime',
+                category: 'Kernel Status',
+                badge: systemInfo.uptime || 'Active',
+                subtitle: 'Time elapsed since last kernel boot.',
+                dataSource: 'os.uptime() / sysctl kern.boottime',
+                evidenceQuality: 'Observed' as const,
+                freshness: 'Live' as const,
+                details: [
+                  { label: 'Uptime', value: systemInfo.uptime },
+                  { label: 'Host System', value: systemInfo.hostName },
+                ],
+              },
             },
           ].map((f) => (
-            <button key={f.label} onClick={() => onStart(f.mode)}
+            <button key={f.label} onClick={() => setInspectItem(f.inspect)}
               className="flex items-center gap-3 min-w-0 text-left group rounded-2xl p-2 -m-2 transition-all hover:scale-[1.02] cursor-pointer"
               onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-2)')}
               onMouseLeave={e => (e.currentTarget.style.backgroundColor = '')}

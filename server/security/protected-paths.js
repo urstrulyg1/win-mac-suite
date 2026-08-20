@@ -252,12 +252,13 @@ export function classifyPathDetailed(targetPath) {
        * itself a link we classify by its DECLARED TARGET, because that is what a
        * follow-through delete would actually destroy once the target exists.
        */
-      if (firstSymlink && firstSymlink.component === resolvedPath) {
+      const leafEntry = chain.find((c) => c.component === resolvedPath);
+      if (leafEntry && leafEntry.isSymlink) {
         danglingSymlink = true;
         exists = true; // the link object itself exists
-        realPath = firstSymlink.target;
+        realPath = leafEntry.target;
         reasons.push(
-          `Path is a symlink to "${firstSymlink.target}", which does not currently exist. Classified by its declared target, since that is what would be affected if the target were created.`
+          `Path is a symlink to "${leafEntry.target}", which does not currently exist. Classified by its declared target, since that is what would be affected if the target were created.`
         );
       } else {
         reasons.push('Path does not currently exist; classification is based on its lexical location and nearest existing ancestor.');

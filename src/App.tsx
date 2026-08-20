@@ -16,6 +16,7 @@ import SystemEventsTimeline from './components/SystemEventsTimeline';
 import CrashHangDoctor from './components/CrashHangDoctor';
 import HardwarePeripheralsHub from './components/HardwarePeripheralsHub';
 import AppleServicesHub from './components/AppleServicesHub';
+import SystemGraphicalView from './components/SystemGraphicalView';
 import UnsupportedPlatformView from './components/UnsupportedPlatformView';
 import CausalReasoningHub from './components/intelligence/CausalReasoningHub';
 import IncidentIntelligenceHub from './components/intelligence/IncidentIntelligenceHub';
@@ -315,7 +316,15 @@ function MainApp() {
       />
 
       <AnimatePresence mode="wait">
-        {activeTab === 'whynot' ? (
+        {activeTab === 'graph' ? (
+          <motion.div
+            key="graph-tab"
+            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.2 }} className="w-full"
+          >
+            <SystemGraphicalView onNavigateTab={handleNavTab} onStartAction={handleStartWithMode} />
+          </motion.div>
+        ) : activeTab === 'whynot' ? (
           <motion.div
             key="whynot-tab"
             initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
@@ -435,7 +444,7 @@ function MainApp() {
           >
             <StorageHub systemInfo={realSysInfo} onClean={handleStartWithMode} />
           </motion.div>
-        ) : phase === 'landing' && activeTab === 'overview' ? (
+        ) : activeTab === 'overview' && !isRunning ? (
           <motion.div
             key="landing-page"
             initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}
@@ -446,6 +455,7 @@ function MainApp() {
               systemInfo={realSysInfo}
               summary={summary}
               backendOnline={backendOnline}
+              onNavigateTab={handleNavTab}
             />
           </motion.div>
         ) : phase === 'reports' || activeTab === 'reports' ? (

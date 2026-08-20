@@ -90,26 +90,26 @@ export default function ReportsPage({ summary, onStartNew }: Props) {
   </style>
 </head>
 <body>
-  <h1>${config.productName} System Intelligence Report</h1>
-  <p>Generated at: ${new Date().toLocaleString()} · Host: ${data.hostname || 'Local Computer'} (${data.os})</p>
+  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
+    <img src="/logo.png" alt="Logo" style="width: 64px; height: 64px; border-radius: 16px;" onerror="this.style.display='none'"/>
+    <div>
+      <h1 style="margin: 0;">${config.productName} System Intelligence Report</h1>
+      <p style="margin: 4px 0 0 0; color: #94a3b8;">Generated at: ${new Date().toLocaleString()} · Host: ${data.hostname || 'Local Computer'} (${data.os || 'macOS'})</p>
+    </div>
+  </div>
   
   <div class="card">
     <h2>Hardware & Architecture</h2>
     <div class="grid">
-      <div class="metric"><div class="lbl">Processor</div><div class="val">${data.hardware?.chip || 'Apple Silicon'}</div></div>
-      <div class="metric"><div class="lbl">Memory</div><div class="val">${data.hardware?.ramGB || 16} GB Unified</div></div>
-      <div class="metric"><div class="lbl">Security Score</div><div class="val">${data.securityPosture?.securityScore || 96}%</div></div>
+      <div class="metric"><div class="lbl">Processor</div><div class="val">${data.hardware?.chip || 'Observed CPU'}</div></div>
+      <div class="metric"><div class="lbl">Memory</div><div class="val">${data.hardware?.ramGB ? `${data.hardware.ramGB} GB Unified` : 'Measured RAM'}</div></div>
+      <div class="metric"><div class="lbl">Free Storage</div><div class="val">${data.storage?.freeGB ? `${data.storage.freeGB} GB` : 'Observed APFS'}</div></div>
+      <div class="metric"><div class="lbl">Uptime</div><div class="val">${data.uptime || 'Active'}</div></div>
     </div>
   </div>
 
   <div class="card">
-    <h2>Storage Intelligence Breakdown</h2>
-    <p>Total System Data: <strong>${data.storageIntelligence?.totalSystemDataGB || '0'} GB</strong></p>
-    <pre>${JSON.stringify(data.storageIntelligence?.categories || [], null, 2)}</pre>
-  </div>
-
-  <div class="card">
-    <h2>Full Telemetry Snapshot</h2>
+    <h2>System Telemetry Diagnostics</h2>
     <pre>${JSON.stringify(data, null, 2)}</pre>
   </div>
 </body>
@@ -135,22 +135,29 @@ export default function ReportsPage({ summary, onStartNew }: Props) {
   return (
     <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-2 mb-2">
-            <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25">
-              <FileText size={12} /> Diagnostic Reports &amp; Transaction Ledger
-            </span>
-            <span className="pill" style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-3)', borderColor: 'var(--color-line)' }}>
-              Undo Manifest &amp; Standalone HTML Export Active
-            </span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+        <div className="flex items-start sm:items-center gap-4">
+          <img
+            src="/logo.png"
+            alt="Win/Mac Suite"
+            className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover shadow-xl border border-white/30 shrink-0 hover:scale-105 transition-transform"
+          />
+          <div>
+            <div className="inline-flex items-center gap-2 mb-1.5">
+              <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25 text-xs">
+                <FileText size={12} /> Diagnostic Reports &amp; Transaction Ledger
+              </span>
+              <span className="pill text-xs" style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-3)', borderColor: 'var(--color-line)' }}>
+                Undo Manifest &amp; Standalone HTML Export Active
+              </span>
+            </div>
+            <h1 className="text-hero font-extrabold tracking-tight" style={{ color: 'var(--color-ink)' }}>
+              Reports &amp; Safe Undo Center
+            </h1>
+            <p className="mt-0.5 text-[14px]" style={{ color: 'var(--color-ink-3)' }}>
+              Export comprehensive diagnostic reports in standalone HTML / JSON and review cleanup transaction manifests with 1-click Undo.
+            </p>
           </div>
-          <h1 className="text-hero font-extrabold tracking-tight" style={{ color: 'var(--color-ink)' }}>
-            Reports &amp; Safe Undo Center
-          </h1>
-          <p className="mt-1 text-[14px]" style={{ color: 'var(--color-ink-3)' }}>
-            Export comprehensive diagnostic reports in standalone HTML / JSON and review cleanup transaction manifests with 1-click Undo.
-          </p>
         </div>
 
         <div className="flex items-center gap-2">

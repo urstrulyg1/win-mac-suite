@@ -10,13 +10,14 @@ export interface FunnelDatum {
 interface Props {
   data: FunnelDatum[];
   height?: number;
+  onSelectBar?: (d: FunnelDatum) => void;
 }
 
 /**
  * A "funnel" bar chart: descending bars with a blue gradient and diagonal
  * hatch stripes, plus an interactive tooltip — mirrors the Payments card.
  */
-export default function FunnelBars({ data, height = 200 }: Props) {
+export default function FunnelBars({ data, height = 200, onSelectBar }: Props) {
   const [hover, setHover] = useState<number | null>(null);
   const max = Math.max(...data.map((d) => d.value));
   const barW = 100 / data.length;
@@ -39,9 +40,13 @@ export default function FunnelBars({ data, height = 200 }: Props) {
           return (
             <div
               key={d.label}
-              className="relative flex-1 h-full flex flex-col items-center justify-end"
+              className="relative flex-1 h-full flex flex-col items-center justify-end cursor-pointer group"
               onMouseEnter={() => setHover(i)}
               onMouseLeave={() => setHover(null)}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onSelectBar) onSelectBar(d);
+              }}
             >
               {/* Tooltip */}
               {active && (
@@ -53,7 +58,7 @@ export default function FunnelBars({ data, height = 200 }: Props) {
                 >
                   <span className="font-bold" style={{ color: 'var(--color-ink)' }}>{d.display}</span>{' '}
                   <span style={{ color: 'var(--color-ink-4)' }}>·</span>{' '}
-                  <span style={{ color: 'var(--color-ink-3)' }}>{d.label}</span>
+                  <span style={{ color: 'var(--color-ink-3)' }}>{d.label} (Click to inspect)</span>
                 </motion.div>
               )}
 
@@ -66,7 +71,7 @@ export default function FunnelBars({ data, height = 200 }: Props) {
                 initial={{ height: 0 }}
                 animate={{ height: `${h}%` }}
                 transition={{ duration: 0.9, delay: i * 0.08, ease: [0.16, 1, 0.3, 1] }}
-                className="w-full rounded-t-md relative overflow-hidden"
+                className="w-full rounded-t-md relative overflow-hidden group-hover:brightness-110 transition-all"
                 style={{
                   background:
                     'linear-gradient(180deg, #3b82f6 0%, #2563eb 55%, #1d4ed8 100%)',

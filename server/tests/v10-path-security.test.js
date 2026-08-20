@@ -117,7 +117,7 @@ export async function runPathSecurityTests() {
     // /System is absent on Linux, so this link cannot be stat'd. Treating that as
     // "path does not exist, therefore harmless" was a real bug found by this test.
     const link = path.join(SANDBOX, 'dangling-link');
-    fs.symlinkSync('/System/Library/CoreServices', link);
+    fs.symlinkSync('/System/Library/CoreServices/NonExistentProtectedDirectory', link);
     const d = classifyPathDetailed(link);
     assert.strictEqual(d.danglingSymlink, true, 'must be reported as dangling, not as absent');
     assert.strictEqual(d.classification, PATH_CLASSIFICATION.SYSTEM_PROTECTED);

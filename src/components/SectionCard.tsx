@@ -23,6 +23,8 @@ const statusCfgLight: Record<
   warning:  { icon: AlertTriangle, color: '#b45309', bg: '#fffbeb', border: '#fde68a', label: 'Warn' },
   error:    { icon: XCircle,       color: '#b91c1c', bg: '#fef2f2', border: '#fecaca', label: 'Error' },
   skipped:  { icon: SkipForward,   color: '#64748b', bg: '#f8fafc', border: '#e2e8f0', label: 'Skip' },
+  unavailable: { icon: XCircle,    color: '#94a3b8', bg: '#f1f5f9', border: '#e2e8f0', label: 'Unavailable' },
+  'permission-required': { icon: AlertTriangle, color: '#d97706', bg: '#fffbeb', border: '#fde68a', label: 'Permission Required' },
 };
 
 const statusCfgDark: Record<
@@ -35,6 +37,8 @@ const statusCfgDark: Record<
   warning:  { icon: AlertTriangle, color: '#fbbf24', bg: 'rgba(245,158,11,0.15)',  border: 'rgba(245,158,11,0.30)',  label: 'Warn' },
   error:    { icon: XCircle,       color: '#f87171', bg: 'rgba(239,68,68,0.15)',   border: 'rgba(239,68,68,0.30)',   label: 'Error' },
   skipped:  { icon: SkipForward,   color: '#64748b', bg: 'rgba(100,116,139,0.10)', border: 'rgba(100,116,139,0.20)', label: 'Skip' },
+  unavailable: { icon: XCircle,    color: '#64748b', bg: 'rgba(100,116,139,0.10)', border: 'rgba(100,116,139,0.20)', label: 'Unavailable' },
+  'permission-required': { icon: AlertTriangle, color: '#fbbf24', bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.30)', label: 'Permission' },
 };
 
 const logColorsLight: Record<string, { badge: string; text: string; bg: string }> = {

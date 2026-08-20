@@ -101,16 +101,42 @@ export default function AppleServicesHub() {
       <AnimatePresence mode="wait">
         {subTab === 'update' && (
           <motion.div key="update" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
-            <div className="card p-6 space-y-4 border-l-4 border-l-blue-500">
+            <div
+              onClick={() =>
+                setInspectItem({
+                  title: 'macOS Software Update Health',
+                  category: 'System Software Integrity',
+                  badge: updateData?.updateState || 'Checked',
+                  subtitle: updateData?.diagnosisVerdict || 'System update status probed via macOS softwareupdate CLI.',
+                  dataSource: updateData?.dataSource || '/usr/sbin/softwareupdate -l',
+                  freshness: 'Recently Updated',
+                  evidenceQuality: updateData?.evidenceQuality || 'Observed',
+                  explanation: 'Evaluates compatibility, pending security updates, and required APFS storage headroom for staging.',
+                  statusReason: updateData?.diagnosisVerdict,
+                  details: [
+                    { label: 'Installed Version', value: updateData?.currentVersion || 'macOS' },
+                    { label: 'Latest Compatible / Target', value: updateData?.latestCompatible || 'Up to Date' },
+                    { label: 'Update Available', value: updateData?.hasUpdateAvailable ? 'Yes' : 'No' },
+                    { label: 'Required Staging Disk', value: `${updateData?.requiredFreeDiskGB || 0} GB` },
+                    { label: 'Available Free Disk', value: `${updateData?.availableFreeDiskGB || 0} GB` },
+                    { label: 'Staging Headroom', value: updateData?.hasSufficientSpace ? 'Sufficient ✓' : 'Constrained' },
+                  ],
+                  command: '/usr/sbin/softwareupdate -l',
+                  output: updateData?.updateOutput,
+                  rawTelemetry: updateData,
+                })
+              }
+              className="card card-hover p-6 space-y-4 border-l-4 border-l-blue-500 cursor-pointer transition-all hover:scale-[1.005]"
+            >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    macOS UPDATE &amp; UPGRADE HEALTH
+                    macOS UPDATE &amp; UPGRADE HEALTH (Click to inspect)
                   </span>
                   <h3 className="text-base font-extrabold" style={{ color: 'var(--color-ink)' }}>
-                    Current: {updateData?.currentVersion || 'macOS 15.3'} → Compatible: {updateData?.latestCompatible || 'macOS 15.3.1'}
+                    Current: {updateData?.currentVersion || 'macOS'} → Target: {updateData?.latestCompatible || 'Up to Date'}
                   </h3>
-                  <p className="text-xs text-slate-300 mt-1">{updateData?.diagnosisVerdict}</p>
+                  <p className="text-xs text-slate-300 mt-1">{updateData?.diagnosisVerdict || 'Software update probe complete.'}</p>
                 </div>
                 <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25 text-xs font-bold shrink-0">
                   {updateData?.updateState || 'Ready'}
@@ -119,19 +145,84 @@ export default function AppleServicesHub() {
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="card p-4 text-center space-y-1">
+              <div
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Required Update Staging Space',
+                    category: 'Storage Capacity',
+                    badge: `${updateData?.requiredFreeDiskGB ?? 0} GB`,
+                    subtitle: 'Minimum free storage required for macOS installer package expansion and APFS snapshot delta.',
+                    dataSource: 'Apple Software Update Requirements Matrix',
+                    evidenceQuality: 'Observed',
+                    details: [
+                      { label: 'Required Disk Space', value: `${updateData?.requiredFreeDiskGB ?? 0} GB` },
+                      { label: 'Available Free Space', value: `${updateData?.availableFreeDiskGB ?? 0} GB` },
+                    ],
+                  })
+                }
+                className="card card-hover p-4 text-center space-y-1 cursor-pointer"
+              >
                 <span className="text-[10px] uppercase font-bold text-slate-400">Required Space</span>
-                <p className="text-lg font-mono font-extrabold text-blue-400">{updateData?.requiredFreeDiskGB || 14.2} GB</p>
+                <p className="text-lg font-mono font-extrabold text-blue-400">{updateData?.requiredFreeDiskGB ?? 0} GB</p>
               </div>
-              <div className="card p-4 text-center space-y-1">
+
+              <div
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Available Free Disk Space',
+                    category: 'Storage Capacity',
+                    badge: `${updateData?.availableFreeDiskGB ?? 0} GB`,
+                    subtitle: 'Current unallocated APFS volume storage capacity on the system data container.',
+                    dataSource: 'systeminformation.fsSize()',
+                    evidenceQuality: 'Observed',
+                    details: [
+                      { label: 'Available Free Space', value: `${updateData?.availableFreeDiskGB ?? 0} GB` },
+                      { label: 'Staging Status', value: updateData?.hasSufficientSpace ? 'Sufficient' : 'Low Disk Space' },
+                    ],
+                  })
+                }
+                className="card card-hover p-4 text-center space-y-1 cursor-pointer"
+              >
                 <span className="text-[10px] uppercase font-bold text-slate-400">Available Free Space</span>
-                <p className="text-lg font-mono font-extrabold text-emerald-400">{updateData?.availableFreeDiskGB || 18.4} GB</p>
+                <p className="text-lg font-mono font-extrabold text-emerald-400">{updateData?.availableFreeDiskGB ?? 0} GB</p>
               </div>
-              <div className="card p-4 text-center space-y-1">
+
+              <div
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Pending System Restart',
+                    category: 'Kernel Staging',
+                    badge: updateData?.pendingRestart ? 'Restart Pending' : 'None',
+                    subtitle: 'Detects if a previously staged update payload requires a system reboot to apply.',
+                    dataSource: '/var/db/.AppleSetupDone + macOS update state',
+                    evidenceQuality: 'Observed',
+                    details: [
+                      { label: 'Reboot Required', value: updateData?.pendingRestart ? 'Yes' : 'No' },
+                    ],
+                  })
+                }
+                className="card card-hover p-4 text-center space-y-1 cursor-pointer"
+              >
                 <span className="text-[10px] uppercase font-bold text-slate-400">Pending Restart</span>
                 <p className="text-lg font-mono font-extrabold text-slate-300">{updateData?.pendingRestart ? 'Yes' : 'No'}</p>
               </div>
-              <div className="card p-4 text-center space-y-1">
+
+              <div
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Stuck Download Detector',
+                    category: 'Daemon Health',
+                    badge: updateData?.stuckUpdateDetected ? 'Warning' : 'Healthy',
+                    subtitle: 'Verifies whether Software Update transfer daemons are stalled or hung.',
+                    dataSource: 'softwareupdate daemon IPC',
+                    evidenceQuality: 'Observed',
+                    details: [
+                      { label: 'Stuck Download State', value: updateData?.stuckUpdateDetected ? 'Warning Detected' : 'Clean / None ✓' },
+                    ],
+                  })
+                }
+                className="card card-hover p-4 text-center space-y-1 cursor-pointer"
+              >
                 <span className="text-[10px] uppercase font-bold text-slate-400">Stuck Download</span>
                 <p className="text-lg font-mono font-extrabold text-emerald-400">{updateData?.stuckUpdateDetected ? 'Warning' : 'None ✓'}</p>
               </div>
@@ -141,30 +232,86 @@ export default function AppleServicesHub() {
 
         {subTab === 'timemachine' && (
           <motion.div key="timemachine" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-6">
-            <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
+            <div
+              onClick={() =>
+                setInspectItem({
+                  title: 'Time Machine Backup Doctor',
+                  category: 'Disaster Recovery',
+                  badge: tmData?.status || 'Probed',
+                  subtitle: tmData?.verdict || 'Time Machine configuration and destination status.',
+                  dataSource: tmData?.dataSource || '/usr/bin/tmutil destinationinfo',
+                  evidenceQuality: tmData?.evidenceQuality || 'Observed',
+                  details: [
+                    { label: 'Configured Destination', value: tmData?.backupDestination || 'None' },
+                    { label: 'Last Successful Snapshot', value: tmData?.lastSuccessfulBackup || 'None' },
+                    { label: 'Operational Status', value: tmData?.status || 'Probed' },
+                  ],
+                  command: '/usr/bin/tmutil destinationinfo',
+                  rawTelemetry: tmData,
+                })
+              }
+              className="flex items-center justify-between border-b pb-3 cursor-pointer hover:opacity-90"
+              style={{ borderColor: 'var(--color-line)' }}
+            >
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
                   Time Machine Backup Health
                 </h3>
-                <p className="text-xs text-slate-400">{tmData?.verdict || 'Backups healthy and synchronized.'}</p>
+                <p className="text-xs text-slate-400">{tmData?.verdict || 'Inspected via tmutil.'}</p>
               </div>
               <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-xs font-bold">
-                {tmData?.status || 'Healthy'}
+                {tmData?.status || 'Probed'}
               </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-              <div className="p-4 rounded-xl border space-y-2" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+              <div
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Backup Destination Target',
+                    category: 'Time Machine Destination',
+                    badge: tmData?.configured ? 'Active' : 'Unconfigured',
+                    subtitle: 'Local APFS volume or network SMB share assigned for automated backups.',
+                    dataSource: '/usr/bin/tmutil destinationinfo',
+                    evidenceQuality: 'Observed',
+                    details: [
+                      { label: 'Target Name', value: tmData?.backupDestination || 'None' },
+                      { label: 'Latest Backup Path', value: tmData?.lastSuccessfulBackup || 'None' },
+                    ],
+                  })
+                }
+                className="card card-hover p-4 rounded-xl border space-y-2 cursor-pointer"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <p className="font-bold" style={{ color: 'var(--color-ink)' }}>Backup Target</p>
-                <p className="font-mono text-slate-400">{tmData?.backupDestination}</p>
-                <p className="text-slate-300">Last Successful: <strong>{tmData?.lastSuccessfulBackup}</strong></p>
+                <p className="font-mono text-slate-400">{tmData?.backupDestination || 'No destination configured'}</p>
+                <p className="text-slate-300">Last Successful: <strong>{tmData?.lastSuccessfulBackup || 'None'}</strong></p>
               </div>
-              <div className="p-4 rounded-xl border space-y-2" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
-                <p className="font-bold" style={{ color: 'var(--color-ink)' }}>Excluded Paths</p>
+
+              <div
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Time Machine Excluded Paths',
+                    category: 'Backup Boundaries',
+                    badge: 'Managed',
+                    subtitle: 'Standard caches and high-churn temporary directories excluded from backups to save storage.',
+                    dataSource: 'macOS tmutil default exclusion policy',
+                    evidenceQuality: 'Inferred',
+                    details: [
+                      { label: 'User Caches', value: '~/Library/Caches' },
+                      { label: 'Build Artifacts', value: '~/Library/Developer/Xcode/DerivedData' },
+                      { label: 'Package Caches', value: '~/.npm, ~/.cargo' },
+                    ],
+                  })
+                }
+                className="card card-hover p-4 rounded-xl border space-y-2 cursor-pointer"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
+                <p className="font-bold" style={{ color: 'var(--color-ink)' }}>Standard Exclusion Bounds</p>
                 <div className="space-y-1">
-                  {(tmData?.excludedPaths || []).map((p: string, idx: number) => (
-                    <p key={idx} className="font-mono text-[11px] text-slate-400 truncate">• {p}</p>
-                  ))}
+                  <p className="font-mono text-[11px] text-slate-400 truncate">• ~/Library/Caches</p>
+                  <p className="font-mono text-[11px] text-slate-400 truncate">• ~/Library/Developer/Xcode/DerivedData</p>
+                  <p className="font-mono text-[11px] text-slate-400 truncate">• ~/.npm &amp; ~/.cargo</p>
                 </div>
               </div>
             </div>
@@ -173,34 +320,99 @@ export default function AppleServicesHub() {
 
         {subTab === 'icloud' && (
           <motion.div key="icloud" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-6">
-            <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
+            <div
+              onClick={() =>
+                setInspectItem({
+                  title: 'iCloud & CloudDocs Doctor',
+                  category: 'Cloud Storage & Sync',
+                  badge: icloudData?.accountConfigured ? 'Configured' : 'Inactive',
+                  subtitle: icloudData?.verdict || 'iCloud local cache repository inspection.',
+                  dataSource: icloudData?.dataSource || '~/Library/Mobile Documents',
+                  evidenceQuality: icloudData?.evidenceQuality || 'Observed',
+                  details: [
+                    { label: 'Local CloudDocs Repository', value: icloudData?.accountConfigured ? 'Present on disk' : 'Not Found' },
+                    { label: 'iCloud Drive Sync', value: icloudData?.icloudDriveSync || 'Inactive' },
+                    { label: 'Cloud Daemon (bird / cloudd)', value: icloudData?.cloudDaemonActive ? 'Active' : 'Idle' },
+                  ],
+                  rawTelemetry: icloudData,
+                })
+              }
+              className="flex items-center justify-between border-b pb-3 cursor-pointer hover:opacity-90"
+              style={{ borderColor: 'var(--color-line)' }}
+            >
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
                   iCloud &amp; Apple Account Sync Status
                 </h3>
-                <p className="text-xs text-slate-400">{icloudData?.verdict || 'Zero stalled synchronization queues.'}</p>
+                <p className="text-xs text-slate-400">{icloudData?.verdict || 'Probed via local Mobile Documents state.'}</p>
               </div>
               <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-xs font-bold">
-                Synchronized
+                {icloudData?.accountConfigured ? 'Configured' : 'Inactive'}
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="p-3.5 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div
+                onClick={() =>
+                  setInspectItem({
+                    title: 'iCloud Drive Local Sync',
+                    category: 'Filesystem Sync',
+                    badge: icloudData?.icloudDriveSync || 'Probed',
+                    subtitle: 'Status of ~/Library/Mobile Documents/com~apple~CloudDocs repository.',
+                    dataSource: 'fs.existsSync(CloudDocs)',
+                    evidenceQuality: 'Observed',
+                    details: [
+                      { label: 'Sync State', value: icloudData?.icloudDriveSync || 'Inactive' },
+                    ],
+                  })
+                }
+                className="card card-hover p-3.5 rounded-xl border text-center cursor-pointer"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <span className="text-[10px] uppercase font-bold text-slate-400">iCloud Drive</span>
-                <p className="text-xs font-bold text-emerald-400 mt-1">{icloudData?.icloudDriveSync || 'Synchronized'}</p>
+                <p className="text-xs font-bold text-emerald-400 mt-1">{icloudData?.icloudDriveSync || 'Inactive'}</p>
               </div>
-              <div className="p-3.5 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+
+              <div
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Sync Daemons Status',
+                    category: 'Process Inspection',
+                    badge: icloudData?.cloudDaemonActive ? 'Active' : 'Idle',
+                    subtitle: 'Detects background synchronization worker daemons bird and cloudd.',
+                    dataSource: 'ps -axco command',
+                    evidenceQuality: 'Observed',
+                    details: [
+                      { label: 'Daemons Running', value: icloudData?.cloudDaemonActive ? 'Active' : 'Idle' },
+                    ],
+                  })
+                }
+                className="card card-hover p-3.5 rounded-xl border text-center cursor-pointer"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
+                <span className="text-[10px] uppercase font-bold text-slate-400">Cloud Daemons</span>
+                <p className="text-xs font-bold text-emerald-400 mt-1">{icloudData?.cloudDaemonActive ? 'Active' : 'Idle'}</p>
+              </div>
+
+              <div
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Desktop & Documents Sync',
+                    category: 'Apple Account Sync',
+                    badge: icloudData?.desktopDocumentsSync || 'Probed',
+                    subtitle: 'Detects whether Desktop and Documents are mirrored to iCloud.',
+                    dataSource: 'iCloud Drive Configuration',
+                    evidenceQuality: 'Observed',
+                    details: [
+                      { label: 'Desktop Sync', value: icloudData?.desktopDocumentsSync || 'Inactive' },
+                    ],
+                  })
+                }
+                className="card card-hover p-3.5 rounded-xl border text-center cursor-pointer"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <span className="text-[10px] uppercase font-bold text-slate-400">Desktop &amp; Docs</span>
-                <p className="text-xs font-bold text-emerald-400 mt-1">{icloudData?.desktopDocumentsSync || 'Active'}</p>
-              </div>
-              <div className="p-3.5 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
-                <span className="text-[10px] uppercase font-bold text-slate-400">Photos Sync</span>
-                <p className="text-xs font-bold text-emerald-400 mt-1">{icloudData?.photosSync || 'Up to Date'}</p>
-              </div>
-              <div className="p-3.5 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
-                <span className="text-[10px] uppercase font-bold text-slate-400">Pending Sync</span>
-                <p className="text-xs font-mono font-bold text-blue-400 mt-1">{icloudData?.pendingUploadsCount || 0} files</p>
+                <p className="text-xs font-bold text-emerald-400 mt-1">{icloudData?.desktopDocumentsSync || 'Inactive'}</p>
               </div>
             </div>
           </motion.div>
@@ -208,14 +420,39 @@ export default function AppleServicesHub() {
 
         {subTab === 'services' && (
           <motion.div key="services" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-4">
-            <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
-              Continuity &amp; Nearby Device Ecosystem
-            </h3>
+            <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
+              <div>
+                <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
+                  Continuity &amp; Nearby Device Ecosystem
+                </h3>
+                <p className="text-xs text-slate-400">Probed via live macOS daemon states (sharingd, rapportd, bluetoothd).</p>
+              </div>
+              <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25 text-xs font-bold">
+                {servicesData?.services?.length || 0} Subsystems
+              </span>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {(servicesData?.services || []).map((srv: any, idx: number) => (
                 <div
                   key={idx}
-                  className="p-4 rounded-xl border space-y-1"
+                  onClick={() =>
+                    setInspectItem({
+                      title: srv.name,
+                      category: 'Apple Continuity Service',
+                      badge: srv.status,
+                      subtitle: srv.detail,
+                      dataSource: `ps -axco command (${srv.daemon || 'daemon'})`,
+                      evidenceQuality: 'Observed',
+                      details: [
+                        { label: 'Service Name', value: srv.name },
+                        { label: 'Associated Daemon', value: srv.daemon || 'N/A', isCode: true },
+                        { label: 'Runtime Status', value: srv.status },
+                        { label: 'Service Details', value: srv.detail },
+                      ],
+                    })
+                  }
+                  className="card card-hover p-4 rounded-xl border space-y-1 cursor-pointer"
                   style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
                 >
                   <div className="flex items-center justify-between">

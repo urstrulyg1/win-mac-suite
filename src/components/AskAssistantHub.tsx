@@ -42,20 +42,19 @@ export default function AskAssistantHub({ onNavigateTab }: Props) {
         const data = await res.json();
         setResponse(data);
       }
-    } catch {
+    } catch (err: any) {
       setResponse({
-        topic: 'System Intelligence Diagnostic',
-        diagnosis: `Telemetry correlation complete for: "${userQuery}".`,
+        topic: 'Telemetry Daemon Unreachable',
+        diagnosis: `Unable to process query "${userQuery}". The local telemetry daemon is offline or did not respond.`,
         evidence: [
-          'Unified Memory Pressure measured at 68% with 2.4 GB allocated to container daemons.',
-          'Local APFS snapshot deltas and DerivedData caches represent 24.2 GB reclaimable space.',
-          'CoreAudio and network interfaces are running nominal without packet loss.',
+          'Live telemetry probe failed: POST http://127.0.0.1:3131/api/actions/ask-assistant',
+          'Please ensure the backend daemon (node server.js) is running on port 3131.',
         ],
-        confidence: 'High (94%)',
-        confidenceScore: 94,
+        confidence: 'Unavailable',
+        confidenceScore: 0,
         suggestedAction: {
-          label: 'Launch Safe Cleanup Engine',
-          tabTarget: 'storage',
+          label: 'Open Overview & Reconnect',
+          tabTarget: 'overview',
         },
       });
     } finally {
@@ -66,7 +65,14 @@ export default function AskAssistantHub({ onNavigateTab }: Props) {
   return (
     <div className="relative z-10 max-w-[1200px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
       {/* Header */}
-      <div className="text-center max-w-2xl mx-auto space-y-2">
+      <div className="text-center max-w-2xl mx-auto space-y-3">
+        <div className="flex justify-center">
+          <img
+            src="/logo.png"
+            alt="Win/Mac Suite"
+            className="w-14 h-14 rounded-2xl object-cover shadow-xl border border-white/30 hover:scale-105 transition-transform"
+          />
+        </div>
         <div className="inline-flex items-center gap-2">
           <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25">
             <MessageSquareCode size={12} /> Structured Diagnostic Intelligence

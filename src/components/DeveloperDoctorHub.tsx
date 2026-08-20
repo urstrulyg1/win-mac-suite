@@ -241,26 +241,93 @@ export default function DeveloperDoctorHub() {
                 className="btn btn-primary text-xs flex items-center gap-2 cursor-pointer"
               >
                 <Trash2 size={13} />
-                <span>{cleaningAction === 'docker' ? 'Pruning...' : 'Prune Unused Images & Build Cache (~14.6 GB)'}</span>
+                <span>{cleaningAction === 'docker' ? 'Pruning...' : 'Prune Unused Images & Build Cache'}</span>
               </button>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="p-4 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+              <div
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Docker Image Footprint',
+                    category: 'Container Storage',
+                    badge: dockerData?.imagesSize || '0 MB',
+                    subtitle: 'Local cached OCI/Docker container layer images.',
+                    dataSource: 'docker system df / getMacDockerStorage()',
+                    evidenceQuality: 'Observed',
+                    details: [
+                      { label: 'Image Storage Used', value: dockerData?.imagesSize || '0 MB' },
+                    ],
+                  })
+                }
+                className="card card-hover p-4 rounded-xl border text-center cursor-pointer"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <span className="text-[10px] uppercase font-bold text-slate-400">Images</span>
-                <p className="text-lg font-extrabold font-mono text-blue-500 mt-1">{dockerData?.imagesSize || '12.4 GB'}</p>
+                <p className="text-lg font-extrabold font-mono text-blue-500 mt-1">{dockerData?.imagesSize || '0 MB'}</p>
               </div>
-              <div className="p-4 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+
+              <div
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Docker Containers Footprint',
+                    category: 'Container Storage',
+                    badge: dockerData?.containersSize || '0 MB',
+                    subtitle: 'Disk space occupied by writable container layers.',
+                    dataSource: 'docker system df',
+                    evidenceQuality: 'Observed',
+                    details: [
+                      { label: 'Container Storage', value: dockerData?.containersSize || '0 MB' },
+                    ],
+                  })
+                }
+                className="card card-hover p-4 rounded-xl border text-center cursor-pointer"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <span className="text-[10px] uppercase font-bold text-slate-400">Containers</span>
-                <p className="text-lg font-extrabold font-mono text-blue-400 mt-1">{dockerData?.containersSize || '1.8 GB'}</p>
+                <p className="text-lg font-extrabold font-mono text-blue-400 mt-1">{dockerData?.containersSize || '0 MB'}</p>
               </div>
-              <div className="p-4 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+
+              <div
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Docker Local Volumes',
+                    category: 'Persistent Storage',
+                    badge: dockerData?.volumesSize || '0 MB',
+                    subtitle: 'Persistent database and state volumes mounted into containers.',
+                    dataSource: 'docker volume ls',
+                    evidenceQuality: 'Observed',
+                    details: [
+                      { label: 'Volume Space', value: dockerData?.volumesSize || '0 MB' },
+                    ],
+                  })
+                }
+                className="card card-hover p-4 rounded-xl border text-center cursor-pointer"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <span className="text-[10px] uppercase font-bold text-slate-400">Local Volumes</span>
-                <p className="text-lg font-extrabold font-mono text-purple-400 mt-1">{dockerData?.volumesSize || '5.2 GB'}</p>
+                <p className="text-lg font-extrabold font-mono text-purple-400 mt-1">{dockerData?.volumesSize || '0 MB'}</p>
               </div>
-              <div className="p-4 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+
+              <div
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Docker BuildKit Cache',
+                    category: 'Build Cache',
+                    badge: dockerData?.buildCacheSize || '0 MB',
+                    subtitle: 'Intermediate multistage build artifacts generated during docker build.',
+                    dataSource: 'docker builder du',
+                    evidenceQuality: 'Observed',
+                    details: [
+                      { label: 'Build Cache Space', value: dockerData?.buildCacheSize || '0 MB' },
+                    ],
+                  })
+                }
+                className="card card-hover p-4 rounded-xl border text-center cursor-pointer"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <span className="text-[10px] uppercase font-bold text-slate-400">Build Cache</span>
-                <p className="text-lg font-extrabold font-mono text-emerald-500 mt-1">{dockerData?.buildCacheSize || '8.7 GB'}</p>
+                <p className="text-lg font-extrabold font-mono text-emerald-500 mt-1">{dockerData?.buildCacheSize || '0 MB'}</p>
               </div>
             </div>
           </motion.div>
@@ -271,7 +338,7 @@ export default function DeveloperDoctorHub() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4" style={{ borderColor: 'var(--color-line)' }}>
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
-                  Xcode Doctor &amp; Build Artifacts ({xcodeData?.totalGB || '19.4'} GB Total)
+                  Xcode Doctor &amp; Build Artifacts ({xcodeData?.totalGB || '0'} GB Total)
                 </h3>
                 <p className="text-xs text-slate-400">DerivedData, device sandboxes, archives, and symbol caches.</p>
               </div>
@@ -289,7 +356,22 @@ export default function DeveloperDoctorHub() {
               {(xcodeData?.items || []).map((item: any) => (
                 <div
                   key={item.id}
-                  className="p-3.5 rounded-xl border flex items-center justify-between gap-3"
+                  onClick={() =>
+                    setInspectItem({
+                      title: item.name,
+                      category: 'Xcode Build Artifact',
+                      badge: `${Math.round(item.sizeMB)} MB`,
+                      subtitle: item.path,
+                      dataSource: `du -sk '${item.path}'`,
+                      evidenceQuality: 'Observed',
+                      details: [
+                        { label: 'Artifact Name', value: item.name },
+                        { label: 'Directory Path', value: item.path, isCode: true },
+                        { label: 'Disk Footprint', value: `${Math.round(item.sizeMB)} MB` },
+                      ],
+                    })
+                  }
+                  className="card card-hover p-3.5 rounded-xl border flex items-center justify-between gap-3 cursor-pointer"
                   style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
                 >
                   <div>
@@ -317,26 +399,72 @@ export default function DeveloperDoctorHub() {
                 <p className="text-xs text-slate-400">{sshData?.diagnosis || 'SSH environment verified.'}</p>
               </div>
               <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-xs font-bold">
-                SSH Agent Active
+                SSH Inspected
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-              <div className="p-3 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+              <div
+                onClick={() =>
+                  setInspectItem({
+                    title: 'SSH Configuration File',
+                    category: 'Developer Networking',
+                    badge: sshData?.sshConfigFound ? 'Configured' : 'Default',
+                    subtitle: 'Local user ~/.ssh/config host definitions and identity rules.',
+                    dataSource: 'fs.existsSync(~/.ssh/config)',
+                    evidenceQuality: 'Observed',
+                    details: [
+                      { label: 'Config Present', value: sshData?.sshConfigFound ? 'Yes (~/.ssh/config)' : 'No' },
+                    ],
+                  })
+                }
+                className="card card-hover p-3 rounded-xl border text-center cursor-pointer"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <span className="text-[10px] uppercase font-bold text-slate-400">~/.ssh/config</span>
                 <p className="font-mono font-bold text-emerald-400 mt-1">{sshData?.sshConfigFound ? 'Configured ✓' : 'Default'}</p>
               </div>
-              <div className="p-3 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+
+              <div
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Private Keys Inventory',
+                    category: 'Developer Credentials',
+                    badge: `${sshData?.privateKeysCount ?? 0} Keys`,
+                    subtitle: 'Detected private authentication keys stored inside ~/.ssh.',
+                    dataSource: 'fs.readdirSync(~/.ssh)',
+                    evidenceQuality: 'Observed',
+                    details: [
+                      { label: 'Private Keys Count', value: sshData?.privateKeysCount ?? 0 },
+                    ],
+                  })
+                }
+                className="card card-hover p-3 rounded-xl border text-center cursor-pointer"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <span className="text-[10px] uppercase font-bold text-slate-400">Private Keys</span>
-                <p className="font-mono font-bold text-blue-400 mt-1">{sshData?.privateKeysCount || 2} Keys</p>
+                <p className="font-mono font-bold text-blue-400 mt-1">{sshData?.privateKeysCount ?? 0} Keys</p>
               </div>
-              <div className="p-3 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+
+              <div
+                onClick={() =>
+                  setInspectItem({
+                    title: 'Known Hosts File',
+                    category: 'Host Fingerprints',
+                    badge: sshData?.knownHostsFound ? 'Present' : 'None',
+                    subtitle: 'Verified server public key fingerprints stored in ~/.ssh/known_hosts.',
+                    dataSource: 'fs.existsSync(~/.ssh/known_hosts)',
+                    evidenceQuality: 'Observed',
+                    details: [
+                      { label: 'known_hosts Present', value: sshData?.knownHostsFound ? 'Yes' : 'No' },
+                    ],
+                  })
+                }
+                className="card card-hover p-3 rounded-xl border text-center cursor-pointer"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+              >
                 <span className="text-[10px] uppercase font-bold text-slate-400">known_hosts</span>
                 <p className="font-mono font-bold text-emerald-400 mt-1">{sshData?.knownHostsFound ? 'Present ✓' : 'None'}</p>
-              </div>
-              <div className="p-3 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
-                <span className="text-[10px] uppercase font-bold text-slate-400">Git Port 22</span>
-                <p className="font-mono font-bold text-emerald-400 mt-1">Pass ✓</p>
               </div>
             </div>
           </motion.div>
@@ -349,16 +477,31 @@ export default function DeveloperDoctorHub() {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {(vmData?.hypervisorsDetected || []).map((vm: any, idx: number) => (
-                <div key={idx} className="p-4 rounded-xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+                <div
+                  key={idx}
+                  onClick={() =>
+                    setInspectItem({
+                      title: vm.name,
+                      category: 'Virtualization & Hypervisors',
+                      badge: vm.active ? 'Active' : 'Inactive',
+                      subtitle: vm.support || (vm.active ? 'Hypervisor process active' : 'Not currently running'),
+                      dataSource: 'ps -axco command + Hypervisor.framework',
+                      evidenceQuality: 'Observed',
+                      details: [
+                        { label: 'Hypervisor Engine', value: vm.name },
+                        { label: 'Running Status', value: vm.active ? 'Active' : 'Inactive' },
+                      ],
+                    })
+                  }
+                  className="card card-hover p-4 rounded-xl border space-y-1 cursor-pointer"
+                  style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+                >
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold" style={{ color: 'var(--color-ink)' }}>{vm.name}</h4>
                     <span className={`pill text-[10px] ${vm.active ? 'bg-blue-500/10 text-blue-500 border-blue-500/25' : 'bg-slate-500/10 text-slate-400 border-slate-500/25'}`}>
                       {vm.active ? 'Active' : 'Inactive'}
                     </span>
                   </div>
-                  {vm.memoryAssignedGB > 0 && (
-                    <p className="text-[11px] font-mono text-slate-400">Memory: {vm.memoryAssignedGB} GB · Cores: {vm.cpuCores} · Disk: {vm.diskFootprintGB} GB</p>
-                  )}
                 </div>
               ))}
             </div>
@@ -370,15 +513,35 @@ export default function DeveloperDoctorHub() {
             <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
-                  Browser Health &amp; Memory Allocation
+                  Browser Health &amp; Disk Storage
                 </h3>
-                <p className="text-xs text-slate-400">{browserData?.whyIsChromeUsingMemory}</p>
+                <p className="text-xs text-slate-400">{browserData?.verdict || 'Measured via profile & cache sizes on disk.'}</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {(browserData?.browsers || []).map((b: any, idx: number) => (
-                <div key={idx} className="p-4 rounded-xl border space-y-2 text-xs" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+                <div
+                  key={idx}
+                  onClick={() =>
+                    setInspectItem({
+                      title: b.name,
+                      category: 'Browser Profile & Storage',
+                      badge: `${b.totalStorageMB} MB`,
+                      subtitle: 'Measured profile state and network cache size on local disk.',
+                      dataSource: '~/Library/Application Support & ~/Library/Caches via du -sk',
+                      evidenceQuality: 'Observed',
+                      details: [
+                        { label: 'Browser Name', value: b.name },
+                        { label: 'Profile Size', value: `${b.profileSizeMB} MB` },
+                        { label: 'Cache Storage', value: `${b.cacheSizeMB} MB` },
+                        { label: 'Total Disk Used', value: `${b.totalStorageMB} MB` },
+                      ],
+                    })
+                  }
+                  className="card card-hover p-4 rounded-xl border space-y-2 text-xs cursor-pointer"
+                  style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+                >
                   <div className="flex items-center justify-between">
                     <h4 className="font-bold" style={{ color: 'var(--color-ink)' }}>{b.name}</h4>
                     <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25 text-[10px]">{b.status}</span>
@@ -386,7 +549,7 @@ export default function DeveloperDoctorHub() {
                   <div className="grid grid-cols-3 gap-2 text-[10px] font-mono text-slate-400">
                     <div>Profile: <strong className="text-slate-200">{b.profileSizeMB} MB</strong></div>
                     <div>Caches: <strong className="text-slate-200">{b.cacheSizeMB} MB</strong></div>
-                    <div>RAM: <strong className="text-blue-400">{b.memoryFootprintMB} MB</strong></div>
+                    <div>Total: <strong className="text-blue-400">{b.totalStorageMB} MB</strong></div>
                   </div>
                 </div>
               ))}
@@ -401,7 +564,7 @@ export default function DeveloperDoctorHub() {
                 Active Listening Sockets ({listeningPorts.length} Ports)
               </h3>
               <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25 text-[10px]">
-                1-Click Port Killer Active
+                Click row to inspect · 1-Click Port Killer Active
               </span>
             </div>
 
@@ -409,7 +572,31 @@ export default function DeveloperDoctorHub() {
               {listeningPorts.map((p) => (
                 <div
                   key={p.id}
-                  className="flex items-center justify-between py-3 px-2 hover:bg-slate-500/5 transition-colors"
+                  onClick={() =>
+                    setInspectItem({
+                      title: `TCP Port ${p.port} (${p.process})`,
+                      category: 'Active Network Socket',
+                      badge: `PID ${p.pid}`,
+                      subtitle: `Listening on ${p.address}:${p.port} bound to process ${p.process}`,
+                      dataSource: '/usr/bin/lsof -iTCP -sTCP:LISTEN -P -n',
+                      evidenceQuality: 'Observed',
+                      details: [
+                        { label: 'Port Number', value: p.port },
+                        { label: 'Process Name', value: p.process },
+                        { label: 'Process ID (PID)', value: p.pid, isCode: true },
+                        { label: 'Bind Address', value: p.address },
+                        { label: 'Owner User', value: p.user || 'Current User' },
+                      ],
+                      command: `/usr/bin/lsof -i :${p.port}`,
+                      actionButton: {
+                        label: `Terminate Process & Free Port ${p.port}`,
+                        danger: true,
+                        icon: XCircle,
+                        onClick: () => handleKillPort({ stopPropagation: () => {} } as any, p.port),
+                      },
+                    })
+                  }
+                  className="flex items-center justify-between py-3 px-2 hover:bg-slate-500/5 transition-colors cursor-pointer rounded-xl"
                 >
                   <div className="flex items-center gap-3">
                     <span className="px-2 py-1 rounded bg-blue-500/10 text-blue-500 font-mono font-bold text-xs">
@@ -424,7 +611,7 @@ export default function DeveloperDoctorHub() {
                   </div>
                   <button
                     onClick={(e) => handleKillPort(e, p.port)}
-                    className="btn btn-ghost text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 px-2.5 py-1 cursor-pointer flex items-center gap-1"
+                    className="btn btn-ghost text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 px-2.5 py-1 cursor-pointer flex items-center gap-1 shrink-0"
                   >
                     <XCircle size={13} />
                     <span>Kill : {p.port}</span>
