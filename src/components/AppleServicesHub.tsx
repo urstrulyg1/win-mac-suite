@@ -73,24 +73,24 @@ export default function AppleServicesHub() {
       {/* Sub-tabs */}
       <div className="flex items-center gap-1.5 p-1 rounded-2xl border overflow-x-auto" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
         {[
-          { id: 'update' as const, label: 'macOS Update & Upgrade Doctor', icon: Sparkles },
-          { id: 'timemachine' as const, label: 'Time Machine Doctor', icon: Clock },
-          { id: 'icloud' as const, label: 'iCloud & Account Sync Doctor', icon: Cloud },
-          { id: 'services' as const, label: 'Continuity & Apple Services', icon: ShieldCheck },
+          { id: 'update' as const, label: 'macOS Update & Upgrade Doctor', icon: Sparkles,  color: '#a78bfa' },
+          { id: 'timemachine' as const, label: 'Time Machine Doctor',       icon: Clock,     color: '#60a5fa' },
+          { id: 'icloud' as const, label: 'iCloud & Account Sync Doctor',   icon: Cloud,     color: '#22d3ee' },
+          { id: 'services' as const, label: 'Continuity & Apple Services',  icon: ShieldCheck, color: '#34d399' },
         ].map((t) => {
           const isSel = subTab === t.id;
           return (
             <button
               key={t.id}
               onClick={() => setSubTab(t.id)}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
+              className="flex-1 flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
               style={
                 isSel
                   ? { backgroundColor: '#3b82f6', color: '#fff', boxShadow: '0 2px 8px rgba(59,130,246,0.3)' }
                   : { color: 'var(--color-ink-3)' }
               }
             >
-              <t.icon size={14} />
+              <t.icon size={14} style={{ color: isSel ? '#fff' : t.color }} />
               <span>{t.label}</span>
             </button>
           );
@@ -134,7 +134,10 @@ export default function AppleServicesHub() {
                     macOS UPDATE &amp; UPGRADE HEALTH (Click to inspect)
                   </span>
                   <h3 className="text-base font-extrabold" style={{ color: 'var(--color-ink)' }}>
-                    Current: {updateData?.currentVersion || 'macOS'} → Target: {updateData?.latestCompatible || 'Up to Date'}
+                    Current: {updateData?.currentVersion || 'macOS'} →{' '}
+                    {updateData?.hasUpdateAvailable
+                      ? `Target: ${updateData.latestCompatible}`
+                      : 'No updates available ✓'}
                   </h3>
                   <p className="text-xs text-slate-300 mt-1">{updateData?.diagnosisVerdict || 'Software update probe complete.'}</p>
                 </div>

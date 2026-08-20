@@ -5,7 +5,17 @@ import {
   HardDrive, MemoryStick, Battery, Wifi, ArrowRight,
   RefreshCw, Play, Sparkles, Wrench, ChevronRight,
 } from 'lucide-react';
-import type { HealthCheckItem } from '../platform/types';
+interface HealthCheckItem {
+  id: string;
+  category: string;
+  status: 'healthy' | 'warning' | 'critical';
+  title: string;
+  description: string;
+  value: string;
+  recommendation?: string;
+  actionLabel?: string;
+  actionTarget?: string;
+}
 import type { SystemInfo, RunMode } from '../types';
 import { usePlatform } from '../platform';
 import HealthScore from './HealthScore';

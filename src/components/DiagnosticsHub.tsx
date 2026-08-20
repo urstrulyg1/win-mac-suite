@@ -75,12 +75,12 @@ export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
     fetchDiagnostics();
   }, [systemInfo]);
 
-  const subTabs: { id: DiagTab; label: string; icon: any }[] = [
-    { id: 'matrix', label: 'Health Matrix', icon: Activity },
-    { id: 'battery', label: 'Battery Intelligence & Sleep Timeline', icon: Battery },
-    { id: 'processes', label: 'Active Processes & Threads', icon: Cpu },
-    { id: 'events', label: 'System Event Logs', icon: FileText },
-    ...(isMac ? [{ id: 'spotlight' as DiagTab, label: 'Spotlight Indexer', icon: Search }] : []),
+  const subTabs: { id: DiagTab; label: string; icon: any; color: string }[] = [
+    { id: 'matrix',    label: 'Health Matrix',                        icon: Activity,  color: '#34d399' },
+    { id: 'battery',   label: 'Battery Intelligence & Sleep Timeline', icon: Battery,   color: '#facc15' },
+    { id: 'processes', label: 'Active Processes & Threads',            icon: Cpu,       color: '#a78bfa' },
+    { id: 'events',    label: 'System Event Logs',                     icon: FileText,  color: '#60a5fa' },
+    ...(isMac ? [{ id: 'spotlight' as DiagTab, label: 'Spotlight Indexer', icon: Search, color: '#fb923c' }] : []),
   ];
 
   return (
@@ -127,7 +127,7 @@ export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
                   : { color: 'var(--color-ink-3)' }
               }
             >
-              <t.icon size={14} />
+              <t.icon size={14} style={{ color: isSel ? '#fff' : t.color }} />
               <span>{t.label}</span>
             </button>
           );

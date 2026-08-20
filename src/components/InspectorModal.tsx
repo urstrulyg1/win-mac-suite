@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Terminal, Copy, Shield, Database, Clock, HelpCircle, CheckCircle2, AlertTriangle, Sparkles, Code2 } from 'lucide-react';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 
 export interface InspectorData {
   title: string;
@@ -55,16 +56,16 @@ export default function InspectorModal({ data, item, onClose }: Props) {
     modalData.evidenceQuality === 'Unavailable' ? 'bg-red-500/10 text-red-500 border-red-500/25' :
     'bg-slate-500/10 text-slate-400 border-slate-500/25';
 
-  return (
+  return createPortal(
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        {/* Backdrop */}
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+        {/* Backdrop — rendered via portal, covers everything including sticky nav */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          className="absolute inset-0 bg-black/60 backdrop-blur-md"
         />
 
         {/* Modal Window */}
@@ -245,6 +246,7 @@ export default function InspectorModal({ data, item, onClose }: Props) {
           )}
         </motion.div>
       </div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

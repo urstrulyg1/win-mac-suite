@@ -14,10 +14,12 @@ const execFileAsync = promisify(execFile);
 
 async function runSafe(bin, args, timeoutMs = 4000) {
   try {
-    const { stdout } = await execFileAsync(bin, args, { timeout: timeoutMs, maxBuffer: 10 * 1024 * 1024 });
-    return stdout.trim();
+    const { stdout, stderr } = await execFileAsync(bin, args, { timeout: timeoutMs, maxBuffer: 10 * 1024 * 1024 });
+    return (stdout + '\n' + (stderr || '')).trim();
   } catch (err) {
-    return (err && err.stdout) ? String(err.stdout).trim() : '';
+    const out = (err && err.stdout) ? String(err.stdout) : '';
+    const errOut = (err && err.stderr) ? String(err.stderr) : '';
+    return (out + '\n' + errOut).trim();
   }
 }
 
@@ -48,12 +50,27 @@ export async function getMacUpdateDoctor() {
   // Probe softwareupdate CLI safely
   const swOut = await runSafe('/usr/sbin/softwareupdate', ['-l'], 6000);
   const isUpToDate = swOut.includes('No new software available');
-  const hasUpdate = !isUpToDate && (swOut.includes('Title:') || swOut.includes('recommended'));
+  const hasUpdate = !isUpToDate && (
+    swOut.includes('Title:') || swOut.includes('Label:') ||
+    swOut.includes('recommended') || swOut.includes('* ')
+  );
 
   let updateName = isUpToDate ? 'System Up to Date' : 'macOS Software Update Available';
   if (hasUpdate) {
-    const match = swOut.match(/Title:\s*([^,\n]+)/);
-    if (match) updateName = match[1].trim();
+    // Modern macOS (Sonoma+): "* Label: macOS Sequoia 15.x-24Xxxx"
+    // Strip the build suffix after the last dash+digits for a clean display name
+    const labelMatch = swOut.match(/\*\s+Label:\s*([^\n]+)/);
+    if (labelMatch) {
+      updateName = labelMatch[1].trim().replace(/-\d+[A-Za-z]\d+.*$/, '').trim();
+    } else {
+      // Legacy macOS: "Title: macOS Big Sur, Version: 11.x"
+      const titleMatch = swOut.match(/Title:\s*([^,\n]+)/);
+      const versionMatch = swOut.match(/Version:\s*([^\s,\n]+)/);
+      if (titleMatch) {
+        updateName = titleMatch[1].trim();
+        if (versionMatch) updateName += ` ${versionMatch[1].trim()}`;
+      }
+    }
   }
 
   const requiredDiskGB = 14.0;

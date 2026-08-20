@@ -75,10 +75,10 @@ export default function SystemEventsTimeline() {
       {/* Sub-tabs */}
       <div className="flex items-center gap-1.5 p-1 rounded-2xl border overflow-x-auto" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
         {[
-          { id: 'incidents' as const, label: 'Causal Incidents (Correlated)', icon: Activity },
-          { id: 'timeline' as const, label: 'Chronological Timeline', icon: Clock },
-          { id: 'baseline' as const, label: 'Multi-Baseline Engine', icon: ShieldCheck },
-          { id: 'forecast' as const, label: 'Predictive Storage Forecast', icon: TrendingUp },
+          { id: 'incidents' as const, label: 'Causal Incidents (Correlated)', icon: Activity,   color: '#f43f5e' },
+          { id: 'timeline' as const,  label: 'Chronological Timeline',        icon: Clock,      color: '#60a5fa' },
+          { id: 'baseline' as const,  label: 'Multi-Baseline Engine',         icon: ShieldCheck, color: '#34d399' },
+          { id: 'forecast' as const,  label: 'Predictive Storage Forecast',   icon: TrendingUp, color: '#facc15' },
         ].map((t) => {
           const isSel = subTab === t.id;
           return (
@@ -92,7 +92,7 @@ export default function SystemEventsTimeline() {
                   : { color: 'var(--color-ink-3)' }
               }
             >
-              <t.icon size={14} />
+              <t.icon size={14} style={{ color: isSel ? '#fff' : t.color }} />
               <span>{t.label}</span>
             </button>
           );

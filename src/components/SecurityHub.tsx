@@ -84,9 +84,9 @@ export default function SecurityHub() {
       {/* Sub-tabs */}
       <div className="flex items-center gap-1.5 p-1 rounded-2xl border overflow-x-auto" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
         {[
-          { id: 'posture' as const, label: 'Security Score & Posture', icon: ShieldCheck },
-          { id: 'privacy' as const, label: 'Full Privacy Auditor (13 TCC)', icon: Eye },
-          { id: 'compat' as const, label: 'App Compatibility & Quarantine', icon: FileCode },
+          { id: 'posture' as const, label: 'Security Score & Posture',       icon: ShieldCheck, color: '#34d399' },
+          { id: 'privacy' as const, label: 'Full Privacy Auditor (13 TCC)',  icon: Eye,         color: '#22d3ee' },
+          { id: 'compat' as const,  label: 'App Compatibility & Quarantine', icon: FileCode,    color: '#f97316' },
         ].map((t) => {
           const isSel = subTab === t.id;
           return (
@@ -100,7 +100,7 @@ export default function SecurityHub() {
                   : { color: 'var(--color-ink-3)' }
               }
             >
-              <t.icon size={14} />
+              <t.icon size={14} style={{ color: isSel ? '#fff' : t.color }} />
               <span>{t.label}</span>
             </button>
           );

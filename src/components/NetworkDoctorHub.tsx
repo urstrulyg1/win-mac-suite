@@ -98,9 +98,9 @@ export default function NetworkDoctorHub() {
       {/* Sub-tabs */}
       <div className="flex items-center gap-1.5 p-1 rounded-2xl border overflow-x-auto" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
         {[
-          { id: 'doctor' as const, label: '6-Step Network Doctor', icon: Globe },
-          { id: 'wifi' as const, label: 'Wi-Fi Intelligence & History', icon: Wifi },
-          { id: 'bluetooth' as const, label: 'Bluetooth & AirDrop Doctor', icon: Bluetooth },
+          { id: 'doctor' as const,    label: '6-Step Network Doctor',       icon: Globe,     color: '#60a5fa' },
+          { id: 'wifi' as const,      label: 'Wi-Fi Intelligence & History', icon: Wifi,     color: '#22d3ee' },
+          { id: 'bluetooth' as const, label: 'Bluetooth & AirDrop Doctor',  icon: Bluetooth, color: '#a78bfa' },
         ].map((t) => {
           const isSel = subTab === t.id;
           return (
@@ -114,7 +114,7 @@ export default function NetworkDoctorHub() {
                   : { color: 'var(--color-ink-3)' }
               }
             >
-              <t.icon size={14} />
+              <t.icon size={14} style={{ color: isSel ? '#fff' : t.color }} />
               <span>{t.label}</span>
             </button>
           );

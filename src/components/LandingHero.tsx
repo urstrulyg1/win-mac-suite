@@ -77,7 +77,7 @@ const iconMap: Record<string, typeof Zap> = {
   Package,
 };
 
-export default function LandingHero({ onStart, systemInfo, summary, backendOnline }: Props) {
+export default function LandingHero({ onStart, systemInfo, summary, backendOnline, onNavigateTab }: Props) {
   const { config, isMac } = usePlatform();
   const [inspectItem, setInspectItem] = useState<InspectorData | null>(null);
 
@@ -335,15 +335,15 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
           <div>
             <div className="flex items-start justify-between mb-3">
               <h3 className="text-lg font-bold" style={{ color: 'var(--color-ink)' }}>Resource Utilization</h3>
-              <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25 text-[11px]">
+              <span className="pill text-[11px]" style={{ backgroundColor: 'rgba(52,211,153,0.12)', color: '#34d399', borderColor: 'rgba(52,211,153,0.3)' }}>
                 {backendOnline ? 'Live' : 'Polled'}
               </span>
             </div>
 
             <div className="flex items-end gap-3 mb-1">
               <div className="text-display" style={{ color: 'var(--color-ink)' }}>{cpuPct}%</div>
-              <span className="mb-2 pill bg-blue-500/10 text-blue-500 border-blue-500/25 text-[12px]">
-                <Cpu size={11} /> CPU
+              <span className="mb-2 pill text-[12px]" style={{ backgroundColor: 'rgba(167,139,250,0.12)', color: '#a78bfa', borderColor: 'rgba(167,139,250,0.3)' }}>
+                <Cpu size={11} style={{ color: '#a78bfa' }} /> CPU
               </span>
             </div>
             <p className="text-xs font-medium mb-5 truncate" style={{ color: 'var(--color-ink-4)' }}>
@@ -486,8 +486,8 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
                 {summary ? `${summary.mode} Profile` : 'No run recorded yet'} · Click to inspect
               </p>
             </div>
-            <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25">
-              <Activity size={11} /> {summary ? `Score ${summary.healthScore}%` : 'Ready'}
+            <span className="pill" style={{ backgroundColor: 'rgba(251,146,60,0.12)', color: '#fb923c', borderColor: 'rgba(251,146,60,0.3)' }}>
+              <Activity size={11} style={{ color: '#fb923c' }} /> {summary ? `Score ${summary.healthScore}%` : 'Ready'}
             </span>
           </div>
 
@@ -514,6 +514,7 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
           {[
             {
               icon: Cpu,
+              color: '#a78bfa',
               label: isMac ? 'Apple Chip' : 'Processor',
               value: `${cpuPct}%`,
               sub: systemInfo.processor ? systemInfo.processor.split(' ').slice(0, 3).join(' ') : 'CPU',
@@ -534,6 +535,7 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
             },
             {
               icon: CheckCircle2,
+              color: '#22d3ee',
               label: 'Memory Status',
               value: `${systemInfo.ramGB} GB`,
               sub: `${memPct}% in use`,
@@ -553,6 +555,7 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
             },
             {
               icon: Sparkles,
+              color: '#34d399',
               label: 'Space Reclaimed',
               value: spaceDisplay,
               sub: summary ? 'Last run cleanup' : 'Ready to reclaim',
@@ -571,6 +574,7 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
             },
             {
               icon: TrendingUp,
+              color: '#fb923c',
               label: 'System Uptime',
               value: systemInfo.uptime ? systemInfo.uptime.split(',')[0] : '—',
               sub: systemInfo.uptime || 'Active',
@@ -594,9 +598,9 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
               onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-2)')}
               onMouseLeave={e => (e.currentTarget.style.backgroundColor = '')}
             >
-              <div className="w-10 h-10 rounded-xl border text-blue-500 flex items-center justify-center shrink-0 transition-colors"
+              <div className="w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 transition-colors"
                 style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
-                <f.icon size={18} />
+                <f.icon size={18} style={{ color: f.color }} />
               </div>
               <div className="min-w-0">
                 <p className="text-[11px] uppercase font-bold tracking-wide truncate" style={{ color: 'var(--color-ink-4)' }}>{f.label}</p>

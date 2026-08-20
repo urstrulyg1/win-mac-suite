@@ -27,28 +27,28 @@ interface Props {
 
 // Primary Hubs
 const primaryNavTabs = [
-  { id: 'overview',     label: 'Overview',       icon: Monitor },
-  { id: 'storage',      label: 'Clean',          icon: HardDrive },
-  { id: 'performance',  label: 'Performance',    icon: Cpu },
-  { id: 'diagnostics',  label: 'Health',         icon: Activity },
-  { id: 'security',     label: 'Security',       icon: Lock },
-  { id: 'developer',    label: 'Developer',      icon: Code },
-  { id: 'network',      label: 'Network',        icon: Wifi },
-  { id: 'apple',        label: 'macOS & Sync',   icon: Laptop },
-  { id: 'ask',          label: 'Ask Suite',      icon: MessageSquareCode },
-  { id: 'reports',      label: 'Reports',        icon: FileText },
+  { id: 'overview',     label: 'Overview',       icon: Monitor,           color: '#60a5fa' }, // blue
+  { id: 'storage',      label: 'Clean',          icon: HardDrive,         color: '#f97316' }, // orange
+  { id: 'performance',  label: 'Performance',    icon: Cpu,               color: '#a78bfa' }, // violet
+  { id: 'diagnostics',  label: 'Health',         icon: Activity,          color: '#34d399' }, // emerald
+  { id: 'security',     label: 'Security',       icon: Lock,              color: '#f43f5e' }, // rose
+  { id: 'developer',    label: 'Developer',      icon: Code,              color: '#facc15' }, // yellow
+  { id: 'network',      label: 'Network',        icon: Wifi,              color: '#22d3ee' }, // cyan
+  { id: 'apple',        label: 'macOS & Sync',   icon: Laptop,            color: '#e879f9' }, // fuchsia
+  { id: 'ask',          label: 'Ask Suite',      icon: MessageSquareCode, color: '#fb923c' }, // amber-orange
+  { id: 'reports',      label: 'Reports',        icon: FileText,          color: '#4ade80' }, // green
 ];
 
 // Specialist Diagnostics Tools in Dropdown
 const specialistNavTabs = [
-  { id: 'graph',        label: 'Graph Topology',       icon: Radio,        desc: 'Interactive visual subsystem topology graph' },
-  { id: 'whynot',       label: 'Why NOT? (Causes)',    icon: Brain,        desc: 'Diagnostic hypothesis disqualification engine' },
-  { id: 'incidents',    label: 'Incident Center',      icon: Siren,        desc: 'Correlated system issues & anomalies' },
-  { id: 'experiments',  label: 'Experiments',          icon: FlaskConical, desc: 'Safe hypothesis verification & probes' },
-  { id: 'timeline',     label: 'System Timeline',      icon: Clock,        desc: 'Kernel events, reboots & log history' },
-  { id: 'crashes',      label: 'Crashes & Stability',  icon: Flame,        desc: 'Crash log parser & panic diagnostics' },
-  { id: 'hardware',     label: 'Hardware & Displays',  icon: Monitor,      desc: 'Peripherals, display config & audio' },
-  { id: 'startup',      label: 'Startup Manager',      icon: Sparkles,     desc: 'LaunchAgents & Login item control' },
+  { id: 'graph',        label: 'Graph Topology',       icon: Radio,        color: '#22d3ee', desc: 'Interactive visual subsystem topology graph' },
+  { id: 'whynot',       label: 'Why NOT? (Causes)',    icon: Brain,        color: '#a78bfa', desc: 'Diagnostic hypothesis disqualification engine' },
+  { id: 'incidents',    label: 'Incident Center',      icon: Siren,        color: '#f43f5e', desc: 'Correlated system issues & anomalies' },
+  { id: 'experiments',  label: 'Experiments',          icon: FlaskConical, color: '#34d399', desc: 'Safe hypothesis verification & probes' },
+  { id: 'timeline',     label: 'System Timeline',      icon: Clock,        color: '#60a5fa', desc: 'Kernel events, reboots & log history' },
+  { id: 'crashes',      label: 'Crashes & Stability',  icon: Flame,        color: '#f97316', desc: 'Crash log parser & panic diagnostics' },
+  { id: 'hardware',     label: 'Hardware & Displays',  icon: Monitor,      color: '#facc15', desc: 'Peripherals, display config & audio' },
+  { id: 'startup',      label: 'Startup Manager',      icon: Sparkles,     color: '#e879f9', desc: 'LaunchAgents & Login item control' },
 ];
 
 export default function TopNav({
@@ -134,8 +134,9 @@ export default function TopNav({
           </div>
         </div>
 
-        {/* Navigation Bar (Clean, Single Row with Essential Hubs & More Tools Dropdown) */}
-        <div className="flex flex-wrap lg:flex-nowrap items-center gap-1.5 w-full pt-1.5 border-t relative" style={{ borderColor: 'var(--color-line)' }}>
+        {/* Navigation Bar */}
+        <div className="pt-1.5 border-t px-6" style={{ borderColor: 'var(--color-line)' }}>
+        <div className="flex items-center gap-1.5">
           {primaryNavTabs.map((t) => {
             const isActive = t.id === active;
             return (
@@ -146,7 +147,7 @@ export default function TopNav({
                   onNavTab(t.id);
                 }}
                 disabled={isRunning}
-                className="flex-1 min-w-[72px] sm:min-w-[80px] max-w-[125px] flex items-center justify-center gap-1 px-2 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-center truncate"
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 style={
                   isActive
                     ? {
@@ -161,8 +162,8 @@ export default function TopNav({
                       }
                 }
               >
-                <t.icon size={13} className="shrink-0" />
-                <span className="truncate">{t.label}</span>
+                <t.icon size={13} className="shrink-0" style={{ color: isActive ? '#ffffff' : t.color }} />
+                <span>{t.label}</span>
               </button>
             );
           })}
@@ -229,7 +230,7 @@ export default function TopNav({
                               : 'hover:bg-slate-800 text-slate-200 hover:text-white'
                           }`}
                         >
-                          <s.icon size={16} className={`mt-0.5 shrink-0 ${isSelected ? 'text-blue-400' : 'text-blue-400/70'}`} />
+                          <s.icon size={16} className="mt-0.5 shrink-0" style={{ color: isSelected ? '#ffffff' : s.color }} />
                           <div className="min-w-0">
                             <div className="text-xs font-bold leading-tight truncate">{s.label}</div>
                             <div className="text-[11px] text-slate-400 truncate mt-0.5">{s.desc}</div>
@@ -242,6 +243,7 @@ export default function TopNav({
               )}
             </AnimatePresence>
           </div>
+        </div>
         </div>
 
       </div>

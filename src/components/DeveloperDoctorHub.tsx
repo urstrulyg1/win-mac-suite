@@ -141,13 +141,13 @@ export default function DeveloperDoctorHub() {
       {/* Sub-tabs */}
       <div className="flex items-center gap-1.5 p-1 rounded-2xl border overflow-x-auto" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
         {[
-          { id: 'env' as const, label: 'Environment & PATH', icon: Terminal },
-          { id: 'docker' as const, label: 'Docker Storage', icon: Layers },
-          { id: 'xcode' as const, label: 'Xcode Doctor', icon: HardDrive },
-          { id: 'ssh' as const, label: 'SSH & Git Doctor', icon: Key },
-          { id: 'vm' as const, label: 'Virtualization & VMs', icon: Box },
-          { id: 'browser' as const, label: 'Browser Health', icon: Globe },
-          { id: 'ports' as const, label: 'Sockets & Port Killer', icon: Radio },
+          { id: 'env' as const,     label: 'Environment & PATH',    icon: Terminal,  color: '#facc15' },
+          { id: 'docker' as const,  label: 'Docker Storage',        icon: Layers,    color: '#22d3ee' },
+          { id: 'xcode' as const,   label: 'Xcode Doctor',          icon: HardDrive, color: '#f97316' },
+          { id: 'ssh' as const,     label: 'SSH & Git Doctor',      icon: Key,       color: '#34d399' },
+          { id: 'vm' as const,      label: 'Virtualization & VMs',  icon: Box,       color: '#a78bfa' },
+          { id: 'browser' as const, label: 'Browser Health',        icon: Globe,     color: '#60a5fa' },
+          { id: 'ports' as const,   label: 'Sockets & Port Killer', icon: Radio,     color: '#f43f5e' },
         ].map((t) => {
           const isSel = subTab === t.id;
           return (
@@ -161,7 +161,7 @@ export default function DeveloperDoctorHub() {
                   : { color: 'var(--color-ink-3)' }
               }
             >
-              <t.icon size={14} />
+              <t.icon size={14} style={{ color: isSel ? '#fff' : t.color }} />
               <span>{t.label}</span>
             </button>
           );

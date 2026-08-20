@@ -135,12 +135,12 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
       {/* Sub-tabs */}
       <div className="flex items-center gap-1.5 p-1 rounded-2xl border overflow-x-auto" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
         {[
-          { id: 'analyzer' as const, label: 'Storage Overview', icon: HardDrive },
-          { id: 'systemData' as const, label: 'System Data 2.0 & Timeline', icon: Sparkles },
-          { id: 'apps' as const, label: 'Smart App Uninstaller', icon: Layers },
-          { id: 'leftovers' as const, label: 'Orphaned Leftovers', icon: Trash2 },
-          { id: 'backups' as const, label: 'iPhone / iPad Backups', icon: Smartphone },
-          { id: 'drives' as const, label: 'External Drive Doctor', icon: Disc },
+          { id: 'analyzer' as const,   label: 'Storage Overview',             icon: HardDrive, color: '#f97316' },
+          { id: 'systemData' as const, label: 'System Data 2.0 & Timeline',   icon: Sparkles,  color: '#a78bfa' },
+          { id: 'apps' as const,       label: 'Smart App Uninstaller',         icon: Layers,    color: '#22d3ee' },
+          { id: 'leftovers' as const,  label: 'Orphaned Leftovers',            icon: Trash2,    color: '#f43f5e' },
+          { id: 'backups' as const,    label: 'iPhone / iPad Backups',         icon: Smartphone, color: '#34d399' },
+          { id: 'drives' as const,     label: 'External Drive Doctor',         icon: Disc,      color: '#60a5fa' },
         ].map((t) => {
           const isSel = subTab === t.id;
           return (
@@ -154,7 +154,7 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
                   : { color: 'var(--color-ink-3)' }
               }
             >
-              <t.icon size={14} />
+              <t.icon size={14} style={{ color: isSel ? '#fff' : t.color }} />
               <span>{t.label}</span>
             </button>
           );

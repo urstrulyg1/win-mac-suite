@@ -76,11 +76,11 @@ export default function HardwarePeripheralsHub() {
       {/* Sub-tabs */}
       <div className="flex items-center gap-1.5 p-1 rounded-2xl border overflow-x-auto" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
         {[
-          { id: 'disk' as const, label: 'Disk Health & APFS Doctor', icon: HardDrive },
-          { id: 'audio' as const, label: 'Audio Doctor 🔊', icon: Volume2 },
-          { id: 'camera' as const, label: 'Camera & Mic Doctor 📷', icon: Camera },
-          { id: 'display' as const, label: 'Displays & Monitors 🖥️', icon: Monitor },
-          { id: 'peripherals' as const, label: 'Peripherals & Battery', icon: Keyboard },
+          { id: 'disk' as const,        label: 'Disk Health & APFS Doctor', icon: HardDrive, color: '#f97316' },
+          { id: 'audio' as const,       label: 'Audio Doctor 🔊',           icon: Volume2,   color: '#a78bfa' },
+          { id: 'camera' as const,      label: 'Camera & Mic Doctor 📷',    icon: Camera,    color: '#34d399' },
+          { id: 'display' as const,     label: 'Displays & Monitors 🖥️',   icon: Monitor,   color: '#60a5fa' },
+          { id: 'peripherals' as const, label: 'Peripherals & Battery',     icon: Keyboard,  color: '#facc15' },
         ].map((t) => {
           const isSel = subTab === t.id;
           return (
@@ -94,7 +94,7 @@ export default function HardwarePeripheralsHub() {
                   : { color: 'var(--color-ink-3)' }
               }
             >
-              <t.icon size={14} />
+              <t.icon size={14} style={{ color: isSel ? '#fff' : t.color }} />
               <span>{t.label}</span>
             </button>
           );

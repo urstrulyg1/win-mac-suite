@@ -67,8 +67,8 @@ export default function CrashHangDoctor() {
       {/* Sub-tabs */}
       <div className="flex items-center gap-1.5 p-1 rounded-2xl border overflow-x-auto" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
         {[
-          { id: 'crashes' as const, label: 'Application Crashes & Hangs', icon: Flame },
-          { id: 'stability' as const, label: 'Kernel Panic & System Stability', icon: ShieldAlert },
+          { id: 'crashes' as const,   label: 'Application Crashes & Hangs',       icon: Flame,       color: '#f97316' },
+          { id: 'stability' as const, label: 'Kernel Panic & System Stability',    icon: ShieldAlert, color: '#f43f5e' },
         ].map((t) => {
           const isSel = subTab === t.id;
           return (
@@ -82,7 +82,7 @@ export default function CrashHangDoctor() {
                   : { color: 'var(--color-ink-3)' }
               }
             >
-              <t.icon size={14} />
+              <t.icon size={14} style={{ color: isSel ? '#fff' : t.color }} />
               <span>{t.label}</span>
             </button>
           );
