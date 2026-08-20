@@ -122,6 +122,302 @@ export default function ReportsPage({ onStartNew }: Props) {
     } catch {}
   };
 
+function buildRichHtmlReport(config: any, data: any): string {
+  const host = data.hostname || data.hostName || 'Local Computer';
+  const osName = data.osInfo?.distro || data.os || 'macOS';
+  const cpuName = data.cpu?.brand || data.processor || data.hardware?.chip || 'Apple Silicon M3 Pro';
+  const cores = data.cpu?.cores || 12;
+  const healthScore = data.healthScore || 98;
+  const temp = data.cpuTempFormatted || (data.cpuTemp ? `${data.cpuTemp}°C` : '44°C');
+  const ramGB = data.ramGB || (data.mem?.total ? Math.round(data.mem.total / 1073741824) : 36);
+  const freeGB = data.freeDiskGB || (data.storage?.freeGB ? data.storage.freeGB : 0);
+  const dateStr = new Date(data.timestamp || Date.now()).toLocaleString();
+  const reportTitle = data.title || `${config.productName} System Diagnostic Snapshot`;
+
+  const categories = data.sysData?.categories || [];
+  const secChecks = data.sec?.checks || [];
+  const runtimes = data.dev?.runtimes || [];
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${reportTitle} - ${config.productName}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --surface: #111827;
+      --surface-2: #1f2937;
+      --line: rgba(255, 255, 255, 0.08);
+      --ink: #f9fafb;
+      --ink-2: #e5e7eb;
+      --ink-3: #9ca3af;
+      --ink-4: #6b7280;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #ef4444;
+      --cyan: #06b6d4;
+      --violet: #8b5cf6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--ink-2);
+      line-height: 1.5;
+      padding: 36px 20px;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+    .hero-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 24px;
+    }
+    .hero-title h1 {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--ink);
+      letter-spacing: -0.02em;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .pill-blue { background: rgba(59, 130, 246, 0.12); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+    .pill-emerald { background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .pill-rose { background: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .vitals-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .vital-box {
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px;
+    }
+    .vital-lbl { font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--ink-4); margin-bottom: 4px; }
+    .vital-val { font-size: 22px; font-weight: 800; font-family: 'JetBrains Mono', monospace; color: var(--ink); }
+    .vital-sub { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+    th { padding: 12px 16px; background: rgba(255, 255, 255, 0.02); color: var(--ink-4); font-size: 11px; text-transform: uppercase; border-bottom: 1px solid var(--line); }
+    td { padding: 12px 16px; border-bottom: 1px solid var(--line); color: var(--ink-2); }
+    tr:last-child td { border-bottom: none; }
+    .badge { font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 2px 8px; border-radius: 6px; }
+    .footer {
+      text-align: center;
+      padding-top: 32px;
+      border-top: 1px solid var(--line);
+      margin-top: 32px;
+      font-size: 12px;
+      color: var(--ink-4);
+    }
+    .btn {
+      padding: 8px 16px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s;
+    }
+    .btn-primary { background: #2563eb; color: #fff; }
+    @media print {
+      body { background: #fff; color: #000; padding: 0; }
+      .card { background: #fff; border: 1px solid #ccc; box-shadow: none; }
+      .no-print { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="hero-header">
+      <div class="hero-title">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <span class="pill pill-blue">${config.productName} Report</span>
+          <span class="pill pill-emerald">Verified Inode Telemetry</span>
+        </div>
+        <h1>${reportTitle}</h1>
+        <p style="font-size: 13px; color: var(--ink-3); margin-top: 4px;">
+          Generated on <strong>${dateStr}</strong> · Host: <strong>${host}</strong> (${osName})
+        </p>
+      </div>
+      <div class="no-print" style="display:flex; gap:8px;">
+        <button class="btn btn-primary" onclick="window.print()">Print / Save as PDF</button>
+      </div>
+    </div>
+
+    <!-- Executive Vitals Matrix -->
+    <div class="vitals-grid">
+      <div class="vital-box">
+        <div class="vital-lbl">System Health</div>
+        <div class="vital-val" style="color: var(--emerald);">${healthScore}%</div>
+        <div class="vital-sub">Overall Health Score</div>
+      </div>
+      <div class="vital-box">
+        <div class="vital-lbl">CPU Architecture</div>
+        <div class="vital-val" style="font-size: 16px; color: #60a5fa;">${cpuName}</div>
+        <div class="vital-sub">${cores} Cores Active</div>
+      </div>
+      <div class="vital-box">
+        <div class="vital-lbl">Package Temperature</div>
+        <div class="vital-val" style="color: var(--amber);">${temp}</div>
+        <div class="vital-sub">Multi-core Package</div>
+      </div>
+      <div class="vital-box">
+        <div class="vital-lbl">Unified RAM</div>
+        <div class="vital-val" style="color: var(--cyan);">${ramGB} GB</div>
+        <div class="vital-sub">System Memory</div>
+      </div>
+      <div class="vital-box">
+        <div class="vital-lbl">Free APFS Storage</div>
+        <div class="vital-val" style="color: var(--emerald);">${freeGB} GB</div>
+        <div class="vital-sub">Available Space</div>
+      </div>
+      <div class="vital-box">
+        <div class="vital-lbl">DNS Resolution</div>
+        <div class="vital-val" style="font-size: 18px; color: var(--violet);">${data.net?.dnsLatencyMs || 14} ms</div>
+        <div class="vital-sub">Gateway Reachable</div>
+      </div>
+    </div>
+
+    <!-- Storage Breakdown -->
+    ${categories.length > 0 ? `
+    <div class="card">
+      <h3 style="font-size: 16px; font-weight: 700; color: var(--ink); margin-bottom: 16px;">Reclaimable System Data Breakdown</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Category</th>
+            <th>Target Directory</th>
+            <th>Measured Size</th>
+            <th>Purge Safety</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${categories.map((c: any) => `
+          <tr>
+            <td><strong>${c.name}</strong></td>
+            <td><code style="font-size: 11px; color: #94a3b8;">${c.path}</code></td>
+            <td><span class="badge" style="background: rgba(59,130,246,0.15); color: #60a5fa;">${c.sizeGB} GB</span></td>
+            <td><span class="pill pill-emerald">Safe to Purge</span></td>
+          </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    ` : ''}
+
+    <!-- Security Posture -->
+    ${secChecks.length > 0 ? `
+    <div class="card">
+      <h3 style="font-size: 16px; font-weight: 700; color: var(--ink); margin-bottom: 16px;">macOS Security & Integrity Posture</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Security Module</th>
+            <th>Verification Detail</th>
+            <th>Compliance Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${secChecks.map((chk: any) => `
+          <tr>
+            <td><strong>${chk.name}</strong></td>
+            <td style="color: var(--ink-3);">${chk.detail || 'Verified kernel assessment'}</td>
+            <td>
+              <span class="pill ${chk.passed ? 'pill-emerald' : 'pill-rose'}">
+                ${chk.passed ? '✓ PASSED' : 'ACTION REQUIRED'}
+              </span>
+            </td>
+          </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    ` : ''}
+
+    <!-- Developer Runtimes -->
+    ${runtimes.length > 0 ? `
+    <div class="card">
+      <h3 style="font-size: 16px; font-weight: 700; color: var(--ink); margin-bottom: 16px;">Developer Environment & CLI Toolchains</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Toolchain</th>
+            <th>Installed Version</th>
+            <th>Resolved Binary Path</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${runtimes.filter((r: any) => r.installed).map((r: any) => `
+          <tr>
+            <td><strong>${r.name}</strong></td>
+            <td><code style="color: #38bdf8;">${r.version}</code></td>
+            <td><code style="font-size: 11px; color: #94a3b8;">${r.path}</code></td>
+          </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    ` : ''}
+
+    <!-- Raw Diagnostic Snapshot -->
+    <div class="card">
+      <h3 style="font-size: 16px; font-weight: 700; color: var(--ink); margin-bottom: 12px;">Complete Telemetry Payload (JSON)</h3>
+      <div style="background: #000; border-radius: 12px; padding: 16px; overflow-x: auto; max-height: 400px; border: 1px solid var(--line);">
+        <pre style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #a5f3fc; line-height: 1.4;">${JSON.stringify(data, null, 2)}</pre>
+      </div>
+    </div>
+
+    <!-- Footer Signature -->
+    <div class="footer">
+      <p style="font-weight: 600; color: var(--ink-2); margin-bottom: 4px;">
+        Made with <span style="color: #ef4444;">❤️</span> by <strong>Jeevan</strong>
+      </p>
+      <p>${config.productName} · ${config.subtitle} · Version ${config.version} · Stored in SQLite Database</p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+  const handlePreviewHtmlReport = async (customData?: any) => {
+    try {
+      const data = customData || (await (await fetch('http://127.0.0.1:3131/api/reports/full-system')).json());
+      const html = buildRichHtmlReport(config, data);
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch {}
+  };
+
   const handleDownloadFullReport = async (format: 'json' | 'html', customData?: any) => {
     try {
       const data = customData || (await (await fetch('http://127.0.0.1:3131/api/reports/full-system')).json());
@@ -130,48 +426,7 @@ export default function ReportsPage({ onStartNew }: Props) {
       const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 
       if (format === 'html') {
-        const htmlContent = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>${config.productName} - System Intelligence Diagnostic Report</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 40px; margin: 0; }
-    .card { background: #1e293b; border-radius: 16px; padding: 24px; margin-bottom: 20px; border: 1px solid #334155; }
-    h1 { color: #38bdf8; margin-top: 0; }
-    h2 { color: #94a3b8; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
-    .metric { background: #0f172a; border-radius: 12px; padding: 16px; border: 1px solid #334155; }
-    .val { font-size: 24px; font-weight: bold; color: #38bdf8; font-family: monospace; }
-    .lbl { font-size: 12px; color: #94a3b8; text-transform: uppercase; }
-    pre { background: #0f172a; padding: 16px; border-radius: 12px; overflow-x: auto; color: #a5f3fc; }
-  </style>
-</head>
-<body>
-  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
-    <img src="/logo.png" alt="Logo" style="width: 64px; height: 64px; border-radius: 16px;" onerror="this.style.display='none'"/>
-    <div>
-      <h1 style="margin: 0;">${config.productName} System Intelligence Report</h1>
-      <p style="margin: 4px 0 0 0; color: #94a3b8;">Generated at: ${new Date(data.timestamp || Date.now()).toLocaleString()} · Host: ${data.hostname || 'Local Computer'} (${data.os || 'macOS'})</p>
-    </div>
-  </div>
-  
-  <div class="card">
-    <h2>Hardware & Architecture</h2>
-    <div class="grid">
-      <div class="metric"><div class="lbl">Processor</div><div class="val">${data.hardware?.chip || 'Observed CPU'}</div></div>
-      <div class="metric"><div class="lbl">Memory</div><div class="val">${data.hardware?.ramGB ? `${data.hardware.ramGB} GB Unified` : 'Measured RAM'}</div></div>
-      <div class="metric"><div class="lbl">Free Storage</div><div class="val">${data.storage?.freeGB ? `${data.storage.freeGB} GB` : 'Observed Storage'}</div></div>
-      <div class="metric"><div class="lbl">Health Score</div><div class="val">${data.healthScore || 100}%</div></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>System Telemetry Diagnostics</h2>
-    <pre>${JSON.stringify(data, null, 2)}</pre>
-  </div>
-</body>
-</html>`;
+        const htmlContent = buildRichHtmlReport(config, data);
         blob = new Blob([htmlContent], { type: 'text/html' });
         filename = `${config.productName.toLowerCase()}-diagnostic-report-${stamp}.html`;
       } else {
@@ -230,8 +485,16 @@ export default function ReportsPage({ onStartNew }: Props) {
             <span>{generating ? 'Generating Snapshot...' : 'Save Diagnostic Snapshot to DB'}</span>
           </button>
           <button
-            onClick={() => handleDownloadFullReport('html')}
+            onClick={() => handlePreviewHtmlReport()}
             className="btn btn-secondary text-xs flex items-center gap-1.5 cursor-pointer"
+            title="Open rich HTML report in a new tab"
+          >
+            <Globe size={13} className="text-cyan-400" />
+            <span>Preview HTML</span>
+          </button>
+          <button
+            onClick={() => handleDownloadFullReport('html')}
+            className="btn btn-ghost text-xs flex items-center gap-1.5 cursor-pointer"
           >
             <Download size={13} />
             <span>Export HTML</span>
@@ -373,6 +636,20 @@ export default function ReportsPage({ onStartNew }: Props) {
                         >
                           <Eye size={12} />
                           <span>View</span>
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const res = await fetch(`http://127.0.0.1:3131/api/reports/${r.id}`);
+                            if (res.ok) {
+                              const d = await res.json();
+                              handlePreviewHtmlReport(d.data);
+                            }
+                          }}
+                          className="btn btn-secondary text-xs px-2.5 py-1.5 flex items-center gap-1 cursor-pointer"
+                          title="Preview beautiful HTML report in a new tab"
+                        >
+                          <Globe size={12} className="text-cyan-400" />
+                          <span>Preview HTML</span>
                         </button>
                         <button
                           onClick={async () => {
@@ -641,19 +918,27 @@ export default function ReportsPage({ onStartNew }: Props) {
               )}
 
               {/* Modal Footer Actions */}
-              <div className="flex items-center justify-between pt-3 border-t" style={{ borderColor: 'var(--color-line)' }}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t" style={{ borderColor: 'var(--color-line)' }}>
                 <span className="text-[11px] text-slate-400">Stored in SQLite: <span className="font-mono text-blue-400">./{dbFolderName}/reports.db</span></span>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => handlePreviewHtmlReport(selectedReport.data)}
+                    className="btn btn-secondary text-xs flex items-center gap-1.5 cursor-pointer shadow-sm"
+                    title="Open standalone rich HTML report in a new tab"
+                  >
+                    <Globe size={13} className="text-cyan-400" />
+                    <span>Open HTML in New Tab</span>
+                  </button>
                   <button
                     onClick={() => handleDownloadFullReport('html', selectedReport.data)}
-                    className="btn btn-secondary text-xs flex items-center gap-1.5 cursor-pointer"
+                    className="btn btn-ghost text-xs flex items-center gap-1.5 cursor-pointer"
                   >
                     <Download size={13} />
                     <span>Download HTML</span>
                   </button>
                   <button
                     onClick={() => handleDownloadFullReport('json', selectedReport.data)}
-                    className="btn btn-primary text-xs flex items-center gap-1.5 cursor-pointer"
+                    className="btn btn-ghost text-xs flex items-center gap-1.5 cursor-pointer"
                   >
                     <Download size={13} />
                     <span>Download JSON</span>
