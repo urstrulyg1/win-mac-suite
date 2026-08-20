@@ -19,8 +19,8 @@ export default function CrashHangDoctor() {
     setLoading(true);
     try {
       const [cRes, sRes] = await Promise.all([
-        fetch('http://127.0.0.1:3131/api/diagnostics/crashes-hangs').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/diagnostics/system-stability').catch(() => null),
+        fetch('/api/diagnostics/crashes-hangs').catch(() => null),
+        fetch('/api/diagnostics/system-stability').catch(() => null),
       ]);
 
       if (cRes && cRes.ok) setCrashData(await cRes.json());
@@ -165,7 +165,7 @@ export default function CrashHangDoctor() {
             <div className="card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-l-4 border-l-emerald-500">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/25 flex items-center justify-center text-xl font-extrabold font-mono">
-                  {stabilityData?.stabilityScore || 98}%
+                  {stabilityData?.stabilityScore != null ? `${stabilityData.stabilityScore}%` : 'Unavailable'}
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400">System Stability Score</span>

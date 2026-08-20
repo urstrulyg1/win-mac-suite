@@ -25,8 +25,8 @@ export default function ReportsPage({ summary, onStartNew }: Props) {
     setLoading(true);
     try {
       const [tRes, aRes] = await Promise.all([
-        fetch('http://127.0.0.1:3131/api/reports/transactions').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/audit-history').catch(() => null),
+        fetch('/api/reports/transactions').catch(() => null),
+        fetch('/api/audit-history').catch(() => null),
       ]);
 
       if (tRes && tRes.ok) {
@@ -49,7 +49,7 @@ export default function ReportsPage({ summary, onStartNew }: Props) {
 
   const handleUndo = async (txId: string) => {
     try {
-      const res = await fetch('http://127.0.0.1:3131/api/actions/undo-cleanup', {
+      const res = await fetch('/api/actions/undo-cleanup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transactionId: txId }),
@@ -64,7 +64,7 @@ export default function ReportsPage({ summary, onStartNew }: Props) {
 
   const handleDownloadFullReport = async (format: 'json' | 'html') => {
     try {
-      const res = await fetch('http://127.0.0.1:3131/api/reports/full-system');
+      const res = await fetch('/api/reports/full-system');
       const data = await res.json();
 
       let blob: Blob;
@@ -98,7 +98,7 @@ export default function ReportsPage({ summary, onStartNew }: Props) {
     <div class="grid">
       <div class="metric"><div class="lbl">Processor</div><div class="val">${data.hardware?.chip || 'Apple Silicon'}</div></div>
       <div class="metric"><div class="lbl">Memory</div><div class="val">${data.hardware?.ramGB || 16} GB Unified</div></div>
-      <div class="metric"><div class="lbl">Security Score</div><div class="val">${data.securityPosture?.securityScore || 96}%</div></div>
+      <div class="metric"><div class="lbl">Security Score</div><div class="val">${data.securityPosture?.securityScore != null ? `${data.securityPosture.securityScore}%` : 'Unavailable'}</div></div>
     </div>
   </div>
 

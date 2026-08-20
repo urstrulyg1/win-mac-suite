@@ -44,6 +44,8 @@ import {
   runSafeCommand,
   killPortProcess,
   getMacListeningPorts,
+  getMacSystemDataBreakdown,
+  getMacDeveloperArtifacts,
 } from '../helpers/macos-helpers.js';
 
 const router = express.Router();
@@ -110,81 +112,65 @@ router.post('/ask-assistant', async (req, res) => {
 // ── POST /api/actions/cleanup-plan (Safe Cleanup Engine: Preview & Risk Plan) ─
 router.post('/cleanup-plan', async (_req, res) => {
   try {
-    const planItems = [
-      {
-        id: 'plan-1',
-        name: 'APFS Time Machine Snapshot Deltas',
-        location: '/System/Volumes/Data',
-        owner: 'com.apple.TimeMachine',
-        reason: 'Temporary local backup delta extents',
-        sizeMB: 3100,
-        risk: 'Safe',
-        reclaimable: '3.1 GB',
-        reversible: false,
-        reversibilityLabel: 'Irreversible (Safe System Extent)',
-        selected: true,
-      },
-      {
-        id: 'plan-2',
-        name: 'Xcode DerivedData & Module Caches',
-        location: '~/Library/Developer/Xcode/DerivedData',
-        owner: 'Xcode.app',
-        reason: 'Intermediate build artifacts and index files',
-        sizeMB: 4800,
-        risk: 'Safe',
-        reclaimable: '4.8 GB',
-        reversible: false,
-        reversibilityLabel: 'Rebuilt automatically on next compile',
-        selected: true,
-      },
-      {
-        id: 'plan-3',
-        name: 'Browser Caches (Chrome, Safari, Brave)',
-        location: '~/Library/Caches/Google, Safari',
-        owner: 'Web Browsers',
-        reason: 'Cached rendered web files and offline media',
-        sizeMB: 2200,
-        risk: 'Safe',
-        reclaimable: '2.2 GB',
-        reversible: false,
-        reversibilityLabel: 'Re-cached on web browsing',
-        selected: true,
-      },
-      {
-        id: 'plan-4',
-        name: 'Homebrew Downloads & Stale Bottles',
-        location: '~/Library/Caches/Homebrew',
-        owner: 'brew CLI',
-        reason: 'Outdated package tarballs and bottle downloads',
-        sizeMB: 1600,
-        risk: 'Safe',
-        reclaimable: '1.6 GB',
-        reversible: false,
-        reversibilityLabel: 'Can re-download if ever needed',
-        selected: true,
-      },
-      {
-        id: 'plan-5',
-        name: 'Crash Dumps & Unified Diagnostic Logs',
-        location: '~/Library/Logs',
-        owner: 'macOS Diagnostic Subsystem',
-        reason: 'Historical stack trace logs and panic dumps',
-        sizeMB: 450,
-        risk: 'Safe',
-        reclaimable: '450 MB',
-        reversible: true,
-        reversibilityLabel: 'Reversible (Archived in Manifest)',
-        selected: true,
-      },
-    ];
+    if (!isMac) {
+      res.json({ available: false, reason: 'Safe cleanup plan is only measurable on macOS.' });
+      return;
+    }
 
-    const totalReclaimableMB = planItems.reduce((s, i) => s + i.sizeMB, 0);
+    // Build the plan from real, measured sizes — never from estimated categories.
+    const [sysData, devArtifacts] = await Promise.all([
+      getMacSystemDataBreakdown().catch(() => null),
+      getMacDeveloperArtifacts().catch(() => []),
+    ]);
+
+    const planItems = [];
+    const seenNames = new Set();
+
+    const add = (item) => {
+      const key = (item.name || '').trim().toLowerCase();
+      if (!key || seenNames.has(key)) return;
+      seenNames.add(key);
+      planItems.push(item);
+    };
+
+    // Reclaimable, safe-to-purge System Data categories (measured sizes).
+    for (const cat of sysData?.categories || []) {
+      if (!cat.reclaimable || !cat.safeToPurge) continue;
+      add({
+        id: `plan-sys-${planItems.length + 1}`,
+        name: cat.name,
+        location: cat.path || '',
+        reason: cat.description || '',
+        sizeMB: Math.round((cat.sizeGB || 0) * 1024),
+        risk: cat.risk || 'Safe',
+        reclaimable: `${cat.sizeGB != null ? cat.sizeGB.toFixed(1) : 'Unavailable'} GB`,
+        reversibilityLabel: 'Re-downloaded / rebuilt automatically',
+        selected: true,
+      });
+    }
+
+    // Measured developer artifact caches.
+    for (const art of devArtifacts || []) {
+      add({
+        id: `plan-dev-${planItems.length + 1}`,
+        name: art.name,
+        location: art.path || '',
+        reason: 'Reclaimable developer build cache',
+        sizeMB: art.sizeMB || 0,
+        risk: 'Safe',
+        reclaimable: `${((art.sizeMB || 0) / 1024).toFixed(1)} GB`,
+        reversibilityLabel: 'Rebuilt on next build',
+        selected: true,
+      });
+    }
+
+    const totalReclaimableMB = planItems.reduce((s, i) => s + (i.sizeMB || 0), 0);
 
     res.json({
       planItems,
       totalReclaimableMB,
       totalReclaimableGB: +(totalReclaimableMB / 1024).toFixed(1),
-      summary: `Safe Cleanup Plan prepared: 5 categories selected, ~${(totalReclaimableMB / 1024).toFixed(1)} GB reclaimable with full risk assessment and transaction manifest recording.`,
+      summary: `Safe Cleanup Plan prepared from measured telemetry: ${planItems.length} categories selected, ~${(totalReclaimableMB / 1024).toFixed(1)} GB reclaimable.`,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

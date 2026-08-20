@@ -32,7 +32,7 @@ export default function AskAssistantHub({ onNavigateTab }: Props) {
     setResponse(null);
 
     try {
-      const res = await fetch('http://127.0.0.1:3131/api/actions/ask-assistant', {
+      const res = await fetch('/api/actions/ask-assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: userQuery }),

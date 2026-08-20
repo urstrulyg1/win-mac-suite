@@ -24,8 +24,8 @@ export default function PerformanceDoctorHub({ onNavigateTab }: Props) {
     setLoading(true);
     try {
       const [pRes, tRes] = await Promise.all([
-        fetch('http://127.0.0.1:3131/api/performance/diagnosis').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/thermal/deep').catch(() => null),
+        fetch('/api/performance/diagnosis').catch(() => null),
+        fetch('/api/thermal/deep').catch(() => null),
       ]);
 
       if (pRes && pRes.ok) {
@@ -49,7 +49,7 @@ export default function PerformanceDoctorHub({ onNavigateTab }: Props) {
   const handlePurgeRam = async () => {
     setPurgingRam(true);
     try {
-      await fetch('http://127.0.0.1:3131/api/actions/purge-ram', { method: 'POST' });
+      await fetch('/api/actions/purge-ram', { method: 'POST' });
       setPurgeDone(true);
       await fetchPerfData();
     } catch {}
@@ -190,7 +190,7 @@ export default function PerformanceDoctorHub({ onNavigateTab }: Props) {
               </div>
             </div>
             <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-[10px]">
-              {thermalDeep?.thermalLevel || 'Nominal'}
+              {thermalDeep?.thermalLevel ?? 'Unavailable'}
             </span>
           </div>
 

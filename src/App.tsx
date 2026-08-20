@@ -107,7 +107,7 @@ function MainApp() {
 
     const poll = async () => {
       try {
-        const res = await fetch('http://127.0.0.1:3131/api/sysinfo');
+        const res = await fetch('/api/sysinfo');
         if (!res.ok) throw new Error('API down');
         const data = await res.json();
         if (cancelled) return;
@@ -516,7 +516,7 @@ export default function App() {
   });
 
   useEffect(() => {
-    fetch('http://127.0.0.1:3131/api/sysinfo')
+    fetch('/api/sysinfo')
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data) {

@@ -9,10 +9,15 @@ import { getMacServicesList, getMacStartupItems } from '../helpers/macos-helpers
 
 const router = express.Router();
 const isMac = process.platform === 'darwin';
+const isWin = process.platform === 'win32';
 
 // ── GET /api/services ───────────────────────────────────────────────────────
 router.get('/services', async (_req, res) => {
   try {
+    if (!isMac && !isWin) {
+      res.json({ platform: 'unsupported', count: 0, services: [] });
+      return;
+    }
     const services = isMac ? await getMacServicesList() : await getWindowsServicesList();
     res.json({
       platform: isMac ? 'macos' : 'windows',
@@ -27,6 +32,10 @@ router.get('/services', async (_req, res) => {
 // ── GET /api/startup-items ──────────────────────────────────────────────────
 router.get('/startup-items', async (_req, res) => {
   try {
+    if (!isMac && !isWin) {
+      res.json({ platform: 'unsupported', count: 0, list: [] });
+      return;
+    }
     const list = isMac ? await getMacStartupItems() : await getWindowsStartupItems();
     res.json({
       platform: isMac ? 'macos' : 'windows',

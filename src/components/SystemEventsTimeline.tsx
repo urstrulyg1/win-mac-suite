@@ -23,10 +23,10 @@ export default function SystemEventsTimeline() {
     setLoading(true);
     try {
       const [tRes, iRes, bRes, fRes] = await Promise.all([
-        fetch('http://127.0.0.1:3131/api/diagnostics/system-timeline').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/diagnostics/correlation-incidents').catch(() => null),
-        fetch(`http://127.0.0.1:3131/api/diagnostics/multi-baseline?profile=${selectedBaseline}`).catch(() => null),
-        fetch('http://127.0.0.1:3131/api/diagnostics/predictive-forecast').catch(() => null),
+        fetch('/api/diagnostics/system-timeline').catch(() => null),
+        fetch('/api/diagnostics/correlation-incidents').catch(() => null),
+        fetch(`/api/diagnostics/multi-baseline?profile=${selectedBaseline}`).catch(() => null),
+        fetch('/api/diagnostics/predictive-forecast').catch(() => null),
       ]);
 
       if (tRes && tRes.ok) setTimelineData(await tRes.json());
@@ -278,12 +278,12 @@ export default function SystemEventsTimeline() {
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400">STORAGE DEPLETION HORIZON</span>
                   <h3 className="text-base font-extrabold" style={{ color: 'var(--color-ink)' }}>
-                    Estimated Threshold: ~{forecastData?.storageForecast?.estimatedDaysUntilCritical || 90} Days of Nominal Capacity
+                    Estimated Threshold: {forecastData?.storageForecast?.estimatedDaysUntilCritical != null ? `~${forecastData.storageForecast.estimatedDaysUntilCritical} Days of Nominal Capacity` : 'Unavailable / Unsupported'}
                   </h3>
                   <p className="text-xs text-slate-300 mt-1">Average storage growth rate measured at +{forecastData?.storageForecast?.averageDailyGrowthGB || 1.4} GB / day.</p>
                 </div>
                 <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-xs font-bold font-mono">
-                  {forecastData?.storageForecast?.forecastTrend || 'Healthy'}
+                  {forecastData?.storageForecast?.forecastTrend ?? 'Unavailable'}
                 </span>
               </div>
             </div>

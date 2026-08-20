@@ -22,9 +22,9 @@ export default function SecurityHub() {
     setLoading(true);
     try {
       const [sRes, pRes, cRes] = await Promise.all([
-        fetch('http://127.0.0.1:3131/api/security/posture').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/security/privacy-auditor').catch(() => null),
-        fetch(`http://127.0.0.1:3131/api/diagnostics/app-compatibility/${selectedApp}`).catch(() => null),
+        fetch('/api/security/posture').catch(() => null),
+        fetch('/api/security/privacy-auditor').catch(() => null),
+        fetch(`/api/diagnostics/app-compatibility/${selectedApp}`).catch(() => null),
       ]);
 
       if (sRes && sRes.ok) setPostureData(await sRes.json());
@@ -42,7 +42,7 @@ export default function SecurityHub() {
 
   const handleRemoveQuarantine = async () => {
     try {
-      await fetch('http://127.0.0.1:3131/api/actions/remove-quarantine', {
+      await fetch('/api/actions/remove-quarantine', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ appName: selectedApp }),
@@ -115,7 +115,7 @@ export default function SecurityHub() {
             <div className="card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-l-4 border-l-emerald-500">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/25 flex items-center justify-center text-xl font-extrabold font-mono">
-                  {postureData?.securityScore || 96}
+                  {postureData?.securityScore != null ? postureData.securityScore : 'Unavailable'}
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400">Security Posture Score</span>
@@ -170,7 +170,7 @@ export default function SecurityHub() {
                   13 TCC System Permission Categories
                 </h3>
                 <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-xs font-bold">
-                  Privacy Score: {privacyAuditor?.privacyScore || 92}/100
+                  Privacy Score: {privacyAuditor?.privacyScore != null ? `${privacyAuditor.privacyScore}/100` : 'Unavailable'}
                 </span>
               </div>
 

@@ -43,8 +43,11 @@ router.get('/sysinfo', async (_req, res) => {
     const primaryDisk = Array.isArray(fsSize)
       ? fsSize.find((f) => f.mount === '/System/Volumes/Data' || f.mount === '/' || f.mount === 'C:') || fsSize[0]
       : null;
-    const totalDiskGB = primaryDisk ? Math.round(primaryDisk.size / 1024 / 1024 / 1024) : 256;
-    const freeDiskGB = primaryDisk ? +( (primaryDisk.size - primaryDisk.used) / 1024 / 1024 / 1024 ).toFixed(1) : 128;
+    // Never guess capacity. When the primary volume cannot be resolved, report
+    // `null` so the UI can show "Unavailable" instead of a fabricated number.
+    const totalDiskGB = primaryDisk ? Math.round(primaryDisk.size / 1024 / 1024 / 1024) : null;
+    const freeDiskGB = primaryDisk ? +( (primaryDisk.size - primaryDisk.used) / 1024 / 1024 / 1024 ).toFixed(1) : null;
+    const diskAvailable = primaryDisk != null;
 
     res.json({
       platform: detectedPlatform,
@@ -59,6 +62,7 @@ router.get('/sysinfo', async (_req, res) => {
       ramGB: Math.round(mem.total / 1024 / 1024 / 1024),
       freeDiskGB,
       totalDiskGB,
+      diskAvailable,
       cpuUsage: Math.round(currentLoad.currentLoad || 0),
       memoryUsage: Math.round((mem.active / mem.total) * 100),
       uptime: `${Math.floor(os.uptime() / 3600)}h ${Math.floor((os.uptime() % 3600) / 60)}m`,
@@ -262,16 +266,15 @@ router.get('/apps/inventory', async (_req, res) => {
 // ── GET /api/apps/footprint/:appName ───────────────────────────────────────
 router.get('/apps/footprint/:appName', async (req, res) => {
   try {
-    const footprint = isMac ? await getMacAppFootprint(req.params.appName) : {
-      appName: req.params.appName,
-      totalMB: 450,
-      totalGB: 0.45,
-      breakdown: [
-        { label: 'Application Binary (.exe)', sizeMB: 350, path: `C:\\Program Files\\${req.params.appName}` },
-        { label: 'AppData / Roaming', sizeMB: 80, path: `C:\\Users\\User\\AppData\\Roaming\\${req.params.appName}` },
-        { label: 'Local Caches', sizeMB: 20, path: `C:\\Users\\User\\AppData\\Local\\${req.params.appName}` },
-      ],
-    };
+    if (!isMac) {
+      res.json({
+        appName: req.params.appName,
+        available: false,
+        reason: 'Application footprint is only measurable on macOS. Unavailable on this platform.',
+      });
+      return;
+    }
+    const footprint = await getMacAppFootprint(req.params.appName);
     res.json(footprint);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -281,15 +284,17 @@ router.get('/apps/footprint/:appName', async (req, res) => {
 // ── GET /api/developer/health ──────────────────────────────────────────────
 router.get('/developer/health', async (_req, res) => {
   try {
-    const devHealth = isMac ? await getMacDeveloperEnvironmentHealth() : {
-      platform: 'windows',
-      tools: [
-        { name: 'Node.js', status: 'Installed', version: 'v20.11.0', healthy: true },
-        { name: 'Python 3', status: 'Installed', version: '3.11.4', healthy: true },
-        { name: 'Docker Desktop', status: 'Active', version: '24.0.6', healthy: true },
-      ],
-      totalInstalled: 3,
-    };
+    if (!isMac) {
+      res.json({
+        platform: detectedPlatform,
+        available: false,
+        reason: 'Developer environment health is only measurable on macOS. Unavailable on this platform.',
+        tools: [],
+        totalInstalled: 0,
+      });
+      return;
+    }
+    const devHealth = await getMacDeveloperEnvironmentHealth();
     res.json(devHealth);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -299,7 +304,16 @@ router.get('/developer/health', async (_req, res) => {
 // ── GET /api/thermal ────────────────────────────────────────────────────────
 router.get('/thermal', async (_req, res) => {
   try {
-    const thermal = isMac ? await getMacThermalState() : { state: 'Nominal', pressureLevel: 'Normal', detail: 'Hardware temperatures nominal.' };
+    if (!isMac) {
+      res.json({
+        available: false,
+        state: 'Unavailable',
+        pressureLevel: 'Unavailable',
+        detail: 'Thermal telemetry is macOS-only. Unavailable on this platform.',
+      });
+      return;
+    }
+    const thermal = await getMacThermalState();
     res.json(thermal);
   } catch (err) {
     res.status(500).json({ error: err.message });

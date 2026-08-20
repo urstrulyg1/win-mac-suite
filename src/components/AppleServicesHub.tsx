@@ -21,10 +21,10 @@ export default function AppleServicesHub() {
     setLoading(true);
     try {
       const [uRes, tRes, iRes, sRes] = await Promise.all([
-        fetch('http://127.0.0.1:3131/api/diagnostics/update-doctor').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/diagnostics/time-machine').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/diagnostics/icloud').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/diagnostics/apple-services').catch(() => null),
+        fetch('/api/diagnostics/update-doctor').catch(() => null),
+        fetch('/api/diagnostics/time-machine').catch(() => null),
+        fetch('/api/diagnostics/icloud').catch(() => null),
+        fetch('/api/diagnostics/apple-services').catch(() => null),
       ]);
 
       if (uRes && uRes.ok) setUpdateData(await uRes.json());
@@ -149,7 +149,7 @@ export default function AppleServicesHub() {
                 <p className="text-xs text-slate-400">{tmData?.verdict || 'Backups healthy and synchronized.'}</p>
               </div>
               <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-xs font-bold">
-                {tmData?.status || 'Healthy'}
+                {tmData?.status ?? 'Unavailable / Unsupported'}
               </span>
             </div>
 
@@ -192,7 +192,7 @@ export default function AppleServicesHub() {
               </div>
               <div className="p-3.5 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
                 <span className="text-[10px] uppercase font-bold text-slate-400">Desktop &amp; Docs</span>
-                <p className="text-xs font-bold text-emerald-400 mt-1">{icloudData?.desktopDocumentsSync || 'Active'}</p>
+                <p className="text-xs font-bold text-emerald-400 mt-1">{icloudData?.desktopDocumentsSync ?? 'Unavailable'}</p>
               </div>
               <div className="p-3.5 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
                 <span className="text-[10px] uppercase font-bold text-slate-400">Photos Sync</span>

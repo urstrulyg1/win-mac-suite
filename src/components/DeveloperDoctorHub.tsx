@@ -27,13 +27,13 @@ export default function DeveloperDoctorHub() {
     setLoading(true);
     try {
       const [eRes, dRes, xRes, sRes, vRes, bRes, pRes] = await Promise.all([
-        fetch('http://127.0.0.1:3131/api/developer/health').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/storage/docker').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/storage/xcode').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/diagnostics/ssh-doctor').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/diagnostics/virtualization').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/diagnostics/browser-health').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/network/listening-ports').catch(() => null),
+        fetch('/api/developer/health').catch(() => null),
+        fetch('/api/storage/docker').catch(() => null),
+        fetch('/api/storage/xcode').catch(() => null),
+        fetch('/api/diagnostics/ssh-doctor').catch(() => null),
+        fetch('/api/diagnostics/virtualization').catch(() => null),
+        fetch('/api/diagnostics/browser-health').catch(() => null),
+        fetch('/api/network/listening-ports').catch(() => null),
       ]);
 
       if (eRes && eRes.ok) setEnvData(await eRes.json());
@@ -59,7 +59,7 @@ export default function DeveloperDoctorHub() {
   const handleCleanDocker = async () => {
     setCleaningAction('docker');
     try {
-      const res = await fetch('http://127.0.0.1:3131/api/actions/clean-docker', {
+      const res = await fetch('/api/actions/clean-docker', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pruneImages: true, pruneBuildCache: true }),
@@ -76,7 +76,7 @@ export default function DeveloperDoctorHub() {
   const handleCleanXcode = async () => {
     setCleaningAction('xcode');
     try {
-      const res = await fetch('http://127.0.0.1:3131/api/actions/clean-xcode', {
+      const res = await fetch('/api/actions/clean-xcode', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -92,7 +92,7 @@ export default function DeveloperDoctorHub() {
   const handleKillPort = async (e: React.MouseEvent, port: number) => {
     e.stopPropagation();
     try {
-      await fetch('http://127.0.0.1:3131/api/actions/kill-port', {
+      await fetch('/api/actions/kill-port', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ port }),

@@ -40,34 +40,30 @@ router.get('/storage', async (_req, res) => {
       ? fsSize.find((f) => f.mount === '/System/Volumes/Data' || f.mount === '/' || f.mount === 'C:') || fsSize[0]
       : null;
 
-    const totalGB = primary ? Math.round(primary.size / 1024 / 1024 / 1024) : 256;
-    const usedGB = primary ? Math.round(primary.used / 1024 / 1024 / 1024) : 128;
-    const freeGB = primary ? +( (primary.size - primary.used) / 1024 / 1024 / 1024 ).toFixed(1) : 128;
-    const percentUsed = primary ? Math.round(primary.use || 50) : 50;
+    const totalGB = primary ? Math.round(primary.size / 1024 / 1024 / 1024) : null;
+    const usedGB = primary ? Math.round(primary.used / 1024 / 1024 / 1024) : null;
+    const freeGB = primary ? +( (primary.size - primary.used) / 1024 / 1024 / 1024 ).toFixed(1) : null;
+    const percentUsed = primary ? Math.round(primary.use || 0) : null;
 
-    const largeFiles = isMac ? await getMacLargeFiles() : [
-      { name: 'Installer_Stale.iso', path: 'C:\\Downloads\\Installer_Stale.iso', size: '2.4 GB' },
-    ];
+    // Real breakdown and large files from macOS telemetry (never estimated ratios).
+    let breakdown = null;
+    let largeFiles = [];
+    if (isMac) {
+      const [sysData, macLarge] = await Promise.all([
+        getMacSystemDataBreakdown().catch(() => null),
+        getMacLargeFiles().catch(() => []),
+      ]);
+      breakdown = sysData && Array.isArray(sysData.categories) ? sysData.categories : null;
+      largeFiles = macLarge;
+    }
 
     res.json({
-      platform: isMac ? 'macos' : 'windows',
+      platform: isMac ? 'macos' : 'unsupported',
       totalGB,
       usedGB,
       freeGB,
       percentUsed,
-      breakdown: isMac
-        ? [
-            { category: 'macOS Core & Sealed Snapshot', sizeGB: 15.2, color: '#3b82f6' },
-            { category: 'Applications & Binaries', sizeGB: +(usedGB * 0.35).toFixed(1), color: '#06b6d4' },
-            { category: 'Developer Build Caches', sizeGB: +(usedGB * 0.12).toFixed(1), color: '#8b5cf6' },
-            { category: 'User Documents & Media', sizeGB: +(usedGB * 0.40).toFixed(1), color: '#10b981' },
-          ]
-        : [
-            { category: 'Windows OS & WinSxS', sizeGB: 28.0, color: '#2563eb' },
-            { category: 'Program Files', sizeGB: +(usedGB * 0.35).toFixed(1), color: '#6366f1' },
-            { category: 'Temporary & Crash Dumps', sizeGB: +(usedGB * 0.08).toFixed(1), color: '#f59e0b' },
-            { category: 'User Profiles & AppData', sizeGB: +(usedGB * 0.42).toFixed(1), color: '#10b981' },
-          ],
+      breakdown,
       largeFiles,
     });
   } catch (err) {
@@ -83,21 +79,9 @@ router.get('/storage/system-data', async (_req, res) => {
       res.json(breakdown);
     } else {
       res.json({
-        platform: 'windows',
-        totalSystemDataGB: 34.5,
-        potentialRecoveryGB: 18.2,
-        growth30d: '+12.4 GB',
-        growthSummary: 'System Data increased by 12.4 GB over the last 30 days due to Windows Update staging and temp dumps.',
-        categories: [
-          { id: 'winsxs', name: 'WinSxS Component Store', sizeGB: 12.4, reclaimable: true, safeToPurge: true, description: 'Obsolete Windows Update package backups.' },
-          { id: 'delivery', name: 'Delivery Optimization Cache', sizeGB: 4.8, reclaimable: true, safeToPurge: true, description: 'Peer-to-peer Windows update fragments.' },
-          { id: 'temp-dumps', name: 'Memory & Minidump Dumps', sizeGB: 3.2, reclaimable: true, safeToPurge: true, description: 'Crash reports and memory minidumps.' },
-          { id: 'hiberfil', name: 'Hibernation State (hiberfil.sys)', sizeGB: 14.1, reclaimable: false, safeToPurge: false, description: 'RAM sleep image.' },
-        ],
-        timeline: [
-          { day: '30d ago', systemDataGB: 22.1, event: 'Patch Tuesday Rollup' },
-          { day: 'Today', systemDataGB: 34.5, event: 'Current Live State' },
-        ],
+        platform: 'unsupported',
+        available: false,
+        reason: 'System Data breakdown is only measurable on macOS.',
       });
     }
   } catch (err) {
@@ -108,7 +92,8 @@ router.get('/storage/system-data', async (_req, res) => {
 // ── GET /api/storage/docker ────────────────────────────────────────────────
 router.get('/storage/docker', async (_req, res) => {
   try {
-    const dockerInfo = isMac ? await getMacDockerStorage() : { active: false, imagesSize: '0 GB', containersSize: '0 GB', volumesSize: '0 GB', buildCacheSize: '0 GB', reclaimableSize: '0 GB' };
+    if (!isMac) { res.json({ available: false, reason: 'Docker storage is only measurable on macOS.' }); return; }
+    const dockerInfo = await getMacDockerStorage();
     res.json(dockerInfo);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -118,7 +103,8 @@ router.get('/storage/docker', async (_req, res) => {
 // ── GET /api/storage/xcode ─────────────────────────────────────────────────
 router.get('/storage/xcode', async (_req, res) => {
   try {
-    const xcodeInfo = isMac ? await getMacXcodeDoctor() : { totalGB: 0, items: [] };
+    if (!isMac) { res.json({ available: false, reason: 'Xcode storage is only measurable on macOS.' }); return; }
+    const xcodeInfo = await getMacXcodeDoctor();
     res.json(xcodeInfo);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -128,7 +114,8 @@ router.get('/storage/xcode', async (_req, res) => {
 // ── GET /api/storage/ios-backups ───────────────────────────────────────────
 router.get('/storage/ios-backups', async (_req, res) => {
   try {
-    const backups = isMac ? await getMacIosBackups() : { count: 0, totalSizeGB: 0, backups: [] };
+    if (!isMac) { res.json({ available: false, reason: 'iOS backups are only measurable on macOS.' }); return; }
+    const backups = await getMacIosBackups();
     res.json(backups);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -138,7 +125,8 @@ router.get('/storage/ios-backups', async (_req, res) => {
 // ── GET /api/storage/orphaned-leftovers ────────────────────────────────────
 router.get('/storage/orphaned-leftovers', async (_req, res) => {
   try {
-    const leftovers = isMac ? await getMacOrphanedLeftovers() : [];
+    if (!isMac) { res.json({ available: false, reason: 'Orphaned leftovers are only measurable on macOS.' }); return; }
+    const leftovers = await getMacOrphanedLeftovers();
     res.json({ count: leftovers.length, leftovers });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -148,7 +136,8 @@ router.get('/storage/orphaned-leftovers', async (_req, res) => {
 // ── GET /api/storage/external-drives ───────────────────────────────────────
 router.get('/storage/external-drives', async (_req, res) => {
   try {
-    const drives = isMac ? await getMacExternalDrives() : [];
+    if (!isMac) { res.json({ available: false, reason: 'External drives are only measurable on macOS.' }); return; }
+    const drives = await getMacExternalDrives();
     res.json({ count: drives.length, drives });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -158,6 +147,10 @@ router.get('/storage/external-drives', async (_req, res) => {
 // ── GET /api/developer-cleanup ──────────────────────────────────────────────
 router.get('/developer-cleanup', async (_req, res) => {
   try {
+    if (!isMac && process.platform !== 'win32') {
+      res.json({ platform: 'unsupported', available: false, artifacts: [] });
+      return;
+    }
     const artifacts = isMac
       ? await getMacDeveloperArtifacts()
       : await getWindowsDeveloperArtifacts();
@@ -177,26 +170,25 @@ router.get('/snapshots', async (_req, res) => {
     if (isMac) {
       const tmOut = await runSafeCommand('/usr/bin/tmutil', ['listlocalsnapshots', '/']);
       const lines = tmOut ? tmOut.split('\n').filter((l) => l.includes('com.apple.TimeMachine')) : [];
-      const snapshots = lines.map((line, idx) => ({
+      // tmutil does not report per-snapshot sizes; report the ID honestly without inventing a size.
+      const snapshots = lines.map((line) => ({
         id: line.trim(),
         date: line.replace('com.apple.TimeMachine.', ''),
-        size: idx === 0 ? '1.4 GB' : '900 MB',
+        size: 'Unavailable',
       }));
 
       res.json({
         platform: 'macos',
         count: snapshots.length,
-        snapshots: snapshots.length > 0 ? snapshots : [
-          { id: 'com.apple.TimeMachine.LocalSnapshot', date: 'Current', size: '1.2 GB' },
-        ],
+        snapshots,
       });
     } else {
       res.json({
-        platform: 'windows',
-        count: 1,
-        snapshots: [
-          { id: 'RestorePoint-101', date: 'Recent', description: 'Pre-Update System Restore Point', size: '1.2 GB' },
-        ],
+        platform: 'unsupported',
+        count: 0,
+        snapshots: [],
+        available: false,
+        reason: 'Local snapshots are only queryable on macOS.',
       });
     }
   } catch (err) {

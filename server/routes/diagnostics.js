@@ -5,6 +5,7 @@
 import express from 'express';
 import si from 'systeminformation';
 import {
+  getMacSecurityPosture,
   getMacEventLogs,
   getMacBatteryStatus,
   getMacBatteryIntelligence,
@@ -56,6 +57,11 @@ import {
 
 const router = express.Router();
 const isMac = process.platform === 'darwin';
+
+// Honest "not measurable here" payload. Never fabricate a healthy-looking value.
+function macOnly(reason) {
+  return { available: false, reason };
+}
 
 // ── GET /api/diagnostics/recommendations ────────────────────────────────────
 router.get('/diagnostics/recommendations', (_req, res) => {
@@ -114,7 +120,7 @@ router.get('/diagnostics/correlation-incidents', async (_req, res) => {
       dockerActive,
       dockerCpuPct,
       chromeMemoryMB,
-      thermalLevel: 'Nominal',
+      thermalLevel: (isMac ? (await getMacThermalDeep().catch(() => null))?.thermalLevel ?? 'Unknown' : 'Unknown'),
       systemDataGB: usedDiskGB,
       freeDiskGB,
     });
@@ -160,40 +166,61 @@ router.get('/health-check', async (_req, res) => {
       si.mem(),
       si.currentLoad(),
       si.fsSize(),
-      si.battery().catch(() => ({ hasBattery: false, percent: 100 })),
+      si.battery().catch(() => ({ hasBattery: false, percent: null })),
     ]);
 
     const dataMount = Array.isArray(fsSize)
       ? fsSize.find((f) => f.mount === '/System/Volumes/Data' || f.mount === '/' || f.mount === 'C:') || fsSize[0]
       : null;
 
-    const diskUsagePct = dataMount ? Math.round(dataMount.use || 0) : 50;
-    const memUsagePct = Math.round((mem.active / mem.total) * 100);
-    const cpuUsagePct = Math.round(currentLoad.currentLoad || 10);
-    const battPercent = batt.hasBattery ? (batt.percent ?? 100) : 100;
+    // Every metric is either a real reading or `null` (Unavailable). No fabricated defaults.
+    const diskUsagePct = dataMount ? Math.round(dataMount.use || 0) : null;
+    const memUsagePct = mem.total > 0 ? Math.round((mem.active / mem.total) * 100) : null;
+    const cpuUsagePct = currentLoad.currentLoad != null ? Math.round(currentLoad.currentLoad) : null;
+    const battPercent = batt.hasBattery && batt.percent != null ? batt.percent : null;
 
-    const storageScore = Math.max(0, 100 - (diskUsagePct > 70 ? (diskUsagePct - 70) * 2 : 0));
-    const memScore = Math.max(0, 100 - (memUsagePct > 75 ? (memUsagePct - 75) * 2.5 : 0));
-    const cpuScore = Math.max(0, 100 - (cpuUsagePct > 60 ? (cpuUsagePct - 60) * 2 : 0));
-    const battScore = batt.hasBattery ? (battPercent < 20 ? 70 : 100) : 100;
+    const storageScore = diskUsagePct == null ? null : Math.max(0, 100 - (diskUsagePct > 70 ? (diskUsagePct - 70) * 2 : 0));
+    const memScore = memUsagePct == null ? null : Math.max(0, 100 - (memUsagePct > 75 ? (memUsagePct - 75) * 2.5 : 0));
+    const cpuScore = cpuUsagePct == null ? null : Math.max(0, 100 - (cpuUsagePct > 60 ? (cpuUsagePct - 60) * 2 : 0));
+    const battScore = battPercent == null ? null : (battPercent < 20 ? 70 : 100);
 
-    const weightedScore = Math.round(
-      storageScore * 0.25 +
-      memScore * 0.20 +
-      cpuScore * 0.20 +
-      98 * 0.15 +
-      98 * 0.10 +
-      battScore * 0.10
-    );
+    // Security & integrity are probed from the real system, macOS only.
+    let securityScore = null;
+    let integrityScore = null;
+    if (isMac) {
+      try {
+        const posture = await getMacSecurityPosture();
+        securityScore = posture?.securityScore ?? null;
+        const sip = (posture?.checks || []).find((c) => /System Integrity Protection/i.test(c?.name || ''));
+        integrityScore = sip ? (sip.passed ? 100 : 40) : null;
+      } catch {
+        securityScore = null;
+        integrityScore = null;
+      }
+    }
+
+    // Weighted score is renormalised over whatever metrics are actually available,
+    // so missing telemetry never silently inflates or fabricates the result.
+    const parts = [];
+    if (storageScore != null) parts.push([storageScore, 0.30]);
+    if (memScore != null) parts.push([memScore, 0.25]);
+    if (cpuScore != null) parts.push([cpuScore, 0.25]);
+    if (securityScore != null) parts.push([securityScore, 0.20]);
+    if (battScore != null) parts.push([battScore, 0.10]);
+    const totalWeight = parts.reduce((sum, [, w]) => sum + w, 0);
+    const score = totalWeight > 0
+      ? Math.round(parts.reduce((sum, [v, w]) => sum + v * (w / totalWeight), 0))
+      : null;
 
     res.json({
-      score: Math.min(Math.max(weightedScore, 50), 100),
+      score,
+      available: totalWeight > 0,
       metrics: {
-        storage: { status: diskUsagePct < 80 ? 'Healthy' : 'Warning', score: storageScore, usage: diskUsagePct },
-        memory: { status: memUsagePct < 85 ? 'Healthy' : 'Warning', score: memScore, usage: memUsagePct },
-        cpu: { status: cpuUsagePct < 80 ? 'Healthy' : 'Warning', score: cpuScore, usage: cpuUsagePct },
-        security: { status: 'Healthy', score: 98 },
-        integrity: { status: 'Healthy', score: 98 },
+        storage: diskUsagePct == null ? { status: 'Unavailable', score: null, usage: null } : { status: diskUsagePct < 80 ? 'Healthy' : 'Warning', score: storageScore, usage: diskUsagePct },
+        memory: memUsagePct == null ? { status: 'Unavailable', score: null, usage: null } : { status: memUsagePct < 85 ? 'Healthy' : 'Warning', score: memScore, usage: memUsagePct },
+        cpu: cpuUsagePct == null ? { status: 'Unavailable', score: null, usage: null } : { status: cpuUsagePct < 80 ? 'Healthy' : 'Warning', score: cpuScore, usage: cpuUsagePct },
+        security: securityScore == null ? { status: 'Unavailable', score: null } : { status: securityScore >= 80 ? 'Healthy' : 'Warning', score: securityScore },
+        integrity: integrityScore == null ? { status: 'Unavailable', score: null } : { status: integrityScore >= 80 ? 'Healthy' : 'Warning', score: integrityScore },
       },
     });
   } catch (err) {
@@ -203,136 +230,136 @@ router.get('/health-check', async (_req, res) => {
 
 router.get('/performance/diagnosis', async (_req, res) => {
   try {
-    const diag = isMac ? await getMacPerformanceDiagnosis() : { verdict: 'Windows nominal.', subsystems: [], recommendations: [] };
+    const diag = isMac ? await getMacPerformanceDiagnosis() : macOnly('Performance diagnosis is macOS-only.');
     res.json(diag);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/thermal/deep', async (_req, res) => {
   try {
-    const thermal = isMac ? await getMacThermalDeep() : { thermalLevel: 'Nominal' };
+    const thermal = isMac ? await getMacThermalDeep() : macOnly('Thermal telemetry is macOS-only.');
     res.json(thermal);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/battery/intelligence', async (_req, res) => {
   try {
-    const bIntel = isMac ? await getMacBatteryIntelligence() : { hasBattery: false, percent: 100, drainTimeline: [] };
+    const bIntel = isMac ? await getMacBatteryIntelligence() : macOnly('Battery intelligence is macOS-only.');
     res.json(bIntel);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/update-doctor', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacUpdateDoctor() : { hasUpdateAvailable: false });
+    res.json(isMac ? await getMacUpdateDoctor() : macOnly('Software update checks are macOS-only.'));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/disk-health', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacDiskHealth() : { filesystem: 'NTFS' });
+    res.json(isMac ? await getMacDiskHealth() : macOnly('Disk health is macOS-only.'));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/crashes-hangs', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacCrashHangIntelligence() : { totalReportsCount: 0, frequentCrashers: [] });
+    res.json(isMac ? await getMacCrashHangIntelligence() : macOnly('Crash/hang diagnostics are macOS-only.'));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/system-stability', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacSystemStability() : { stabilityScore: 98 });
+    res.json(isMac ? await getMacSystemStability() : macOnly('System stability is macOS-only.'));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/spotlight-doctor', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacSpotlightDoctor() : { indexingEnabled: true });
+    res.json(isMac ? await getMacSpotlightDoctor() : macOnly('Spotlight status is macOS-only.'));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/time-machine', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacTimeMachineDoctor() : { status: 'N/A' });
+    res.json(isMac ? await getMacTimeMachineDoctor() : macOnly('Time Machine is macOS-only.'));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/icloud', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacICloudDiagnostics() : { accountConfigured: false });
+    res.json(isMac ? await getMacICloudDiagnostics() : macOnly('iCloud diagnostics are macOS-only.'));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/apple-services', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacAppleServicesHealth() : { services: [] });
+    res.json(isMac ? await getMacAppleServicesHealth() : macOnly('Apple services health is macOS-only.'));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/audio', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacAudioDoctor() : { defaultOutputDevice: 'Speakers' });
+    res.json(isMac ? await getMacAudioDoctor() : macOnly('Audio diagnostics are macOS-only.'));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/camera-mic', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacCameraMicDoctor() : { cameras: [] });
+    res.json(isMac ? await getMacCameraMicDoctor() : macOnly('Camera/mic diagnostics are macOS-only.'));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/displays', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacDisplayDoctor() : { connectedDisplaysCount: 1 });
+    res.json(isMac ? await getMacDisplayDoctor() : macOnly('Display diagnostics are macOS-only.'));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/peripherals', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacPeripheralDoctor() : { peripherals: [] });
+    res.json(isMac ? await getMacPeripheralDoctor() : macOnly('Peripheral diagnostics are macOS-only.'));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/finder-clipboard', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacFinderClipboardDoctor() : { finderStatus: 'Responsive' });
+    res.json(isMac ? await getMacFinderClipboardDoctor() : macOnly('Finder diagnostics are macOS-only.'));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/ssh-doctor', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacSshDoctor() : { sshConfigFound: false });
+    res.json(isMac ? await getMacSshDoctor() : macOnly('SSH diagnostics are macOS-only.'));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/virtualization', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacVirtualizationDoctor() : { hypervisorsDetected: [] });
+    res.json(isMac ? await getMacVirtualizationDoctor() : macOnly('Virtualization diagnostics are macOS-only.'));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/browser-health', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacBrowserHealth() : { browsers: [] });
+    res.json(isMac ? await getMacBrowserHealth() : macOnly('Browser health is macOS-only.'));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/app-resource', async (req, res) => {
   try {
-    res.json(isMac ? await getMacAppResourceDoctor(req.query.appName || 'Google Chrome') : { cpuUtilizationPct: 10 });
+    res.json(isMac ? await getMacAppResourceDoctor(req.query.appName || 'Google Chrome') : macOnly('App resource usage is macOS-only.'));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/system-timeline', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacSystemEventsTimeline() : { events: [] });
+    res.json(isMac ? await getMacSystemEventsTimeline() : macOnly('System event timeline is macOS-only.'));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/baseline-diff', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacBaselineDiff() : { metrics: [] });
+    res.json(isMac ? await getMacBaselineDiff() : macOnly('Baseline diff is macOS-only.'));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -380,25 +407,25 @@ router.get('/hardware', async (_req, res) => {
 
 router.get('/spotlight', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacSpotlightStatus() : { indexingEnabled: true });
+    res.json(isMac ? await getMacSpotlightStatus() : macOnly('Spotlight status is macOS-only.'));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/power-assertions', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacPowerAssertions() : { sleepPrevented: false, activeBlockers: [] });
+    res.json(isMac ? await getMacPowerAssertions() : macOnly('Power assertions are macOS-only.'));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/app-compatibility/:appName', async (req, res) => {
   try {
-    res.json(isMac ? await getMacAppCompatibility(req.params.appName) : { appName: req.params.appName });
+    res.json(isMac ? await getMacAppCompatibility(req.params.appName) : macOnly('App compatibility is macOS-only.'));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/troubleshoot/:issueId', async (req, res) => {
   try {
-    res.json(isMac ? await getMacTroubleshootGuide(req.params.issueId) : { title: 'Troubleshoot' });
+    res.json(isMac ? await getMacTroubleshootGuide(req.params.issueId) : macOnly('Troubleshoot guides are macOS-only.'));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

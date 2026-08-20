@@ -42,7 +42,7 @@ export async function executeMaintenancePlan(
   // Try opening SSE stream connection if available
   let eventSource: EventSource | null = null;
   try {
-    eventSource = new EventSource(`http://127.0.0.1:3131/api/actions/stream/${sessionId}`);
+    eventSource = new EventSource(`/api/actions/stream/${sessionId}`);
     eventSource.onmessage = (event) => {
       try {
         const payload = JSON.parse(event.data);
@@ -93,7 +93,7 @@ export async function executeMaintenancePlan(
       // If allowedCommandId exists, notify backend action endpoint
       if (template.allowedCommandId) {
         try {
-          fetch('http://127.0.0.1:3131/api/actions/run-phase', {
+          fetch('/api/actions/run-phase', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -198,7 +198,7 @@ export async function executeMaintenancePlan(
   if (cancelled) {
     events.onLog?.({ time: ts(), level: 'WARNING', message: '⚠ Execution cancelled by user — partial report compiled.' });
     // Tell backend to cancel active process
-    fetch('http://127.0.0.1:3131/api/actions/cancel', { method: 'POST' }).catch(() => {});
+    fetch('/api/actions/cancel', { method: 'POST' }).catch(() => {});
   } else {
     events.onOverallProgress?.(100);
     events.onLog?.({ time: ts(), level: 'SUCCESS', message: '═ SYSTEM MAINTENANCE PIPELINE COMPLETED SUCCESSFULLY' });

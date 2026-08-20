@@ -155,7 +155,7 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
                     details: [
                       { label: 'Host Platform', value: systemInfo.os },
                       { label: 'Host Architecture', value: isMac ? 'Apple Silicon (arm64)' : 'x64' },
-                      { label: 'API Endpoint', value: 'http://127.0.0.1:3131/api/sysinfo', isCode: true },
+                      { label: 'API Endpoint', value: '/api/sysinfo', isCode: true },
                     ],
                   })
                 }
@@ -408,7 +408,7 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
               icon: TrendingUp,
               label: 'System Uptime',
               value: systemInfo.uptime ? systemInfo.uptime.split(',')[0] : '—',
-              sub: systemInfo.uptime || 'Active',
+              sub: systemInfo.uptime || 'Unavailable',
               mode: 'Safe' as RunMode,
             },
           ].map((f) => (

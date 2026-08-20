@@ -18,7 +18,7 @@ export default function StartupManager() {
   const fetchStartup = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://127.0.0.1:3131/api/startup-items');
+      const res = await fetch('/api/startup-items');
       if (res.ok) {
         const data = await res.json();
         setItems(data.list || []);
@@ -46,7 +46,7 @@ export default function StartupManager() {
     );
 
     try {
-      await fetch('http://127.0.0.1:3131/api/actions/toggle-startup', {
+      await fetch('/api/actions/toggle-startup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ itemName: item.name, enable: nextState }),

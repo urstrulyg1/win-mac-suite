@@ -22,7 +22,7 @@ export default function SafeCleanupModal({ isOpen, onClose, onSuccess }: Props) 
     if (isOpen) {
       setStep('preview');
       setLoading(true);
-      fetch('http://127.0.0.1:3131/api/actions/cleanup-plan', {
+      fetch('/api/actions/cleanup-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       })
@@ -49,7 +49,7 @@ export default function SafeCleanupModal({ isOpen, onClose, onSuccess }: Props) 
   const handleExecute = async () => {
     setStep('executing');
     try {
-      const res = await fetch('http://127.0.0.1:3131/api/actions/execute-cleanup', {
+      const res = await fetch('/api/actions/execute-cleanup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

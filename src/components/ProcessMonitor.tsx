@@ -14,20 +14,14 @@ export default function ProcessMonitor() {
   const fetchProcesses = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://127.0.0.1:3131/api/processes');
+      const res = await fetch('/api/processes');
       if (res.ok) {
         const data = await res.json();
         setProcesses(data.list || []);
       }
     } catch {
-      // Fallback sample processes
-      setProcesses([
-        { pid: 1420, name: 'System', cpu: 2.1, mem: 1.4, user: 'SYSTEM' },
-        { pid: 2840, name: 'node.exe', cpu: 1.8, mem: 3.2, user: 'User' },
-        { pid: 3120, name: 'chrome.exe', cpu: 4.5, mem: 8.9, user: 'User' },
-        { pid: 4890, name: 'explorer.exe', cpu: 0.8, mem: 2.1, user: 'User' },
-        { pid: 5120, name: 'Code.exe', cpu: 1.2, mem: 6.4, user: 'User' },
-      ]);
+      // Never fabricate a process list — leave it empty and let the UI show Unavailable.
+      setProcesses([]);
     } finally {
       setLoading(false);
     }
@@ -143,6 +137,13 @@ export default function ProcessMonitor() {
               </tr>
             </thead>
             <tbody className="divide-y" style={{ borderColor: 'var(--color-line)' }}>
+              {sortedList.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="p-6 text-center text-xs text-slate-400">
+                    {loading ? 'Sampling processes…' : 'Unavailable / Unsupported — no process telemetry returned.'}
+                  </td>
+                </tr>
+              )}
               {sortedList.map((p) => (
                 <tr
                   key={p.pid}

@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 
 interface Props {
-  score: number;
+  score: number | null;
   size?: number;
 }
 
@@ -12,12 +12,17 @@ export default function HealthScore({ score, size = 170 }: Props) {
   const strokeWidth = 10;
   const r = (size - strokeWidth * 2 - 4) / 2;
   const c = 2 * Math.PI * r;
-  const offset = c - (Math.max(0, Math.min(score, 100)) / 100) * c;
+  const safeScore = score == null ? 0 : Math.max(0, Math.min(score, 100));
+  const offset = c - (safeScore / 100) * c;
 
   const color =
-    score >= 90 ? '#16a34a' : score >= 75 ? '#0891b2' : score >= 60 ? '#d97706' : '#dc2626';
+    score == null
+      ? '#94a3b8'
+      : score >= 90 ? '#16a34a' : score >= 75 ? '#0891b2' : score >= 60 ? '#d97706' : '#dc2626';
   const grade =
-    score >= 95
+    score == null
+      ? 'Unavailable / Unsupported'
+      : score >= 95
       ? 'Optimal State'
       : score >= 90
       ? 'Very Good'
@@ -33,7 +38,7 @@ export default function HealthScore({ score, size = 170 }: Props) {
     const animate = (time: number) => {
       const progress = Math.min((time - start) / duration, 1);
       const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-      setDisplay(Math.round(score * ease));
+      setDisplay(Math.round((score ?? 0) * ease));
       if (progress < 1) raf.current = requestAnimationFrame(animate);
     };
     raf.current = requestAnimationFrame(animate);
@@ -78,10 +83,10 @@ export default function HealthScore({ score, size = 170 }: Props) {
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
           <span className="text-5xl font-extrabold tracking-tight font-mono tabular-nums" style={{ color: 'var(--color-ink)' }}>
-            {display}
+            {score == null ? '—' : display}
           </span>
           <span className="text-[10px] uppercase font-mono tracking-widest mt-0.5" style={{ color: 'var(--color-ink-4)' }}>
-            / 100 Score
+            {score == null ? 'No telemetry' : '/ 100 Score'}
           </span>
         </div>
       </div>

@@ -22,9 +22,9 @@ export default function NetworkDoctorHub() {
     setLoading(true);
     try {
       const [dRes, bRes, wRes] = await Promise.all([
-        fetch('http://127.0.0.1:3131/api/network/doctor').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/network/bluetooth').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/network/wifi-intelligence').catch(() => null),
+        fetch('/api/network/doctor').catch(() => null),
+        fetch('/api/network/bluetooth').catch(() => null),
+        fetch('/api/network/wifi-intelligence').catch(() => null),
       ]);
 
       if (dRes && dRes.ok) setDoctorData(await dRes.json());
@@ -43,7 +43,7 @@ export default function NetworkDoctorHub() {
   const handleFlushDNS = async () => {
     setFlushingDNS(true);
     try {
-      await fetch('http://127.0.0.1:3131/api/actions/run-phase', {
+      await fetch('/api/actions/run-phase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ commandId: isMac ? 'mac.flushdns' : 'win.flushdns' }),
@@ -189,7 +189,7 @@ export default function NetworkDoctorHub() {
                 <p className="text-xs text-slate-400">Signal: {wifiData?.signalStrengthDbm || -54} dBm · Channel: {wifiData?.channel || '36 (5 GHz)'}</p>
               </div>
               <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-xs font-bold">
-                {wifiData?.reliabilityScore || 97}% Network Reliability
+                {wifiData?.reliabilityScore != null ? `${wifiData.reliabilityScore}% Network Reliability` : 'Unavailable / Unsupported'}
               </span>
             </div>
 
@@ -227,7 +227,7 @@ export default function NetworkDoctorHub() {
                     <h3 className="text-sm font-bold" style={{ color: 'var(--color-ink)' }}>
                       AirDrop Doctor
                     </h3>
-                    <p className="text-xs text-slate-400">Visibility: {btData?.airDrop?.visibilityMode || 'Contacts Only'} · Daemon: {btData?.airDrop?.sharingDaemonStatus || 'Active'}</p>
+                    <p className="text-xs text-slate-400">Visibility: {btData?.airDrop?.visibilityMode ?? 'Unavailable'} · Daemon: {btData?.airDrop?.sharingDaemonStatus ?? 'Unavailable'}</p>
                   </div>
                 </div>
                 <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-[10px]">

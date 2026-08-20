@@ -983,8 +983,6 @@ export async function getMacSecurityPosture() {
       { name: 'FileVault Volume Encryption', passed: fv, detail: 'APFS full disk cryptographic protection on' },
       { name: 'System Integrity Protection (SIP)', passed: sp, detail: 'Rootless kernel protection enabled' },
       { name: 'macOS Application Firewall', passed: fw, detail: 'Stealth mode and packet filtering enabled' },
-      { name: 'Signed Binary Verification', passed: true, detail: 'Zero unsigned root daemons discovered' },
-      { name: 'Suspicious Persistence Locations', passed: true, detail: 'No rogue cron jobs or periodic run scripts' },
     ],
   };
 }
@@ -1291,11 +1289,11 @@ export async function getMacSecurityStatus() {
   return {
     engine: 'Apple XProtect & Gatekeeper',
     status: gatekeeperActive && sipActive ? 'Active' : 'Warning',
-    realtimeProtection: true,
-    signatureVersion: 'Apple Security Definitions Active',
+    realtimeProtection: null,
+    signatureVersion: null,
     gatekeeper: {
       status: gatekeeperActive ? 'Enabled' : 'Disabled',
-      assessment: spctlOut || 'assessments enabled',
+      assessment: spctlOut || 'Unavailable',
     },
     encryption: {
       type: 'FileVault Volume Encryption',
@@ -1304,7 +1302,7 @@ export async function getMacSecurityStatus() {
     },
     sip: {
       status: sipActive ? 'Enabled' : 'Disabled',
-      detail: csrOut || 'System Integrity Protection status: enabled.',
+      detail: csrOut || 'Unavailable',
     },
     firewall: {
       active: firewallActive,
@@ -1419,10 +1417,7 @@ export async function getMacDeveloperArtifacts() {
     }
   }
 
-  return artifacts.length > 0 ? artifacts : [
-    { id: '1', name: 'Homebrew Cache', path: '~/Library/Caches/Homebrew', sizeMB: 500 },
-    { id: '2', name: 'npm Global Cache', path: '~/.npm', sizeMB: 120 },
-  ];
+  return artifacts;
 }
 
 export async function getMacLargeFiles() {

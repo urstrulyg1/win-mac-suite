@@ -22,11 +22,11 @@ export default function HardwarePeripheralsHub() {
     setLoading(true);
     try {
       const [dRes, aRes, cRes, dpRes, pRes] = await Promise.all([
-        fetch('http://127.0.0.1:3131/api/diagnostics/disk-health').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/diagnostics/audio').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/diagnostics/camera-mic').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/diagnostics/displays').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/diagnostics/peripherals').catch(() => null),
+        fetch('/api/diagnostics/disk-health').catch(() => null),
+        fetch('/api/diagnostics/audio').catch(() => null),
+        fetch('/api/diagnostics/camera-mic').catch(() => null),
+        fetch('/api/diagnostics/displays').catch(() => null),
+        fetch('/api/diagnostics/peripherals').catch(() => null),
       ]);
 
       if (dRes && dRes.ok) setDiskData(await dRes.json());

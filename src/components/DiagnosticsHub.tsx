@@ -22,7 +22,7 @@ type DiagTab = 'matrix' | 'battery' | 'processes' | 'events' | 'spotlight';
 export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
   const { config, isMac } = usePlatform();
   const [activeSubTab, setActiveSubTab] = useState<DiagTab>('matrix');
-  const [healthScore, setHealthScore] = useState(96);
+  const [healthScore, setHealthScore] = useState<number | null>(null);
   const [healthMetrics, setHealthMetrics] = useState<any>(null);
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
@@ -36,18 +36,20 @@ export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
     setLoading(true);
     try {
       const [hRes, eRes, bRes, sRes, pRes] = await Promise.all([
-        fetch('http://127.0.0.1:3131/api/health-check').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/event-logs').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/battery/intelligence').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/spotlight').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/power-assertions').catch(() => null),
+        fetch('/api/health-check').catch(() => null),
+        fetch('/api/event-logs').catch(() => null),
+        fetch('/api/battery/intelligence').catch(() => null),
+        fetch('/api/spotlight').catch(() => null),
+        fetch('/api/power-assertions').catch(() => null),
       ]);
 
       if (hRes && hRes.ok) {
         const data = await hRes.json();
-        setHealthScore(data.score || 96);
+        setHealthScore(typeof data.score === 'number' ? data.score : null);
         setHealthMetrics(data.metrics || null);
         setRecommendations(data.recommendations || []);
+      } else {
+        setHealthScore(null);
       }
       if (eRes && eRes.ok) {
         const eData = await eRes.json();
@@ -95,11 +97,11 @@ export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
               <Activity size={12} /> Diagnostics &amp; Health Center
             </span>
             <span className="pill" style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-3)', borderColor: 'var(--color-line)' }}>
-              Native macOS Probes &amp; Sleep Guardian Active
+              {isMac ? 'Native macOS Probes & Sleep Guardian Active' : 'Live read-only telemetry'}
             </span>
           </div>
           <h1 className="text-hero font-extrabold tracking-tight" style={{ color: 'var(--color-ink)' }}>
-            System Diagnostics &amp; Sleep Guardian
+            System Diagnostics{isMac ? ' & Sleep Guardian' : ''}
           </h1>
           <p className="mt-1 text-[14px]" style={{ color: 'var(--color-ink-3)' }}>
             Live read-only system telemetry, hourly battery drain timeline, overnight sleep drain diagnostics, and power assertion blockers.
@@ -156,12 +158,12 @@ export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
                       OVERNIGHT SLEEP DRAIN &amp; WAKE DIAGNOSIS
                     </span>
                     <h3 className="text-base font-extrabold" style={{ color: 'var(--color-ink)' }}>
-                      {batteryIntelligence?.sleepDrainVerdict || 'Overnight sleep drain was 4% (Nominal).'}
+                      {batteryIntelligence?.sleepDrainVerdict ?? 'Unavailable / Unsupported'}
                     </h3>
                   </div>
                 </div>
                 <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-xs font-bold font-mono">
-                  Condition: {batteryIntelligence?.healthPct || 96}% Maximum Capacity
+                  Condition: {batteryIntelligence?.healthPct != null ? `${batteryIntelligence.healthPct}% Maximum Capacity` : 'Unavailable'}
                 </span>
               </div>
             </div>
@@ -222,7 +224,9 @@ export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-slate-400">Zero rogue sleep blockers. Mac will enter deep sleep on idle.</p>
+                <p className="text-xs text-slate-400">
+                  {powerAssertions ? 'Zero rogue sleep blockers. Mac will enter deep sleep on idle.' : 'Unavailable / Unsupported'}
+                </p>
               )}
             </div>
           </motion.div>
@@ -258,7 +262,9 @@ export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
             <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
               Spotlight Metadata Indexing Engine
             </h3>
-            <p className="text-xs text-slate-400">Volume: {spotlightInfo?.volume || '/System/Volumes/Data'} · Status: {spotlightInfo?.statusText || 'Indexing active'}</p>
+            <p className="text-xs text-slate-400">
+              Volume: {spotlightInfo?.volume ?? 'Unavailable'} · Status: {spotlightInfo?.statusText ?? 'Unavailable / Unsupported'}
+            </p>
           </motion.div>
         )}
       </AnimatePresence>
