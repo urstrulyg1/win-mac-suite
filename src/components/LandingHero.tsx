@@ -129,7 +129,7 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
           <img
             src="/logo.png"
             alt="Win/Mac Suite Logo"
-            className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover shadow-2xl border border-white/30 shrink-0 hover:scale-105 transition-transform"
+            className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-xl shrink-0 hover:scale-105 transition-transform"
           />
           <div>
             <div className="inline-flex items-center gap-2 mb-1.5">

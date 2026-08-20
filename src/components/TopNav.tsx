@@ -92,7 +92,7 @@ export default function TopNav({
             <img
               src="/logo.png"
               alt="Win/Mac Suite Logo"
-              className="w-8 h-8 rounded-xl object-cover shadow-md border border-white/30 group-hover:scale-105 transition-transform shrink-0"
+              className="w-8 h-8 object-contain drop-shadow-md group-hover:scale-105 transition-transform shrink-0"
             />
             <div className="flex flex-col">
               <span className="text-base sm:text-lg font-extrabold tracking-tight leading-none" style={{ color: 'var(--color-ink)' }}>

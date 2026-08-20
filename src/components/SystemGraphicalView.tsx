@@ -266,7 +266,7 @@ export default function SystemGraphicalView({ onStartAction }: Props) {
           <img
             src="/logo.png"
             alt="Win/Mac Suite Logo"
-            className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover shadow-xl border border-white/30 shrink-0 hover:scale-105 transition-transform"
+            className="w-14 h-14 sm:w-16 sm:h-16 object-contain drop-shadow-xl shrink-0 hover:scale-105 transition-transform"
           />
           <div>
             <div className="inline-flex items-center gap-2 mb-1">

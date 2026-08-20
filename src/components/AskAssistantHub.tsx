@@ -70,7 +70,7 @@ export default function AskAssistantHub({ onNavigateTab }: Props) {
           <img
             src="/logo.png"
             alt="Win/Mac Suite"
-            className="w-14 h-14 rounded-2xl object-cover shadow-xl border border-white/30 hover:scale-105 transition-transform"
+            className="w-14 h-14 object-contain drop-shadow-xl hover:scale-105 transition-transform"
           />
         </div>
         <div className="inline-flex items-center gap-2">
