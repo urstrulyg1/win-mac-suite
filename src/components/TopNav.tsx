@@ -111,23 +111,27 @@ export default function TopNav({
 
           {/* Controls Right */}
           <div className="flex items-center gap-2.5 shrink-0">
-            {/* Safe Diagnostic Mode Toggle */}
+            {/* Safe Diagnostic Mode vs Repair Mode Toggle */}
             {onToggleDiagnosticOnly && (
               <button
                 onClick={onToggleDiagnosticOnly}
                 className={`nav-tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-sm ${
                   diagnosticOnly
-                    ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
-                    : 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/15'
+                    : 'bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/15'
                 }`}
                 style={{
-                  ['--tab-glow-hover' as any]: diagnosticOnly ? 'rgba(16, 185, 129, 0.35)' : 'rgba(59, 130, 246, 0.35)',
-                  ['--tab-border-hover' as any]: diagnosticOnly ? 'rgba(52, 211, 153, 0.60)' : 'rgba(96, 165, 250, 0.60)',
+                  ['--tab-glow-hover' as any]: diagnosticOnly ? 'rgba(16, 185, 129, 0.35)' : 'rgba(245, 158, 11, 0.35)',
+                  ['--tab-border-hover' as any]: diagnosticOnly ? 'rgba(52, 211, 153, 0.60)' : 'rgba(251, 191, 36, 0.60)',
                 }}
-                title={diagnosticOnly ? 'Read-only diagnostic mode guaranteed (No write actions)' : 'Repair mode active (Guided remediations enabled)'}
+                title={
+                  diagnosticOnly
+                    ? 'Safe Mode (Audit Only): 100% read-only inspection. No files or settings will be modified.'
+                    : 'Repair Mode (Active): Guided 1-click repairs, cache thinning, and maintenance actions are enabled.'
+                }
               >
-                {diagnosticOnly ? <Shield size={14} /> : <Wrench size={14} />}
-                <span>{diagnosticOnly ? 'Safe Mode' : 'Repair Mode'}</span>
+                {diagnosticOnly ? <Shield size={14} className="text-emerald-400" /> : <Wrench size={14} className="text-amber-400" />}
+                <span>{diagnosticOnly ? 'Safe Mode (Read-Only)' : 'Repair Mode (Fixes Enabled)'}</span>
               </button>
             )}
 
