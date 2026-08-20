@@ -548,6 +548,19 @@ function MainApp() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Global Bottom Center Footer */}
+      <footer className="w-full py-8 mt-12 border-t flex flex-col items-center justify-center gap-2 text-center" style={{ borderColor: 'var(--color-line)' }}>
+        <p className="text-xs font-semibold tracking-wide flex items-center justify-center gap-1.5" style={{ color: 'var(--color-ink-2)' }}>
+          <span>Made with</span>
+          <span className="text-rose-500 animate-pulse text-sm">❤️</span>
+          <span>by</span>
+          <span className="font-extrabold bg-gradient-to-r from-blue-400 via-indigo-400 to-violet-400 bg-clip-text text-transparent">Jeevan</span>
+        </p>
+        <p className="text-[11px] font-mono tracking-wider" style={{ color: 'var(--color-ink-4)' }}>
+          {config.productName} · {config.subtitle} · Version {config.version}
+        </p>
+      </footer>
     </div>
   );
 }

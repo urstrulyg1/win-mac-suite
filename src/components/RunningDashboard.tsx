@@ -492,10 +492,6 @@ export default function RunningDashboard({
           </motion.div>
         )}
       </AnimatePresence>
-
-      <p className="text-center text-[11px] font-mono mt-4 tracking-wide" style={{ color: 'var(--color-ink-4)' }}>
-        {config.productName} · {config.subtitle} · Version {config.version}
-      </p>
     </div>
   );
 }
