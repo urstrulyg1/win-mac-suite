@@ -121,7 +121,7 @@ export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
             <button
               key={t.id}
               onClick={() => setActiveSubTab(t.id)}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
+              className="flex-1 flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
               style={
                 isSel
                   ? { backgroundColor: '#3b82f6', color: '#fff', boxShadow: '0 2px 8px rgba(59,130,246,0.3)' }
