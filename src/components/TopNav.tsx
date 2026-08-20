@@ -80,20 +80,24 @@ export default function TopNav({
 
   return (
     <header className="sticky top-0 z-40 px-3 sm:px-6 pt-2.5 sm:pt-3.5">
-      <div className="max-w-[1600px] mx-auto card px-4 sm:px-6 py-3 sm:py-3.5 rounded-2xl flex flex-col gap-3 shadow-xl border border-slate-700/50">
+      <div className="max-w-[1600px] mx-auto card top-bar-card px-4 sm:px-6 py-3 sm:py-3.5 rounded-2xl flex flex-col gap-3 shadow-xl border border-slate-700/50">
 
         {/* Top Brand & Status Controls Bar */}
         <div className="flex items-center justify-between gap-4 w-full">
           {/* Brand */}
           <button
             onClick={onHome}
-            className="flex items-center gap-3 shrink-0 group outline-none cursor-pointer text-left"
+            className="flex items-center gap-3 shrink-0 group outline-none cursor-pointer text-left nav-tab-btn p-1 rounded-xl"
+            style={{
+              ['--tab-glow-hover' as any]: 'rgba(59, 130, 246, 0.30)',
+              ['--tab-border-hover' as any]: 'rgba(96, 165, 250, 0.50)',
+            }}
             aria-label="Go to overview"
           >
             <img
               src="/logo.png"
               alt="Win/Mac Suite Logo"
-              className="w-9 h-9 object-contain drop-shadow-md group-hover:scale-105 transition-transform shrink-0"
+              className="w-9 h-9 object-contain drop-shadow-md group-hover:scale-105 group-hover:drop-shadow-[0_0_12px_rgba(59,130,246,0.5)] transition-all shrink-0"
             />
             <div className="flex flex-col">
               <span className="text-lg sm:text-xl font-extrabold tracking-tight leading-none" style={{ color: 'var(--color-ink)' }}>
@@ -111,11 +115,15 @@ export default function TopNav({
             {onToggleDiagnosticOnly && (
               <button
                 onClick={onToggleDiagnosticOnly}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-sm ${
+                className={`nav-tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-sm ${
                   diagnosticOnly
-                    ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/15'
-                    : 'bg-blue-500/10 text-blue-400 border-blue-500/30 hover:bg-blue-500/15'
+                    ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+                    : 'bg-blue-500/10 text-blue-400 border-blue-500/30'
                 }`}
+                style={{
+                  ['--tab-glow-hover' as any]: diagnosticOnly ? 'rgba(16, 185, 129, 0.35)' : 'rgba(59, 130, 246, 0.35)',
+                  ['--tab-border-hover' as any]: diagnosticOnly ? 'rgba(52, 211, 153, 0.60)' : 'rgba(96, 165, 250, 0.60)',
+                }}
                 title={diagnosticOnly ? 'Read-only diagnostic mode guaranteed (No write actions)' : 'Repair mode active (Guided remediations enabled)'}
               >
                 {diagnosticOnly ? <Shield size={14} /> : <Wrench size={14} />}
@@ -126,8 +134,14 @@ export default function TopNav({
             {/* Theme Toggle */}
             <button
               onClick={onToggleDark}
-              className="w-9 h-9 rounded-xl border flex items-center justify-center transition-colors cursor-pointer"
-              style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)', color: 'var(--color-ink-3)' }}
+              className="nav-tab-btn w-9 h-9 rounded-xl border flex items-center justify-center transition-all cursor-pointer"
+              style={{
+                backgroundColor: 'var(--color-surface-2)',
+                borderColor: 'var(--color-line)',
+                color: 'var(--color-ink-3)',
+                ['--tab-glow-hover' as any]: 'rgba(250, 204, 21, 0.30)',
+                ['--tab-border-hover' as any]: 'rgba(250, 204, 21, 0.50)',
+              }}
               title="Toggle Dark/Light theme"
             >
               {dark ? <Sun size={15} /> : <Moon size={15} />}
@@ -148,22 +162,26 @@ export default function TopNav({
                     onNavTab(t.id);
                   }}
                   disabled={isRunning}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs sm:text-[13px] font-bold transition-all whitespace-nowrap cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="nav-tab-btn flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs sm:text-[13px] font-bold transition-all whitespace-nowrap cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   style={
                     isActive
                       ? {
                           backgroundColor: config.accentColor || '#3b82f6',
                           color: '#ffffff',
-                          boxShadow: '0 2px 8px rgba(59,130,246,0.3)',
+                          boxShadow: '0 4px 16px rgba(59,130,246,0.45), 0 0 12px rgba(59,130,246,0.3)',
+                          ['--tab-glow-hover' as any]: 'rgba(59, 130, 246, 0.50)',
+                          ['--tab-border-hover' as any]: '#60a5fa',
                         }
                       : {
                           backgroundColor: 'var(--color-surface-2)',
                           color: 'var(--color-ink-2)',
                           border: '1px solid var(--color-line)',
+                          ['--tab-glow-hover' as any]: `${t.color}40`,
+                          ['--tab-border-hover' as any]: `${t.color}80`,
                         }
                   }
                 >
-                  <t.icon size={15} className="shrink-0" style={{ color: isActive ? '#ffffff' : t.color }} />
+                  <t.icon size={15} className="shrink-0 transition-transform group-hover:scale-110" style={{ color: isActive ? '#ffffff' : t.color }} />
                   <span>{t.label}</span>
                 </button>
               );
@@ -177,18 +195,23 @@ export default function TopNav({
                   setDropdownOpen((prev) => !prev);
                 }}
                 disabled={isRunning}
-                className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-[13px] font-bold transition-all whitespace-nowrap cursor-pointer border shadow-md"
+                className="nav-tab-btn flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-[13px] font-bold transition-all whitespace-nowrap cursor-pointer border shadow-md"
                 style={
                   activeSpecialist
                     ? {
                         backgroundColor: config.accentColor || '#3b82f6',
                         color: '#ffffff',
                         borderColor: config.accentColor || '#3b82f6',
+                        boxShadow: '0 4px 16px rgba(59,130,246,0.45), 0 0 12px rgba(59,130,246,0.3)',
+                        ['--tab-glow-hover' as any]: 'rgba(59, 130, 246, 0.50)',
+                        ['--tab-border-hover' as any]: '#60a5fa',
                       }
                     : {
                         backgroundColor: 'var(--color-surface-2)',
                         color: 'var(--color-ink)',
                         borderColor: 'var(--color-line)',
+                        ['--tab-glow-hover' as any]: 'rgba(168, 85, 247, 0.35)',
+                        ['--tab-border-hover' as any]: 'rgba(168, 85, 247, 0.60)',
                       }
                 }
               >
