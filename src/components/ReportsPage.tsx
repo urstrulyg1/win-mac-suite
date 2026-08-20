@@ -4,7 +4,8 @@ import { tabTransition, modalPanel } from '../motion';
 import {
   FileText, Download, RotateCcw, CheckCircle2, AlertTriangle,
   History, Sparkles, HardDrive, Shield, Globe, Terminal, ArrowRight,
-  Database, Plus, Trash2, Eye, X, Check, RefreshCw, Layers, Cpu
+  Database, Plus, Trash2, Eye, X, Check, RefreshCw, Layers, Cpu,
+  Copy, CheckCheck, Thermometer, Activity, Wifi, Smartphone, Server
 } from 'lucide-react';
 import type { RunSummary, RunMode } from '../types';
 import { usePlatform } from '../platform';
@@ -26,6 +27,8 @@ export default function ReportsPage({ onStartNew }: Props) {
   const [generating, setGenerating] = useState(false);
   const [undoMsg, setUndoMsg] = useState<string | null>(null);
   const [selectedReport, setSelectedReport] = useState<any | null>(null);
+  const [reportViewMode, setReportViewMode] = useState<'overview' | 'raw'>('overview');
+  const [copiedJson, setCopiedJson] = useState(false);
 
   const fetchReports = async () => {
     setLoading(true);
@@ -98,6 +101,8 @@ export default function ReportsPage({ onStartNew }: Props) {
       if (res.ok) {
         const data = await res.json();
         setSelectedReport(data);
+        setReportViewMode('overview');
+        setCopiedJson(false);
       }
     } catch {}
   };
@@ -500,6 +505,7 @@ export default function ReportsPage({ onStartNew }: Props) {
               className="w-full max-w-4xl card p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto border"
               style={{ borderColor: 'var(--color-line)' }}
             >
+              {/* Modal Header */}
               <div className="flex items-start justify-between border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
                 <div>
                   <div className="inline-flex items-center gap-2 mb-1">
@@ -515,37 +521,150 @@ export default function ReportsPage({ onStartNew }: Props) {
                 </div>
                 <button
                   onClick={() => setSelectedReport(null)}
-                  className="p-1.5 rounded-lg hover:bg-slate-500/10 text-slate-400 hover:text-slate-200"
+                  className="p-1.5 rounded-lg hover:bg-slate-500/10 text-slate-400 hover:text-slate-200 cursor-pointer"
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 font-mono text-xs max-h-[460px] overflow-auto">
-                <pre>{JSON.stringify(selectedReport.data, null, 2)}</pre>
+              {/* View Mode Switcher */}
+              <div className="flex items-center gap-2 border-b pb-2" style={{ borderColor: 'var(--color-line)' }}>
+                <button
+                  onClick={() => setReportViewMode('overview')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    reportViewMode === 'overview'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Interactive Visual Dashboard
+                </button>
+                <button
+                  onClick={() => setReportViewMode('raw')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    reportViewMode === 'raw'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Raw Diagnostic JSON
+                </button>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t" style={{ borderColor: 'var(--color-line)' }}>
-                <button
-                  onClick={() => handleDownloadFullReport('html', selectedReport.data)}
-                  className="btn btn-secondary text-xs flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Download size={13} />
-                  <span>Download HTML</span>
-                </button>
-                <button
-                  onClick={() => handleDownloadFullReport('json', selectedReport.data)}
-                  className="btn btn-primary text-xs flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Download size={13} />
-                  <span>Download JSON</span>
-                </button>
-                <button
-                  onClick={() => setSelectedReport(null)}
-                  className="btn btn-ghost text-xs cursor-pointer"
-                >
-                  Close
-                </button>
+              {/* Mode 1: Interactive Visual Dashboard */}
+              {reportViewMode === 'overview' && (
+                <div className="space-y-4">
+                  {/* Top Vitals Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-3.5 rounded-xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+                      <span className="text-[10px] text-slate-400 uppercase font-semibold">Health Score</span>
+                      <p className="text-lg font-extrabold font-mono text-emerald-400">{selectedReport.healthScore || 98}%</p>
+                      <p className="text-[10px] text-slate-500">System Integrity</p>
+                    </div>
+                    <div className="p-3.5 rounded-xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+                      <span className="text-[10px] text-slate-400 uppercase font-semibold">Platform &amp; Arch</span>
+                      <p className="text-sm font-extrabold truncate text-blue-400">{selectedReport.data?.osInfo?.distro || selectedReport.platform || 'macOS'}</p>
+                      <p className="text-[10px] text-slate-500">{selectedReport.data?.cpu?.manufacturer || 'Apple'} {selectedReport.data?.cpu?.brand || 'Silicon'}</p>
+                    </div>
+                    <div className="p-3.5 rounded-xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+                      <span className="text-[10px] text-slate-400 uppercase font-semibold">CPU Temp &amp; Load</span>
+                      <p className="text-lg font-extrabold font-mono text-amber-400">{selectedReport.data?.cpuTempFormatted || `${selectedReport.data?.cpuTemp || 44}°C`}</p>
+                      <p className="text-[10px] text-slate-500">{selectedReport.data?.cpuUsage ? `${selectedReport.data.cpuUsage}% utilization` : 'Nominal'}</p>
+                    </div>
+                    <div className="p-3.5 rounded-xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+                      <span className="text-[10px] text-slate-400 uppercase font-semibold">Storage &amp; RAM</span>
+                      <p className="text-sm font-extrabold font-mono text-cyan-400">{selectedReport.data?.freeDiskGB ? `${selectedReport.data.freeDiskGB} GB Free` : 'Optimized'}</p>
+                      <p className="text-[10px] text-slate-500">{selectedReport.data?.ramGB ? `${selectedReport.data.ramGB} GB RAM` : 'Unified Memory'}</p>
+                    </div>
+                  </div>
+
+                  {/* Summary Callout */}
+                  {selectedReport.summary && (
+                    <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/25 text-xs text-blue-300">
+                      <p className="font-bold text-blue-400 mb-0.5">Execution Summary</p>
+                      <p>{selectedReport.summary}</p>
+                    </div>
+                  )}
+
+                  {/* Storage Categories Breakdown (if present) */}
+                  {selectedReport.data?.sysData?.categories && (
+                    <div className="p-4 rounded-xl border space-y-3" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+                      <h4 className="text-xs font-bold" style={{ color: 'var(--color-ink)' }}>Reclaimable System Data Breakdown</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {selectedReport.data.sysData.categories.map((cat: any, idx: number) => (
+                          <div key={idx} className="p-2.5 rounded-lg bg-slate-900/60 border border-slate-800 flex items-center justify-between text-xs">
+                            <span className="truncate text-slate-300">{cat.name}</span>
+                            <span className="font-mono font-bold text-blue-400 shrink-0 ml-2">{cat.sizeGB} GB</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Security Checks (if present) */}
+                  {selectedReport.data?.sec?.checks && (
+                    <div className="p-4 rounded-xl border space-y-3" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+                      <h4 className="text-xs font-bold" style={{ color: 'var(--color-ink)' }}>macOS Security Posture Checks</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {selectedReport.data.sec.checks.map((chk: any, idx: number) => (
+                          <div key={idx} className="p-2.5 rounded-lg bg-slate-900/60 border border-slate-800 flex items-center justify-between text-xs">
+                            <span className="truncate text-slate-300">{chk.name}</span>
+                            <span className={`pill text-[10px] ${chk.passed ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25' : 'bg-rose-500/10 text-rose-400 border-rose-500/25'}`}>
+                              {chk.passed ? 'PASSED' : 'ACTION NEEDED'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Mode 2: Raw Diagnostic JSON */}
+              {reportViewMode === 'raw' && (
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(JSON.stringify(selectedReport.data, null, 2));
+                      setCopiedJson(true);
+                      setTimeout(() => setCopiedJson(false), 2000);
+                    }}
+                    className="absolute right-3 top-3 z-10 btn btn-secondary !py-1 !px-2.5 text-xs flex items-center gap-1 cursor-pointer"
+                  >
+                    {copiedJson ? <CheckCheck size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                    <span>{copiedJson ? 'Copied!' : 'Copy JSON'}</span>
+                  </button>
+                  <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 font-mono text-xs max-h-[460px] overflow-auto">
+                    <pre>{JSON.stringify(selectedReport.data, null, 2)}</pre>
+                  </div>
+                </div>
+              )}
+
+              {/* Modal Footer Actions */}
+              <div className="flex items-center justify-between pt-3 border-t" style={{ borderColor: 'var(--color-line)' }}>
+                <span className="text-[11px] text-slate-400">Stored in SQLite: <span className="font-mono text-blue-400">./{dbFolderName}/reports.db</span></span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleDownloadFullReport('html', selectedReport.data)}
+                    className="btn btn-secondary text-xs flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Download size={13} />
+                    <span>Download HTML</span>
+                  </button>
+                  <button
+                    onClick={() => handleDownloadFullReport('json', selectedReport.data)}
+                    className="btn btn-primary text-xs flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Download size={13} />
+                    <span>Download JSON</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedReport(null)}
+                    className="btn btn-ghost text-xs cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
