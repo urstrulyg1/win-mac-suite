@@ -37,7 +37,11 @@ const execFileAsync = promisify(execFile);
  */
 export async function runSafeCommand(bin, args, timeoutMs = 5000) {
   try {
-    const { stdout } = await execFileAsync(bin, args, { timeout: timeoutMs, maxBuffer: 10 * 1024 * 1024 });
+    const env = {
+      ...process.env,
+      PATH: `${process.env.PATH || ''}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`,
+    };
+    const { stdout } = await execFileAsync(bin, args, { timeout: timeoutMs, maxBuffer: 10 * 1024 * 1024, env });
     return stdout.trim();
   } catch (err) {
     return (err && err.stdout) ? String(err.stdout).trim() : '';
