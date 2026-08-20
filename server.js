@@ -108,12 +108,23 @@ app.use((err, _req, res, _next) => {
   }));
 });
 
+import { getDatabase } from './server/db/database.js';
+
+// Production Security Headers
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  next();
+});
+
 const isMac = process.platform === 'darwin';
 const isWin = process.platform === 'win32';
 const detectedPlatform = isMac ? 'macos' : isWin ? 'windows' : 'unsupported';
 const brand = isMac ? 'MacSuite' : 'WinSuite';
 
-app.listen(PORT, '127.0.0.1', async () => {
+const server = app.listen(PORT, '127.0.0.1', async () => {
   console.log(`✅  ${brand} (v10.0) telemetry & operations server listening on http://127.0.0.1:${PORT}`);
   console.log(`    Platform: ${detectedPlatform.toUpperCase()} | Host: ${os.hostname()} (${os.arch()})`);
 
@@ -122,3 +133,27 @@ app.listen(PORT, '127.0.0.1', async () => {
   console.log(`    Runtime: ${runtime.online ? 'ONLINE' : 'OFFLINE'} | ${runtime.message}`);
   console.log(`    Contract: GET /api/v10/health · /api/v10/permissions/matrix · /api/v10/contracts/schemas`);
 });
+
+// Production Graceful Shutdown & Database Checkpoint
+function handleShutdown(signal) {
+  console.log(`\n🛑 [${brand}] Received ${signal}. Checkpointing SQLite database and shutting down...`);
+  try {
+    const db = getDatabase();
+    db.exec('PRAGMA wal_checkpoint(TRUNCATE);');
+  } catch {}
+
+  server.close(() => {
+    console.log(`✓ [${brand}] HTTP Server closed cleanly.`);
+    process.exit(0);
+  });
+
+  setTimeout(() => process.exit(0), 3000);
+}
+
+process.on('SIGINT', () => handleShutdown('SIGINT'));
+process.on('SIGTERM', () => handleShutdown('SIGTERM'));
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[Production Daemon] Unhandled Promise Rejection:', reason);
+});
+

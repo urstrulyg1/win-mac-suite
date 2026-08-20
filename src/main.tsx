@@ -6,12 +6,16 @@ import App from './App';
 import { ToastProvider } from './components/Toast';
 import { easeOut } from './motion';
 
+import ErrorBoundary from './components/ErrorBoundary';
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <MotionConfig reducedMotion="user" transition={{ duration: 0.22, ease: easeOut }}>
-      <ToastProvider>
-        <App />
-      </ToastProvider>
-    </MotionConfig>
+    <ErrorBoundary>
+      <MotionConfig reducedMotion="user" transition={{ duration: 0.22, ease: easeOut }}>
+        <ToastProvider>
+          <App />
+        </ToastProvider>
+      </MotionConfig>
+    </ErrorBoundary>
   </StrictMode>,
 );

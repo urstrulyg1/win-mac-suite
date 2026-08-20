@@ -130,6 +130,7 @@ function MainApp() {
     let cancelled = false;
 
     const poll = async () => {
+      if (document.hidden) return; // Save laptop battery when browser tab is inactive
       try {
         const res = await fetch('http://127.0.0.1:3131/api/sysinfo');
         if (!res.ok) throw new Error('API down');
@@ -159,7 +160,17 @@ function MainApp() {
 
     poll();
     const id = window.setInterval(poll, 3000);
-    return () => { cancelled = true; window.clearInterval(id); };
+
+    const handleVisibility = () => {
+      if (!document.hidden) poll();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, []);
 
   const log = useCallback((entry: LogEntry) => {
