@@ -139,7 +139,9 @@ export async function executeAllowlistedCommand(commandId, params = {}, onStream
 
   const binaryPath = requiresSudo ? '/usr/bin/sudo' : resolveBinaryPath(spec.bin, spec.platform);
   const args = requiresSudo
-    ? ['-S', '-p', '', resolveBinaryPath(spec.bin, spec.platform), ...validation.sanitizedArgs]
+    ? (sudoPassword
+        ? ['-S', '-p', '', resolveBinaryPath(spec.bin, spec.platform), ...validation.sanitizedArgs]
+        : ['-n', resolveBinaryPath(spec.bin, spec.platform), ...validation.sanitizedArgs])
     : validation.sanitizedArgs;
   const timeoutMs = spec.timeoutMs || 120000;
   const startTime = Date.now();
