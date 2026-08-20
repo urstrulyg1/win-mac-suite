@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { tabTransition } from '../motion';
 import {
   Wrench, MemoryStick, Volume2, Sparkles, RefreshCw,
   FolderSync, ShieldCheck, Play, Terminal, CheckCircle2,
@@ -257,10 +258,10 @@ export default function MacUtilitiesHub() {
       </div>
 
       {/* Action Toast Alert */}
+      <AnimatePresence>
       {lastActionResult && (
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
+          {...tabTransition}
           className="flex items-center justify-between p-4 rounded-2xl border"
           style={{
             backgroundColor: lastActionResult.type === 'success' ? 'rgba(34,197,94,0.10)' : 'rgba(59,130,246,0.10)',
@@ -283,6 +284,7 @@ export default function MacUtilitiesHub() {
           </button>
         </motion.div>
       )}
+      </AnimatePresence>
 
       {/* Subtabs */}
       <div className="flex items-center gap-1.5 p-1 rounded-2xl border overflow-x-auto" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
@@ -313,7 +315,7 @@ export default function MacUtilitiesHub() {
 
       <AnimatePresence mode="wait">
         {activeSubTab === 'quickActions' && (
-          <motion.div key="quick" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
+          <motion.div key="quick" {...tabTransition} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {quickTools.map((tool) => {
                 const isRunning = actionInProgress === (isMac && tool.id === 'purge-ram' ? 'RAM Purge' : tool.title);
@@ -363,7 +365,7 @@ export default function MacUtilitiesHub() {
         )}
 
         {activeSubTab === 'listeningPorts' && (
-          <motion.div key="ports" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-4">
+          <motion.div key="ports" {...tabTransition} className="card p-6 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
@@ -446,7 +448,7 @@ export default function MacUtilitiesHub() {
         )}
 
         {activeSubTab === 'devHealth' && (
-          <motion.div key="devHealth" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-4">
+          <motion.div key="devHealth" {...tabTransition} className="card p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>Developer Toolchain &amp; CLI Health</h3>
@@ -489,7 +491,7 @@ export default function MacUtilitiesHub() {
         )}
 
         {activeSubTab === 'thermal' && (
-          <motion.div key="thermal" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-5">
+          <motion.div key="thermal" {...tabTransition} className="card p-6 space-y-5">
             <div>
               <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>Apple Silicon Thermal Pressure State</h3>
               <p className="text-xs font-medium" style={{ color: 'var(--color-ink-4)' }}>Probed from macOS power management subsystem via /usr/bin/pmset -g therm</p>

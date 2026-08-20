@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { easeOut, springSoft } from '../motion';
 import {
   CheckCircle2, AlertTriangle, Clock, HardDrive,
   ArrowUpCircle, Wrench, RotateCcw, ChevronRight, Sparkles, Layers,
@@ -136,13 +137,13 @@ export default function SummaryPanel({ summary, onReset, onExport }: Props) {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        transition={{ duration: 0.32, ease: easeOut }}
         className="text-center space-y-2"
       >
         <motion.span
           initial={{ scale: 0.7, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 350, damping: 20, delay: 0.1 }}
+          transition={{ ...springSoft, delay: 0.08 }}
           className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold shadow-sm border"
           style={cancelled
             ? { backgroundColor: 'rgba(245,158,11,0.12)', borderColor: 'rgba(245,158,11,0.30)', color: '#f59e0b' }
@@ -173,9 +174,9 @@ export default function SummaryPanel({ summary, onReset, onExport }: Props) {
             key={s.label}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 + i * 0.05, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ delay: 0.12 + i * 0.04, duration: 0.32, ease: easeOut }}
             onClick={s.onInspect}
-            className="card card-hover p-4 flex flex-col items-center text-center cursor-pointer transition-all hover:scale-[1.02]"
+            className="card card-hover p-4 flex flex-col items-center text-center cursor-pointer"
           >
             <div
               className="w-9 h-9 rounded-xl mb-2 flex items-center justify-center shrink-0"
@@ -239,7 +240,7 @@ export default function SummaryPanel({ summary, onReset, onExport }: Props) {
                     ],
                   })
                 }
-                className="w-full flex items-start gap-2.5 p-2.5 rounded-xl text-xs min-w-0 border text-left cursor-pointer transition-all hover:scale-[1.005]"
+                className="w-full flex items-start gap-2.5 p-2.5 rounded-xl text-xs min-w-0 border text-left cursor-pointer transition-colors"
                 style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
               >
                 <ChevronRight size={14} className="text-amber-500 shrink-0 mt-0.5" />

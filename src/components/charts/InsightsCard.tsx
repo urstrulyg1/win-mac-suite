@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { easeOut } from '../../motion';
 import { Lightbulb } from 'lucide-react';
 import type { ReactNode } from 'react';
 
@@ -27,7 +28,7 @@ export default function InsightsCard({
     <motion.div
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.4, ease: easeOut }}
       className={`relative overflow-hidden rounded-[22px] p-6 sm:p-8 text-white flex flex-col justify-between min-h-[260px] ${className}`}
       style={{
         background:
@@ -71,7 +72,7 @@ export default function InsightsCard({
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: i < filled ? '100%' : '0%' }}
-                transition={{ duration: 0.6, delay: 0.4 + i * 0.08 }}
+                transition={{ duration: 0.4, delay: 0.2 + i * 0.06, ease: easeOut }}
                 className="h-full bg-white/90 rounded-full"
               />
             </div>

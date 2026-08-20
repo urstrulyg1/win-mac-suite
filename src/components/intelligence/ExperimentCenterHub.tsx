@@ -16,6 +16,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { tabTransition } from '../../motion';
 import {
   FlaskConical, RefreshCw, ShieldAlert, CheckCircle2, XCircle,
   Play, Camera, BarChart3, AlertTriangle, Undo2, Layers,
@@ -265,7 +266,7 @@ export default function ExperimentCenterHub() {
 
               {/* Proposal + approval gate */}
               {active.stage === 'AWAITING_APPROVAL' && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                <motion.div {...tabTransition}
                   className="p-4 rounded-xl border-2 space-y-3"
                   style={{ borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.06)' }}>
                   <div className="flex items-center gap-2">

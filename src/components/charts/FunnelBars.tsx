@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { easeOut } from '../../motion';
 
 export interface FunnelDatum {
   label: string;
@@ -49,10 +50,13 @@ export default function FunnelBars({ data, height = 200, onSelectBar }: Props) {
               }}
             >
               {/* Tooltip */}
+              <AnimatePresence>
               {active && (
                 <motion.div
-                  initial={{ opacity: 0, y: 6 }}
+                  initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 2 }}
+                  transition={{ duration: 0.14, ease: easeOut }}
                   className="absolute bottom-full mb-2 z-20 px-3 py-1.5 rounded-xl shadow-xl text-[11px] font-medium whitespace-nowrap card"
                   style={{ color: 'var(--color-ink-2)' }}
                 >
@@ -61,6 +65,7 @@ export default function FunnelBars({ data, height = 200, onSelectBar }: Props) {
                   <span style={{ color: 'var(--color-ink-3)' }}>{d.label} (Click to inspect)</span>
                 </motion.div>
               )}
+              </AnimatePresence>
 
               {/* Top tick cap */}
               <div
@@ -70,8 +75,8 @@ export default function FunnelBars({ data, height = 200, onSelectBar }: Props) {
               <motion.div
                 initial={{ height: 0 }}
                 animate={{ height: `${h}%` }}
-                transition={{ duration: 0.9, delay: i * 0.08, ease: [0.16, 1, 0.3, 1] }}
-                className="w-full rounded-t-md relative overflow-hidden group-hover:brightness-110 transition-all"
+                transition={{ duration: 0.65, delay: i * 0.05, ease: easeOut }}
+                className="w-full rounded-t-md relative overflow-hidden group-hover:brightness-110 transition-[filter,box-shadow,opacity] duration-200"
                 style={{
                   background:
                     'linear-gradient(180deg, #3b82f6 0%, #2563eb 55%, #1d4ed8 100%)',

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { modalPanel, tabTransition } from '../motion';
 import {
   ShieldCheck, Trash2, AlertTriangle, CheckCircle2, RotateCcw,
   Sparkles, FileText, Check, X, ArrowRight, HardDrive, RefreshCw
@@ -66,14 +67,12 @@ export default function SafeCleanupModal({ isOpen, onClose, onSuccess }: Props) 
     }
   };
 
-  if (!isOpen) return null;
-
   return (
+    <AnimatePresence>
+    {isOpen && (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        {...modalPanel}
         className="w-full max-w-2xl card p-6 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto border"
         style={{ borderColor: 'var(--color-line)' }}
       >
@@ -102,8 +101,9 @@ export default function SafeCleanupModal({ isOpen, onClose, onSuccess }: Props) 
         </div>
 
         {/* Step Content */}
+        <AnimatePresence mode="wait">
         {step === 'preview' && (
-          <div className="space-y-4">
+          <motion.div key="preview" {...tabTransition} className="space-y-4">
             <div className="p-3.5 rounded-xl border bg-blue-500/5 border-blue-500/20 text-xs flex items-center justify-between">
               <div>
                 <span className="font-bold text-blue-500">Reclaimable Space: </span>
@@ -178,11 +178,11 @@ export default function SafeCleanupModal({ isOpen, onClose, onSuccess }: Props) 
                 <span>Approve &amp; Clean ({totalSelectedGB} GB)</span>
               </button>
             </div>
-          </div>
+          </motion.div>
         )}
 
         {step === 'executing' && (
-          <div className="py-12 flex flex-col items-center justify-center space-y-4 text-center">
+          <motion.div key="executing" {...tabTransition} className="py-12 flex flex-col items-center justify-center space-y-4 text-center">
             <div className="w-14 h-14 rounded-2xl bg-blue-500/10 text-blue-500 border border-blue-500/25 flex items-center justify-center animate-pulse">
               <Sparkles size={24} />
             </div>
@@ -194,11 +194,11 @@ export default function SafeCleanupModal({ isOpen, onClose, onSuccess }: Props) 
                 Creating backup recovery manifest, thinning snapshots, and purging caches...
               </p>
             </div>
-          </div>
+          </motion.div>
         )}
 
         {step === 'verified' && (
-          <div className="space-y-4 py-2">
+          <motion.div key="verified" {...tabTransition} className="space-y-4 py-2">
             <div className="p-4 rounded-xl border bg-emerald-500/10 border-emerald-500/25 text-center space-y-2">
               <div className="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center mx-auto">
                 <CheckCircle2 size={22} />
@@ -227,9 +227,12 @@ export default function SafeCleanupModal({ isOpen, onClose, onSuccess }: Props) 
                 Done
               </button>
             </div>
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
       </motion.div>
     </div>
+    )}
+    </AnimatePresence>
   );
 }

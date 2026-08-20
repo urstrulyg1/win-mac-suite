@@ -37,6 +37,17 @@
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
+/* ── Motion tokens ── */
+:root {
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-instant: 80ms;
+  --duration-fast: 140ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --duration-panel: 400ms;
+}
+
 /* ── Dark mode overrides ── */
 .dark {
   --color-bg-app: #0d1117;
@@ -76,6 +87,11 @@ html {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
 }
 
 body {
@@ -89,6 +105,41 @@ body {
 
 code, kbd, samp, pre, .font-mono {
   font-family: var(--font-mono);
+}
+
+/* Theme toggle: brief color interpolation only while class is present */
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition:
+    background-color var(--duration-slow) var(--ease-out),
+    border-color var(--duration-slow) var(--ease-out),
+    color var(--duration-slow) var(--ease-out),
+    box-shadow var(--duration-slow) var(--ease-out),
+    fill var(--duration-slow) var(--ease-out) !important;
+}
+
+/* Make existing transition-all utilities performant + consistent */
+.transition-all {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-timing-function: var(--ease-out);
+  transition-duration: var(--duration-base);
+}
+
+.transition-colors {
+  transition-timing-function: var(--ease-out);
+  transition-duration: var(--duration-fast);
+}
+
+.transition-transform {
+  transition-timing-function: var(--ease-out);
+  transition-duration: var(--duration-base);
+}
+
+.transition-opacity {
+  transition-timing-function: var(--ease-out);
+  transition-duration: var(--duration-fast);
 }
 
 /* ── Ambient app background (soft top glow) ── */
@@ -135,7 +186,11 @@ code, kbd, samp, pre, .font-mono {
   box-shadow:
     0 1px 2px rgba(16, 24, 40, 0.04),
     0 8px 24px -12px rgba(16, 24, 40, 0.10);
-  transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
+  transition:
+    box-shadow var(--duration-slow) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out),
+    transform var(--duration-slow) var(--ease-out),
+    background-color var(--duration-base) var(--ease-out);
 }
 
 .dark .card {
@@ -144,23 +199,31 @@ code, kbd, samp, pre, .font-mono {
     0 8px 24px -12px rgba(0, 0, 0, 0.4);
 }
 
-.card-hover:hover {
-  border-color: var(--color-line-strong);
-  box-shadow:
-    0 2px 4px rgba(16, 24, 40, 0.05),
-    0 18px 40px -16px rgba(37, 99, 235, 0.18);
-}
+@media (hover: hover) and (pointer: fine) {
+  .card-hover:hover {
+    border-color: var(--color-line-strong);
+    transform: translateY(-2px);
+    box-shadow:
+      0 2px 4px rgba(16, 24, 40, 0.05),
+      0 18px 40px -16px rgba(37, 99, 235, 0.18);
+  }
 
-.dark .card-hover:hover {
-  box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.25),
-    0 18px 40px -16px rgba(59, 130, 246, 0.22);
+  .dark .card-hover:hover {
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.25),
+      0 18px 40px -16px rgba(59, 130, 246, 0.22);
+  }
+
+  .card-hover:active {
+    transform: translateY(0);
+  }
 }
 
 .card-soft {
   background: var(--color-surface-2);
   border: 1px solid var(--color-line);
   border-radius: 18px;
+  transition: background-color var(--duration-base) var(--ease-out), border-color var(--duration-base) var(--ease-out);
 }
 
 .chip {
@@ -174,7 +237,12 @@ code, kbd, samp, pre, .font-mono {
   background: var(--color-surface);
   border: 1px solid var(--color-line);
   color: var(--color-ink-2);
-  transition: all 0.18s ease;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -183,6 +251,10 @@ code, kbd, samp, pre, .font-mono {
   border-color: var(--color-line-strong);
   color: var(--color-ink);
   background: var(--color-surface-2);
+}
+
+.chip:active {
+  transform: scale(0.97);
 }
 
 .chip-active {
@@ -208,6 +280,7 @@ code, kbd, samp, pre, .font-mono {
   border: 1px solid transparent;
   line-height: 1.4;
   white-space: nowrap;
+  transition: background-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
 }
 
 .btn {
@@ -221,11 +294,27 @@ code, kbd, samp, pre, .font-mono {
   font-weight: 700;
   cursor: pointer;
   border: 1px solid transparent;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    opacity var(--duration-fast) var(--ease-out);
   white-space: nowrap;
   position: relative;
   z-index: 1;
   pointer-events: auto;
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.985);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .btn-primary {
@@ -234,12 +323,12 @@ code, kbd, samp, pre, .font-mono {
   box-shadow: 0 10px 24px -10px rgba(37, 99, 235, 0.6);
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 16px 32px -12px rgba(37, 99, 235, 0.65);
 }
 
-.btn-primary:active { transform: translateY(0); }
+.btn-primary:active:not(:disabled) { transform: translateY(0) scale(0.985); }
 
 .btn-ghost {
   background: var(--color-surface);
@@ -247,7 +336,7 @@ code, kbd, samp, pre, .font-mono {
   border-color: var(--color-line);
 }
 
-.btn-ghost:hover {
+.btn-ghost:hover:not(:disabled) {
   background: var(--color-surface-2);
   color: var(--color-ink);
   border-color: var(--color-line-strong);
@@ -265,11 +354,11 @@ code, kbd, samp, pre, .font-mono {
   border-color: rgba(185, 28, 28, 0.35);
 }
 
-.btn-danger:hover {
+.btn-danger:hover:not(:disabled) {
   background: #fee2e2;
 }
 
-.dark .btn-danger:hover {
+.dark .btn-danger:hover:not(:disabled) {
   background: rgba(185, 28, 28, 0.28);
 }
 
@@ -283,7 +372,10 @@ code, kbd, samp, pre, .font-mono {
   padding: 9px 12px;
   font-size: 13px;
   color: var(--color-ink);
-  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out);
 }
 
 .field::placeholder { color: var(--color-ink-4); }
@@ -305,6 +397,7 @@ code, kbd, samp, pre, .font-mono {
 ::-webkit-scrollbar-thumb {
   background: rgba(100, 116, 139, 0.30);
   border-radius: 9999px;
+  transition: background-color var(--duration-fast) var(--ease-out);
 }
 ::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.50); }
 
@@ -320,7 +413,7 @@ code, kbd, samp, pre, .font-mono {
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.55; transform: scale(0.88); }
+  50% { opacity: 0.55; transform: scale(0.92); }
 }
 @keyframes progress-stripe {
   0% { background-position: 1.25rem 0; }
@@ -339,10 +432,13 @@ code, kbd, samp, pre, .font-mono {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-6px); }
 }
+@keyframes graph-dash {
+  to { stroke-dashoffset: -28; }
+}
 
-.animate-spin-smooth { animation: spin 0.9s linear infinite; will-change: transform; }
-.animate-spin-slow { animation: spin 3s linear infinite; will-change: transform; }
-.animate-pulse-dot { animation: pulse-dot 1.4s ease-in-out infinite; }
+.animate-spin-smooth { animation: spin 0.85s linear infinite; }
+.animate-spin-slow { animation: spin 3s linear infinite; }
+.animate-pulse-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
 .animate-terminal-blink { animation: terminal-blink 1s step-end infinite; }
 .animate-float-slow { animation: float-slow 5s ease-in-out infinite; }
 
@@ -359,7 +455,6 @@ code, kbd, samp, pre, .font-mono {
   );
   background-size: 1.1rem 1.1rem;
   animation: progress-stripe 0.9s linear infinite;
-  will-change: background-position;
 }
 
 .shimmer-bar {
@@ -369,6 +464,11 @@ code, kbd, samp, pre, .font-mono {
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
   animation: shimmer 2.6s ease-in-out infinite;
   pointer-events: none;
+}
+
+.glass {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 /* ── Ensure all interactive elements are always clickable ── */
@@ -387,6 +487,7 @@ input:focus-visible,
 summary:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35);
+  transition: box-shadow var(--duration-fast) var(--ease-out);
 }
 
 .text-balance { text-wrap: balance; }
@@ -401,10 +502,30 @@ summary:focus-visible {
 
 /* ── Reduced motion ── */
 @media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto !important; }
+
   *, *::before, *::after {
-    animation-duration: 0.001ms !important;
+    animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
-    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .card-hover:hover,
+  .card-hover:active,
+  .btn-primary:hover:not(:disabled),
+  .btn:active:not(:disabled),
+  .chip:active {
+    transform: none !important;
+  }
+
+  .animate-spin-smooth,
+  .animate-spin-slow,
+  .animate-pulse-dot,
+  .animate-terminal-blink,
+  .animate-float-slow,
+  .progress-stripe,
+  .shimmer-bar,
+  .graph-edge-live {
+    animation: none !important;
   }
 }

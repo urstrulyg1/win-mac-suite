@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { easeOut } from '../motion';
 
 interface Props {
   score: number;
@@ -29,7 +30,12 @@ export default function HealthScore({ score, size = 170 }: Props) {
 
   useEffect(() => {
     const start = performance.now();
-    const duration = 1600;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) {
+      setDisplay(Math.round(score));
+      return;
+    }
+    const duration = 1100;
     const animate = (time: number) => {
       const progress = Math.min((time - start) / duration, 1);
       const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
@@ -42,9 +48,9 @@ export default function HealthScore({ score, size = 170 }: Props) {
 
   return (
     <motion.div
-      initial={{ scale: 0.9, opacity: 0 }}
+      initial={{ scale: 0.96, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
-      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.4, ease: easeOut }}
       className="flex flex-col items-center gap-3 select-none"
     >
       <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
@@ -72,7 +78,7 @@ export default function HealthScore({ score, size = 170 }: Props) {
             strokeDasharray={c}
             initial={{ strokeDashoffset: c }}
             animate={{ strokeDashoffset: offset }}
-            transition={{ duration: 1.6, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+            transition={{ duration: 1.1, ease: easeOut, delay: 0.06 }}
             style={{ filter: `drop-shadow(0 4px 8px ${color}40)` }}
           />
         </svg>

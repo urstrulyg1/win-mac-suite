@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { pageMotionProps } from './motion';
 import TopNav from './components/TopNav';
 import LandingHero from './components/LandingHero';
 import RunningDashboard from './components/RunningDashboard';
@@ -319,136 +320,119 @@ function MainApp() {
         {activeTab === 'graph' ? (
           <motion.div
             key="graph-tab"
-            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.2 }} className="w-full"
+            {...pageMotionProps} className="w-full"
           >
             <SystemGraphicalView onNavigateTab={handleNavTab} onStartAction={handleStartWithMode} />
           </motion.div>
         ) : activeTab === 'whynot' ? (
           <motion.div
             key="whynot-tab"
-            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.2 }} className="w-full"
+            {...pageMotionProps} className="w-full"
           >
             <CausalReasoningHub />
           </motion.div>
         ) : activeTab === 'incidents' ? (
           <motion.div
             key="incidents-tab"
-            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.2 }} className="w-full"
+            {...pageMotionProps} className="w-full"
           >
             <IncidentIntelligenceHub />
           </motion.div>
         ) : activeTab === 'experiments' ? (
           <motion.div
             key="experiments-tab"
-            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.2 }} className="w-full"
+            {...pageMotionProps} className="w-full"
           >
             <ExperimentCenterHub />
           </motion.div>
         ) : activeTab === 'ask' ? (
           <motion.div
             key="ask-tab"
-            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.2 }} className="w-full"
+            {...pageMotionProps} className="w-full"
           >
             <AskAssistantHub onNavigateTab={handleNavTab} />
           </motion.div>
         ) : activeTab === 'timeline' ? (
           <motion.div
             key="timeline-tab"
-            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.2 }} className="w-full"
+            {...pageMotionProps} className="w-full"
           >
             <SystemEventsTimeline />
           </motion.div>
         ) : activeTab === 'crashes' ? (
           <motion.div
             key="crashes-tab"
-            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.2 }} className="w-full"
+            {...pageMotionProps} className="w-full"
           >
             <CrashHangDoctor />
           </motion.div>
         ) : activeTab === 'hardware' ? (
           <motion.div
             key="hardware-tab"
-            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.2 }} className="w-full"
+            {...pageMotionProps} className="w-full"
           >
             <HardwarePeripheralsHub />
           </motion.div>
         ) : activeTab === 'apple' ? (
           <motion.div
             key="apple-tab"
-            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.2 }} className="w-full"
+            {...pageMotionProps} className="w-full"
           >
             <AppleServicesHub />
           </motion.div>
         ) : activeTab === 'performance' ? (
           <motion.div
             key="performance-tab"
-            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.2 }} className="w-full"
+            {...pageMotionProps} className="w-full"
           >
             <PerformanceDoctorHub onNavigateTab={handleNavTab} />
           </motion.div>
         ) : activeTab === 'developer' ? (
           <motion.div
             key="developer-tab"
-            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.2 }} className="w-full"
+            {...pageMotionProps} className="w-full"
           >
             <DeveloperDoctorHub />
           </motion.div>
         ) : activeTab === 'network' ? (
           <motion.div
             key="network-tab"
-            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.2 }} className="w-full"
+            {...pageMotionProps} className="w-full"
           >
             <NetworkDoctorHub />
           </motion.div>
         ) : activeTab === 'diagnostics' ? (
           <motion.div
             key="diagnostics-tab"
-            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.2 }} className="w-full"
+            {...pageMotionProps} className="w-full"
           >
             <DiagnosticsHub systemInfo={realSysInfo} onStartAction={handleStartWithMode} />
           </motion.div>
         ) : activeTab === 'startup' ? (
           <motion.div
             key="startup-tab"
-            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.2 }} className="w-full"
+            {...pageMotionProps} className="w-full"
           >
             <StartupManager />
           </motion.div>
         ) : activeTab === 'security' ? (
           <motion.div
             key="security-tab"
-            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.2 }} className="w-full"
+            {...pageMotionProps} className="w-full"
           >
             <SecurityHub />
           </motion.div>
         ) : activeTab === 'storage' ? (
           <motion.div
             key="storage-tab"
-            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.2 }} className="w-full"
+            {...pageMotionProps} className="w-full"
           >
             <StorageHub systemInfo={realSysInfo} onClean={handleStartWithMode} />
           </motion.div>
         ) : activeTab === 'overview' && !isRunning ? (
           <motion.div
             key="landing-page"
-            initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }} className="w-full"
+            {...pageMotionProps} className="w-full"
           >
             <LandingHero
               onStart={handleStartWithMode}
@@ -461,8 +445,7 @@ function MainApp() {
         ) : phase === 'reports' || activeTab === 'reports' ? (
           <motion.div
             key="reports-page"
-            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.2 }} className="w-full"
+            {...pageMotionProps} className="w-full"
           >
             <ReportsPage
               summary={summary}
@@ -473,8 +456,7 @@ function MainApp() {
         ) : (
           <motion.div
             key="dashboard-page"
-            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.2 }} className="w-full"
+            {...pageMotionProps} className="w-full"
           >
             <RunningDashboard
               phase={phase}

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { tabTransition } from '../motion';
 import { FlaskConical, Play, CheckCircle2, ArrowRight, Activity, RefreshCw } from 'lucide-react';
 import { usePlatform } from '../platform';
 
@@ -82,8 +83,7 @@ export default function DiagnosticExperimentsHub() {
       <AnimatePresence>
         {experimentResult && (
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+            {...tabTransition}
             className="card p-6 space-y-4 border-l-4 border-l-emerald-500 shadow-xl"
           >
             <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>

@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldCheck, X, Check, AlertTriangle, ArrowRight, Wrench } from 'lucide-react';
+import { modalPanel } from '../motion';
 
 export interface RepairPreviewData {
   actionName: string;
@@ -17,15 +18,12 @@ interface Props {
 }
 
 export default function RepairPreviewModal({ data, onClose }: Props) {
-  if (!data) return null;
-
   return (
     <AnimatePresence>
+      {data && (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 10 }}
+          {...modalPanel}
           className="card max-w-lg w-full p-6 space-y-5 shadow-2xl border border-slate-700/60 relative"
           style={{ backgroundColor: 'var(--color-surface)' }}
         >
@@ -101,6 +99,7 @@ export default function RepairPreviewModal({ data, onClose }: Props) {
           </div>
         </motion.div>
       </div>
+      )}
     </AnimatePresence>
   );
 }

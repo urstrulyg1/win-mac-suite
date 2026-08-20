@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { easeOut, hoverLift, tapPress, springSoft } from '../motion';
 import { Shield, Zap, Flame, Search, Trash2, Layers, Check } from 'lucide-react';
 import type { RunMode } from '../types';
 import { usePlatform } from '../platform';
@@ -48,11 +49,11 @@ export default function ModeSelector({ selectedMode, onSelect }: Props) {
               key={mode}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.04, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.99 }}
+              transition={{ delay: i * 0.04, duration: 0.3, ease: easeOut }}
+              whileHover={hoverLift}
+              whileTap={tapPress}
               onClick={() => onSelect(mode)}
-              className="relative text-left p-4 rounded-2xl border-2 transition-all cursor-pointer overflow-hidden flex flex-col"
+              className="relative text-left p-4 rounded-2xl border-2 transition-[background-color,border-color,box-shadow] cursor-pointer overflow-hidden flex flex-col"
               style={{
                 backgroundColor: sel ? 'var(--color-surface)' : 'var(--color-surface-2)',
                 borderColor: sel ? tone.ring : 'transparent',

@@ -4,11 +4,17 @@ import { useEffect, useRef, useState } from 'react';
  * Smoothly animates a numeric value from 0 to `target` using an exponential
  * ease-out. Returns the current intermediate value.
  */
-export function useCountUp(target: number, duration = 1200): number {
+export function useCountUp(target: number, duration = 900): number {
   const [value, setValue] = useState(0);
   const rafRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) {
+      setValue(target);
+      return;
+    }
+
     const start = performance.now();
 
     const animate = (now: number) => {

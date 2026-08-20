@@ -28,6 +28,11 @@ export default function ParticleBackground() {
     resize();
     window.addEventListener('resize', resize);
 
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) {
+      return () => window.removeEventListener('resize', resize);
+    }
+
     const colors = ['#3b82f6', '#06b6d4', '#8b5cf6'];
     const count = Math.min(Math.floor((window.innerWidth * window.innerHeight) / 25000), 45);
 

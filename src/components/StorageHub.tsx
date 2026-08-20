@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { tabTransition } from '../motion';
 import {
   HardDrive, Trash2, Folder, FileCode, CheckCircle2, ChevronRight,
   Camera, Sparkles, HelpCircle, Layers, Smartphone, Disc,
@@ -164,13 +165,13 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
       {/* Content */}
       <AnimatePresence mode="wait">
         {subTab === 'analyzer' && (
-          <motion.div key="analyzer" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+          <motion.div key="analyzer" {...tabTransition}>
             <StorageAnalyzer systemInfo={systemInfo} onClean={onClean} />
           </motion.div>
         )}
 
         {subTab === 'systemData' && (
-          <motion.div key="systemData" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
+          <motion.div key="systemData" {...tabTransition} className="space-y-6">
             {/* 30-Day Storage Growth Timeline */}
             <div className="card p-6 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
@@ -242,7 +243,7 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
         )}
 
         {subTab === 'apps' && (
-          <motion.div key="apps" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <motion.div key="apps" {...tabTransition} className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Installed Apps List */}
             <div className="lg:col-span-5 card p-5 space-y-3">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
@@ -311,7 +312,7 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
         )}
 
         {subTab === 'leftovers' && (
-          <motion.div key="leftovers" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-4">
+          <motion.div key="leftovers" {...tabTransition} className="card p-6 space-y-4">
             <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
@@ -347,7 +348,7 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
         )}
 
         {subTab === 'backups' && (
-          <motion.div key="backups" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-4">
+          <motion.div key="backups" {...tabTransition} className="card p-6 space-y-4">
             <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
@@ -379,7 +380,7 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
         )}
 
         {subTab === 'drives' && (
-          <motion.div key="drives" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-4">
+          <motion.div key="drives" {...tabTransition} className="card p-6 space-y-4">
             <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>

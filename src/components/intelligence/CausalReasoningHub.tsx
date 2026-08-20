@@ -12,6 +12,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { expandMotion } from '../../motion';
 import {
   Brain, RefreshCw, XCircle, HelpCircle, CheckCircle2,
   ChevronDown, AlertTriangle, FlaskConical, Search,
@@ -177,7 +178,7 @@ export default function CausalReasoningHub() {
                     <AnimatePresence>
                       {isOpen && full && (
                         <motion.div
-                          initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                          {...expandMotion}
                           className="overflow-hidden"
                         >
                           <div className="p-4 space-y-3 border-t" style={{ borderColor: 'var(--color-line)' }}>
@@ -286,7 +287,9 @@ export default function CausalReasoningHub() {
               </div>
               <ChevronDown size={16} className={`transition-transform ${showEvidence ? 'rotate-180' : ''}`} style={{ color: 'var(--color-ink-3)' }} />
             </button>
+            <AnimatePresence initial={false}>
             {showEvidence && (
+              <motion.div {...expandMotion} className="overflow-hidden">
               <div className="space-y-1.5">
                 <div className="text-[11px] font-mono" style={{ color: 'var(--color-ink-3)' }}>
                   Collected {data.collection?.collectedAt} · platform {data.collection?.platform} ·
@@ -294,7 +297,9 @@ export default function CausalReasoningHub() {
                 </div>
                 {(data.collection?.evidence || []).map((ev: any, i: number) => <EvidenceRow key={i} ev={ev} />)}
               </div>
+              </motion.div>
             )}
+            </AnimatePresence>
           </div>
 
           {/* Plain-text rendering */}

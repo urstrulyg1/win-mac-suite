@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { tabTransition } from '../motion';
 import {
   MessageSquareCode, Send, Sparkles, Terminal, Activity,
   HardDrive, Cpu, Shield, ArrowRight, CheckCircle2, AlertTriangle, Layers
@@ -139,9 +140,7 @@ export default function AskAssistantHub({ onNavigateTab }: Props) {
       <AnimatePresence mode="wait">
         {response && (
           <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
+            {...tabTransition}
             className="card p-6 sm:p-8 max-w-3xl mx-auto space-y-6 border-l-4 border-l-blue-500 shadow-2xl"
           >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-4" style={{ borderColor: 'var(--color-line)' }}>

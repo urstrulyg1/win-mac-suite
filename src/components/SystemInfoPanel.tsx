@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { easeOut, progressTween } from '../motion';
 import { Monitor, Cpu, HardDrive, Wifi, WifiOff, Clock, MemoryStick, Activity, Apple } from 'lucide-react';
 import type { SystemInfo, RunMode } from '../types';
 import { usePlatform } from '../platform';
@@ -16,17 +17,17 @@ function Bar({
 }: { label: string; value: number; max: number; unit: string; color: string; delay?: number; onClick?: () => void }) {
   const pct = Math.min(Math.max((value / max) * 100, 0), 100);
   return (
-    <button onClick={onClick} className="w-full space-y-1.5 text-left cursor-pointer transition-all hover:opacity-85">
+    <button onClick={onClick} className="w-full space-y-1.5 text-left cursor-pointer transition-opacity hover:opacity-85">
       <div className="flex items-center justify-between gap-2 text-[12px]">
         <span className="font-semibold truncate" style={{ color: 'var(--color-ink-2)' }}>{label}</span>
         <span className="font-mono font-bold tabular-nums shrink-0" style={{ color: 'var(--color-ink)' }}>{value}{unit}</span>
       </div>
       <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-surface-2)' }}>
         <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay }}
-          className="h-full rounded-full"
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: pct / 100 }}
+          transition={{ ...progressTween, delay }}
+          className="h-full rounded-full origin-left"
           style={{ background: `linear-gradient(90deg, ${color}, ${color}bb)` }}
         />
       </div>
@@ -129,9 +130,9 @@ export default function SystemInfoPanel({ systemInfo, selectedMode, live = false
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 14 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.32, delay: 0.04, ease: easeOut }}
       className="card p-5 sm:p-6"
     >
       <InspectorModal data={inspectItem} onClose={() => setInspectItem(null)} />
@@ -185,11 +186,11 @@ export default function SystemInfoPanel({ systemInfo, selectedMode, live = false
         {rows.map((r, i) => (
           <motion.button
             key={r.k}
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.15 + i * 0.04, duration: 0.3 }}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08 + i * 0.03, duration: 0.24, ease: easeOut }}
             onClick={r.onInspect}
-            className="w-full flex items-center gap-3 p-2.5 rounded-xl text-[12.5px] min-w-0 border text-left transition-all hover:scale-[1.01] cursor-pointer"
+            className="w-full flex items-center gap-3 p-2.5 rounded-xl text-[12.5px] min-w-0 border text-left transition-colors cursor-pointer hover:border-[var(--color-line-strong)]"
             style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
           >
             <div className="p-1.5 rounded-lg text-blue-500 border shrink-0 shadow-sm" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-line)' }}>

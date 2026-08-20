@@ -1,5 +1,6 @@
 import { useRef, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { easeOut, expandMotion } from '../motion';
 import { Terminal, Minus, Plus, Copy, Check, Trash2, Download, Search, ArrowDownToLine } from 'lucide-react';
 import type { LogEntry } from '../types';
 
@@ -137,10 +138,7 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
       <AnimatePresence initial={false}>
         {showFilters && !collapsed && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            {...expandMotion}
             className="overflow-hidden border-b"
             style={{ borderColor: 'var(--color-line)', backgroundColor: 'var(--color-surface)' }}
           >
@@ -185,10 +183,10 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
       <AnimatePresence initial={false}>
         {!collapsed && (
           <motion.div
-            initial={{ height: 0 }}
-            animate={{ height: 260 }}
-            exit={{ height: 0 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            initial={{ height: 0, opacity: 0.6 }}
+            animate={{ height: 260, opacity: 1 }}
+            exit={{ height: 0, opacity: 0.6 }}
+            transition={{ duration: 0.26, ease: easeOut }}
             className="overflow-hidden relative"
             style={{ backgroundColor: isDark ? '#0b1017' : '#ffffff' }}
           >
@@ -216,9 +214,9 @@ export default function TerminalLog({ logs, isRunning, onClear, onExport }: Prop
                 return (
                   <motion.div
                     key={`${l.time}-${i}`}
-                    initial={{ opacity: 0, x: -4 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.2 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.12 }}
                     className="flex items-baseline gap-2 min-w-0"
                   >
                     <span className="shrink-0 text-[10px] select-none tabular-nums" style={{ color: isDark ? '#3d4f6a' : '#cbd5e1' }}>
