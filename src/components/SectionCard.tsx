@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { easeOut, expandMotion } from '../motion';
 import {
   Package, ShieldCheck, Download, Store, Cpu, HardDrive,
   FileCheck, FolderSync, Trash, Gauge, ChevronDown,
@@ -100,10 +101,10 @@ export default function SectionCard({ section, index, expandSignal = 0, collapse
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(index * 0.03, 0.25), duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-      className={`rounded-2xl overflow-hidden transition-all duration-300 border ${isSkipped ? 'opacity-55 hover:opacity-90' : ''}`}
+      transition={{ delay: Math.min(index * 0.03, 0.2), duration: 0.32, ease: easeOut }}
+      className={`rounded-2xl overflow-hidden transition-[border-color,box-shadow,opacity] duration-300 border ${isSkipped ? 'opacity-55 hover:opacity-90' : ''}`}
       style={{
         backgroundColor: 'var(--color-surface)',
         borderColor: isRunning ? (isDark ? '#3b82f6' : '#93c5fd') : 'var(--color-line)',
@@ -160,7 +161,7 @@ export default function SectionCard({ section, index, expandSignal = 0, collapse
           </span>
           <motion.span
             animate={{ rotate: open ? 180 : 0 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.2, ease: easeOut }}
             className="p-1 rounded-md"
             style={{ color: 'var(--color-ink-4)' }}
           >
@@ -174,7 +175,7 @@ export default function SectionCard({ section, index, expandSignal = 0, collapse
           <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-surface-2)' }}>
             <motion.div
               animate={{ width: `${section.progress}%` }}
-              transition={{ duration: 0.3, ease: 'easeOut' }}
+              transition={{ duration: 0.35, ease: easeOut }}
               className="h-full rounded-full progress-stripe relative overflow-hidden"
               style={{ background: 'linear-gradient(90deg, #2563eb, #06b6d4)' }}
             />
@@ -203,10 +204,7 @@ export default function SectionCard({ section, index, expandSignal = 0, collapse
       <AnimatePresence initial={false}>
         {open && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+            {...expandMotion}
             className="overflow-hidden border-t"
             style={{ borderColor: 'var(--color-line)' }}
           >

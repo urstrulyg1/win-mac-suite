@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { tabTransition } from '../motion';
 import {
   Sparkles, Clock, Cloud, ShieldCheck, RefreshCw,
   HardDrive, AlertTriangle, CheckCircle2, ChevronRight, Laptop, ArrowRight
@@ -100,7 +101,7 @@ export default function AppleServicesHub() {
       {/* Content */}
       <AnimatePresence mode="wait">
         {subTab === 'update' && (
-          <motion.div key="update" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
+          <motion.div key="update" {...tabTransition} className="space-y-6">
             <div
               onClick={() =>
                 setInspectItem({
@@ -234,7 +235,7 @@ export default function AppleServicesHub() {
         )}
 
         {subTab === 'timemachine' && (
-          <motion.div key="timemachine" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-6">
+          <motion.div key="timemachine" {...tabTransition} className="card p-6 space-y-6">
             <div
               onClick={() =>
                 setInspectItem({
@@ -322,7 +323,7 @@ export default function AppleServicesHub() {
         )}
 
         {subTab === 'icloud' && (
-          <motion.div key="icloud" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-6">
+          <motion.div key="icloud" {...tabTransition} className="card p-6 space-y-6">
             <div
               onClick={() =>
                 setInspectItem({
@@ -422,7 +423,7 @@ export default function AppleServicesHub() {
         )}
 
         {subTab === 'services' && (
-          <motion.div key="services" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-4">
+          <motion.div key="services" {...tabTransition} className="card p-6 space-y-4">
             <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>

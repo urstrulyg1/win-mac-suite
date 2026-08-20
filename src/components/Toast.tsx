@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle2, AlertTriangle, Info, XCircle, X } from 'lucide-react';
+import { toastMotion } from '../motion';
 
 type ToastType = 'success' | 'warning' | 'error' | 'info';
 
@@ -62,10 +63,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <motion.div
                 key={t.id}
                 layout
-                initial={{ opacity: 0, x: 40, scale: 0.9 }}
-                animate={{ opacity: 1, x: 0, scale: 1 }}
-                exit={{ opacity: 0, x: 40, scale: 0.9 }}
-                transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                {...toastMotion}
                 className="pointer-events-auto glass rounded-xl px-4 py-3 flex items-start gap-3 shadow-2xl"
                 style={{ backgroundColor: cfg.bg, borderColor: cfg.border, borderWidth: 1 }}
                 role="status"

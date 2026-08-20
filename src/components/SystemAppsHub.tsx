@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { tabTransition } from '../motion';
 import {
   Sparkles, Layers, Package, Cpu, RefreshCw,
   CheckCircle2, HardDrive, ShieldCheck, ChevronRight, Terminal,
@@ -113,13 +114,13 @@ export default function SystemAppsHub() {
       {/* Sub-view Content */}
       <AnimatePresence mode="wait">
         {subTab === 'startup' && (
-          <motion.div key="startup" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+          <motion.div key="startup" {...tabTransition}>
             <StartupManager />
           </motion.div>
         )}
 
         {subTab === 'services' && (
-          <motion.div key="services" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-4">
+          <motion.div key="services" {...tabTransition} className="card p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
                 {isMac ? 'Active macOS LaunchDaemons & System Services' : 'Windows Core Services Inventory'}
@@ -174,7 +175,7 @@ export default function SystemAppsHub() {
         )}
 
         {subTab === 'packages' && (
-          <motion.div key="packages" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-5">
+          <motion.div key="packages" {...tabTransition} className="card p-6 space-y-5">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
                 {isMac ? 'Homebrew Package Environment' : 'Windows Package Manager Catalogs'}
@@ -263,7 +264,7 @@ export default function SystemAppsHub() {
         )}
 
         {subTab === 'hardware' && (
-          <motion.div key="hardware" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-5">
+          <motion.div key="hardware" {...tabTransition} className="card p-6 space-y-5">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
                 {isMac ? 'Apple Silicon Architecture & Chip Diagnostics' : 'Hardware & Processor Architecture'}

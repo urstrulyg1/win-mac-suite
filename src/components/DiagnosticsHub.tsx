@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { tabTransition } from '../motion';
 import {
   Activity, Cpu, HardDrive, Shield,
   Wifi, Battery, FileText, RefreshCw,
@@ -137,13 +138,13 @@ export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
       {/* Sub-views */}
       <AnimatePresence mode="wait">
         {activeSubTab === 'matrix' && (
-          <motion.div key="matrix" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
+          <motion.div key="matrix" {...tabTransition} className="space-y-6">
             <HealthScore score={healthScore} onStartAction={onStartAction} />
           </motion.div>
         )}
 
         {activeSubTab === 'battery' && (
-          <motion.div key="battery" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
+          <motion.div key="battery" {...tabTransition} className="space-y-6">
             {/* Overnight Sleep Drain Verdict Card */}
             <div className="card p-6 space-y-4 border-l-4 border-l-emerald-500">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -229,13 +230,13 @@ export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
         )}
 
         {activeSubTab === 'processes' && (
-          <motion.div key="processes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+          <motion.div key="processes" {...tabTransition}>
             <ProcessMonitor />
           </motion.div>
         )}
 
         {activeSubTab === 'events' && (
-          <motion.div key="events" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-4">
+          <motion.div key="events" {...tabTransition} className="card p-6 space-y-4">
             <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
               Unified System Diagnostic Logs
             </h3>
@@ -254,7 +255,7 @@ export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
         )}
 
         {activeSubTab === 'spotlight' && (
-          <motion.div key="spotlight" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-4">
+          <motion.div key="spotlight" {...tabTransition} className="card p-6 space-y-4">
             <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
               Spotlight Metadata Indexing Engine
             </h3>

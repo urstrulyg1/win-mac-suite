@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { easeOut } from '../../motion';
 
 interface Props {
   values: number[]; // 0..1 intensities
@@ -53,7 +54,7 @@ export default function DotMatrix({
                     opacity: on ? (isPeak ? 1 : 0.85) : 0.18,
                     scale: 1,
                   }}
-                  transition={{ delay: ci * 0.02 + ri * 0.02, duration: 0.3 }}
+                  transition={{ delay: ci * 0.015 + ri * 0.015, duration: 0.22, ease: easeOut }}
                   className="w-full max-w-[7px] aspect-square rounded-full"
                   style={{
                     backgroundColor: on ? (isPeak ? color : `${color}cc`) : 'var(--color-surface-3)',

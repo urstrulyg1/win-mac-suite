@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { tabTransition } from '../motion';
 import {
   Code, Terminal, Layers, Trash2, CheckCircle2, AlertTriangle,
   Radio, HardDrive, Sparkles, RefreshCw, ChevronRight, XCircle,
@@ -171,7 +172,7 @@ export default function DeveloperDoctorHub() {
       {/* Sub-tab Views */}
       <AnimatePresence mode="wait">
         {subTab === 'env' && (
-          <motion.div key="env" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
+          <motion.div key="env" {...tabTransition} className="space-y-4">
             {envData?.pathWarnings?.length > 0 && (
               <div className="p-4 rounded-xl border bg-amber-500/10 border-amber-500/25 space-y-1">
                 <div className="flex items-center gap-2 text-xs font-bold text-amber-500">
@@ -227,7 +228,7 @@ export default function DeveloperDoctorHub() {
         )}
 
         {subTab === 'docker' && (
-          <motion.div key="docker" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-6">
+          <motion.div key="docker" {...tabTransition} className="card p-6 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4" style={{ borderColor: 'var(--color-line)' }}>
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
@@ -334,7 +335,7 @@ export default function DeveloperDoctorHub() {
         )}
 
         {subTab === 'xcode' && (
-          <motion.div key="xcode" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-6">
+          <motion.div key="xcode" {...tabTransition} className="card p-6 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4" style={{ borderColor: 'var(--color-line)' }}>
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
@@ -390,7 +391,7 @@ export default function DeveloperDoctorHub() {
         )}
 
         {subTab === 'ssh' && (
-          <motion.div key="ssh" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-6">
+          <motion.div key="ssh" {...tabTransition} className="card p-6 space-y-6">
             <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
@@ -471,7 +472,7 @@ export default function DeveloperDoctorHub() {
         )}
 
         {subTab === 'vm' && (
-          <motion.div key="vm" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-4">
+          <motion.div key="vm" {...tabTransition} className="card p-6 space-y-4">
             <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
               Virtualization Hypervisors &amp; VM Footprint
             </h3>
@@ -509,7 +510,7 @@ export default function DeveloperDoctorHub() {
         )}
 
         {subTab === 'browser' && (
-          <motion.div key="browser" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-4">
+          <motion.div key="browser" {...tabTransition} className="card p-6 space-y-4">
             <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
@@ -558,7 +559,7 @@ export default function DeveloperDoctorHub() {
         )}
 
         {subTab === 'ports' && (
-          <motion.div key="ports" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-4">
+          <motion.div key="ports" {...tabTransition} className="card p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
                 Active Listening Sockets ({listeningPorts.length} Ports)

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { tabTransition } from '../motion';
 import {
   Shield, Lock, Key, CheckCircle2, ShieldCheck, RefreshCw,
   Flame, ChevronRight, Eye, AlertTriangle, FileCode, Check, Zap
@@ -110,7 +111,7 @@ export default function SecurityHub() {
       {/* Sub-tab Views */}
       <AnimatePresence mode="wait">
         {subTab === 'posture' && (
-          <motion.div key="posture" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
+          <motion.div key="posture" {...tabTransition} className="space-y-6">
             {/* Score Banner */}
             <div className="card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-l-4 border-l-emerald-500">
               <div className="flex items-center gap-4">
@@ -148,7 +149,7 @@ export default function SecurityHub() {
         )}
 
         {subTab === 'privacy' && (
-          <motion.div key="privacy" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
+          <motion.div key="privacy" {...tabTransition} className="space-y-6">
             {/* Permission Change Detection Alert */}
             {privacyAuditor?.recentChanges?.length > 0 && (
               <div className="p-4 rounded-xl border bg-blue-500/10 border-blue-500/25 space-y-1">
@@ -198,7 +199,7 @@ export default function SecurityHub() {
         )}
 
         {subTab === 'compat' && (
-          <motion.div key="compat" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-6">
+          <motion.div key="compat" {...tabTransition} className="card p-6 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4" style={{ borderColor: 'var(--color-line)' }}>
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>

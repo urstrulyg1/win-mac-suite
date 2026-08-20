@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { easeOut } from '../motion';
 import {
   Activity, Shield, AlertTriangle, CheckCircle2, Cpu,
   HardDrive, MemoryStick, Battery, Wifi, ArrowRight,
@@ -26,7 +27,7 @@ interface Props {
   onStartAction: (mode: RunMode) => void;
 }
 
-const ease = [0.16, 1, 0.3, 1] as const;
+
 
 export default function DiagnosticsPanel({ systemInfo, onStartAction }: Props) {
   const { config, isMac } = usePlatform();
@@ -124,9 +125,9 @@ export default function DiagnosticsPanel({ systemInfo, onStartAction }: Props) {
 
       {/* Page Header */}
       <motion.div
-        initial={{ opacity: 0, y: 14 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease }}
+        transition={{ duration: 0.32, ease: easeOut }}
         className="flex flex-col sm:flex-row sm:items-end justify-between gap-4"
       >
         <div>

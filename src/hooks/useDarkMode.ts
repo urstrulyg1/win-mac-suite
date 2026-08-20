@@ -17,7 +17,15 @@ export function useDarkMode() {
     localStorage.setItem('theme', dark ? 'dark' : 'light');
   }, [dark]);
 
-  const toggle = () => setDark((v) => !v);
+  const toggle = () => {
+    const root = document.documentElement;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!reduce) {
+      root.classList.add('theme-transition');
+      window.setTimeout(() => root.classList.remove('theme-transition'), 340);
+    }
+    setDark((v) => !v);
+  };
 
   return { dark, toggle };
 }

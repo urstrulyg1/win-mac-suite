@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
+import { modalBackdrop, modalPanel, expandMotion } from '../motion';
 import { X, Terminal, Copy, Shield, Database, Clock, HelpCircle, CheckCircle2, AlertTriangle, Sparkles, Code2 } from 'lucide-react';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -41,8 +42,6 @@ export default function InspectorModal({ data, item, onClose }: Props) {
   const [showRaw, setShowRaw] = useState(false);
   const modalData = data || item;
 
-  if (!modalData) return null;
-
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopied(true);
@@ -50,30 +49,26 @@ export default function InspectorModal({ data, item, onClose }: Props) {
   };
 
   const qualityColor =
-    modalData.evidenceQuality === 'Observed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/25' :
-    modalData.evidenceQuality === 'Inferred' ? 'bg-blue-500/10 text-blue-400 border-blue-500/25' :
-    modalData.evidenceQuality === 'Estimated' ? 'bg-amber-500/10 text-amber-500 border-amber-500/25' :
-    modalData.evidenceQuality === 'Unavailable' ? 'bg-red-500/10 text-red-500 border-red-500/25' :
+    modalData?.evidenceQuality === 'Observed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/25' :
+    modalData?.evidenceQuality === 'Inferred' ? 'bg-blue-500/10 text-blue-400 border-blue-500/25' :
+    modalData?.evidenceQuality === 'Estimated' ? 'bg-amber-500/10 text-amber-500 border-amber-500/25' :
+    modalData?.evidenceQuality === 'Unavailable' ? 'bg-red-500/10 text-red-500 border-red-500/25' :
     'bg-slate-500/10 text-slate-400 border-slate-500/25';
 
   return createPortal(
     <AnimatePresence>
+      {modalData && (
       <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
         {/* Backdrop — rendered via portal, covers everything including sticky nav */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          {...modalBackdrop}
           onClick={onClose}
           className="absolute inset-0 bg-black/60 backdrop-blur-md"
         />
 
         {/* Modal Window */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          {...modalPanel}
           className="relative w-full max-w-2xl card p-5 sm:p-6 shadow-2xl border z-10 space-y-4 max-h-[88vh] overflow-y-auto overflow-x-hidden"
           style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-line)' }}
         >
@@ -221,11 +216,18 @@ export default function InspectorModal({ data, item, onClose }: Props) {
               >
                 <Code2 size={12} /> {showRaw ? 'Hide Raw Telemetry Payload' : 'Inspect Raw Telemetry JSON'}
               </button>
-              {showRaw && (
-                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 font-mono text-[10px] whitespace-pre overflow-x-auto max-h-44 overflow-y-auto">
-                  {JSON.stringify(modalData.rawTelemetry, null, 2)}
-                </div>
-              )}
+              <AnimatePresence initial={false}>
+                {showRaw && (
+                  <motion.div
+                    {...expandMotion}
+                    className="overflow-hidden"
+                  >
+                    <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 font-mono text-[10px] whitespace-pre overflow-x-auto max-h-44 overflow-y-auto">
+                      {JSON.stringify(modalData.rawTelemetry, null, 2)}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           )}
 
@@ -246,6 +248,7 @@ export default function InspectorModal({ data, item, onClose }: Props) {
           )}
         </motion.div>
       </div>
+      )}
     </AnimatePresence>,
     document.body,
   );

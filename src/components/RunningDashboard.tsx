@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { easeOut, tabTransition, tapPress } from '../motion';
 import {
   Play, Sliders, CheckSquare, Square,
   SquareX, Timer, Search, Filter, ChevronsUpDown, ChevronsDownUp,
@@ -196,10 +197,7 @@ export default function RunningDashboard({
         {phase === 'configuring' && (
           <motion.div
             key="config"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -16 }}
-            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            {...tabTransition}
             className="grid grid-cols-12 gap-4 sm:gap-5 items-start"
           >
             <div className="col-span-12 lg:col-span-8 space-y-5">
@@ -218,8 +216,7 @@ export default function RunningDashboard({
                 </div>
 
                 <motion.button
-                  whileHover={{ y: -1 }}
-                  whileTap={{ scale: 0.99 }}
+                  whileTap={tapPress}
                   onClick={handleStartAttempt}
                   className="btn btn-primary w-full mt-5 !py-3.5 text-[15px] relative overflow-hidden cursor-pointer"
                 >
@@ -274,10 +271,7 @@ export default function RunningDashboard({
         {(phase === 'running' || phase === 'complete') && (
           <motion.div
             key="running"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -16 }}
-            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            {...tabTransition}
             className="grid grid-cols-12 gap-4 sm:gap-5 items-start"
           >
             {/* Left: KPIs + sections or summary */}
@@ -298,7 +292,7 @@ export default function RunningDashboard({
                         ],
                       })
                     }
-                    className="card card-hover p-5 col-span-12 sm:col-span-6 text-left cursor-pointer transition-all hover:scale-[1.01]"
+                    className="card card-hover p-5 col-span-12 sm:col-span-6 text-left cursor-pointer"
                   >
                     <div className="flex items-center justify-between mb-1">
                       <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-ink-4)' }}>Overall Progress</p>
@@ -317,7 +311,7 @@ export default function RunningDashboard({
                         className="h-full rounded-full relative overflow-hidden progress-stripe"
                         style={{ background: 'linear-gradient(90deg, #2563eb, #06b6d4)' }}
                         animate={{ width: `${overallProgress}%` }}
-                        transition={{ duration: 0.4, ease: 'easeOut' }}
+                        transition={{ duration: 0.35, ease: easeOut }}
                       />
                     </div>
                   </button>
@@ -334,7 +328,7 @@ export default function RunningDashboard({
                         ],
                       })
                     }
-                    className="card card-hover p-5 col-span-6 sm:col-span-3 flex flex-col justify-between text-left cursor-pointer transition-all hover:scale-[1.01]"
+                    className="card card-hover p-5 col-span-6 sm:col-span-3 flex flex-col justify-between text-left cursor-pointer"
                   >
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: 'rgba(6,182,212,0.12)', color: '#22d3ee' }}>
                       <Package size={16} />
@@ -358,7 +352,7 @@ export default function RunningDashboard({
                         ],
                       })
                     }
-                    className="card card-hover p-5 col-span-6 sm:col-span-3 flex flex-col justify-between text-left cursor-pointer transition-all hover:scale-[1.01]"
+                    className="card card-hover p-5 col-span-6 sm:col-span-3 flex flex-col justify-between text-left cursor-pointer"
                   >
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: 'rgba(34,197,94,0.12)', color: '#4ade80' }}>
                       <TrendingUp size={16} />

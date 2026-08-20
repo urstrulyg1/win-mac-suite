@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { dropdownMotion } from '../motion';
 import {
   Shield, Moon, Sun, Monitor, ChevronDown, Radio,
   Activity, Sparkles, HardDrive, FileText, Lock,
@@ -205,10 +206,8 @@ export default function TopNav({
             <AnimatePresence>
               {dropdownOpen && (
                 <motion.div
-                  initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 6, scale: 0.95 }}
-                  transition={{ duration: 0.15 }}
+                  {...dropdownMotion}
+                  style={{ originX: 1, originY: 0 }}
                   className="absolute right-0 mt-2 w-80 p-2 rounded-2xl shadow-2xl border border-slate-700 bg-slate-900 text-slate-100 z-[9999] divide-y divide-slate-800"
                 >
                   <div className="px-3 py-2 text-[11px] uppercase font-bold tracking-wider text-slate-400">

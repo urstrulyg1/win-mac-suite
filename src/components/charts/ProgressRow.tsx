@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { progressTween } from '../../motion';
 
 interface Props {
   label: string;
@@ -26,10 +27,10 @@ export default function ProgressRow({
       </div>
       <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-surface-2)' }}>
         <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 1, delay, ease: [0.16, 1, 0.3, 1] }}
-          className="h-full rounded-full"
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: pct / 100 }}
+          transition={{ ...progressTween, delay }}
+          className="h-full rounded-full origin-left"
           style={{
             background: `linear-gradient(90deg, ${color}, ${color}cc)`,
           }}

@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { easeOut } from '../../motion';
 
 interface Props {
   data: number[];
@@ -52,7 +53,7 @@ export default function Sparkline({
           fill={`url(#${gradId})`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.3 }}
+          transition={{ duration: 0.55, delay: 0.15, ease: easeOut }}
         />
       )}
       <motion.path
@@ -64,7 +65,7 @@ export default function Sparkline({
         strokeLinejoin="round"
         initial={{ pathLength: 0 }}
         animate={{ pathLength: 1 }}
-        transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+        transition={{ duration: 0.8, ease: easeOut }}
       />
     </svg>
   );

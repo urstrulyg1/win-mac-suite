@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { tabTransition } from '../motion';
 import {
   Clock, Activity, AlertTriangle, ShieldCheck, HardDrive,
   Cpu, Wifi, Moon, Sparkles, MemoryStick, Layers, RefreshCw,
@@ -102,7 +103,7 @@ export default function SystemEventsTimeline() {
       {/* Content */}
       <AnimatePresence mode="wait">
         {subTab === 'incidents' && (
-          <motion.div key="incidents" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
+          <motion.div key="incidents" {...tabTransition} className="space-y-6">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">
                 Correlated Cross-Subsystem Incidents ({incidentData?.incidents?.length || 0})
@@ -163,7 +164,7 @@ export default function SystemEventsTimeline() {
         )}
 
         {subTab === 'timeline' && (
-          <motion.div key="timeline" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-6">
+          <motion.div key="timeline" {...tabTransition} className="card p-6 space-y-6">
             <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
@@ -221,7 +222,7 @@ export default function SystemEventsTimeline() {
         )}
 
         {subTab === 'baseline' && (
-          <motion.div key="baseline" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
+          <motion.div key="baseline" {...tabTransition} className="space-y-6">
             {/* Multi-Baseline Selector */}
             <div className="card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
@@ -272,7 +273,7 @@ export default function SystemEventsTimeline() {
         )}
 
         {subTab === 'forecast' && (
-          <motion.div key="forecast" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
+          <motion.div key="forecast" {...tabTransition} className="space-y-6">
             <div className="card p-6 space-y-4 border-l-4 border-l-emerald-500">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>

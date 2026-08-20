@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { staggerContainer, staggerItem, dropdownMotion } from '../motion';
 import {
   Shield, ArrowRight, Terminal, Activity, HardDrive, Sparkles,
   Download, Cpu, CheckCircle2, TrendingUp, Zap, MoreHorizontal,
@@ -18,8 +19,6 @@ interface Props {
   backendOnline: boolean;
   onNavigateTab?: (tab: string) => void;
 }
-
-const ease = [0.16, 1, 0.3, 1] as const;
 
 function CardMenu({ items }: { items: { label: string; icon: React.ComponentType<any>; onClick: () => void }[] }) {
   const [open, setOpen] = useState(false);
@@ -45,10 +44,8 @@ function CardMenu({ items }: { items: { label: string; icon: React.ComponentType
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: 4, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 4, scale: 0.96 }}
-            transition={{ duration: 0.12 }}
+            {...dropdownMotion}
+            style={{ originX: 1, originY: 0 }}
             className="absolute right-0 top-full mt-1 w-44 card shadow-xl z-30 p-1 overflow-hidden"
           >
             {items.map(item => (
@@ -120,9 +117,9 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
 
       {/* Page Header */}
       <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease }}
+        variants={staggerItem}
+        initial="initial"
+        animate="animate"
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-6"
       >
         <div className="flex items-start sm:items-center gap-4">
@@ -213,11 +210,10 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
       </motion.div>
 
       {/* Main Grid */}
-      <div className="grid grid-cols-12 gap-4 sm:gap-5">
+      <motion.div className="grid grid-cols-12 gap-4 sm:gap-5" variants={staggerContainer} initial="initial" animate="animate">
         {/* Execution Pipeline Funnel */}
         <motion.div
-          initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.06, ease }}
+          variants={staggerItem}
           onClick={() =>
             setInspectItem({
               title: 'Maintenance Execution Pipeline',
@@ -309,8 +305,7 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
 
         {/* Resource usage card */}
         <motion.div
-          initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.12, ease }}
+          variants={staggerItem}
           onClick={() =>
             setInspectItem({
               title: 'Resource Telemetry Subsystems',
@@ -360,8 +355,7 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
 
         {/* Quick Actions */}
         <motion.div
-          initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.18, ease }}
+          variants={staggerItem}
           className="card card-hover p-5 sm:p-6 col-span-12 md:col-span-6 lg:col-span-4 flex flex-col"
         >
           <h3 className="text-lg font-bold mb-1" style={{ color: 'var(--color-ink)' }}>Quick Actions</h3>
@@ -398,8 +392,7 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
 
         {/* Storage Snapshot */}
         <motion.div
-          initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.24, ease }}
+          variants={staggerItem}
           onClick={() =>
             setInspectItem({
               title: 'Storage Volume Status',
@@ -454,8 +447,7 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
 
         {/* Dynamic Insights / Last Run */}
         <motion.div
-          initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.30, ease }}
+          variants={staggerItem}
           onClick={() =>
             setInspectItem({
               title: 'Last Diagnostics Report',
@@ -507,8 +499,7 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
 
         {/* Feature strip — real system values */}
         <motion.div
-          initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.36, ease }}
+          variants={staggerItem}
           className="card p-5 sm:p-6 col-span-12 grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-5"
         >
           {[
@@ -610,7 +601,7 @@ export default function LandingHero({ onStart, systemInfo, summary, backendOnlin
             </button>
           ))}
         </motion.div>
-      </div>
+      </motion.div>
 
       <p className="text-center text-[11px] font-mono mt-4 tracking-wide" style={{ color: 'var(--color-ink-4)' }}>
         {config.productName} · {systemInfo.hostName} · {systemInfo.os} {systemInfo.build ? `(${systemInfo.build})` : ''}

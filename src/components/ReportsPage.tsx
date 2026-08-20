@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { tabTransition } from '../motion';
 import {
   FileText, Download, RotateCcw, CheckCircle2, AlertTriangle,
   History, Sparkles, HardDrive, Shield, Globe, Terminal, ArrowRight
@@ -213,7 +214,7 @@ export default function ReportsPage({ summary, onStartNew }: Props) {
       {/* Sub-views */}
       <AnimatePresence mode="wait">
         {subTab === 'manifest' && (
-          <motion.div key="manifest" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-4">
+          <motion.div key="manifest" {...tabTransition} className="card p-6 space-y-4">
             <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
@@ -261,7 +262,7 @@ export default function ReportsPage({ summary, onStartNew }: Props) {
         )}
 
         {subTab === 'audit' && (
-          <motion.div key="audit" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-4">
+          <motion.div key="audit" {...tabTransition} className="card p-6 space-y-4">
             <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
               Audit History &amp; Mutation Ledger
             </h3>

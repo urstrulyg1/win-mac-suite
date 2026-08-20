@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { tabTransition } from '../motion';
 import {
   Wifi, Radio, RefreshCw, CheckCircle2, AlertTriangle,
   Bluetooth, Share2, Globe, Shield, ArrowRight, Zap, Check
@@ -124,7 +125,7 @@ export default function NetworkDoctorHub() {
       {/* Sub-tab Views */}
       <AnimatePresence mode="wait">
         {subTab === 'doctor' && (
-          <motion.div key="doctor" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-6">
+          <motion.div key="doctor" {...tabTransition} className="card p-6 space-y-6">
             <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: 'var(--color-line)' }}>
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
@@ -180,7 +181,7 @@ export default function NetworkDoctorHub() {
         )}
 
         {subTab === 'wifi' && (
-          <motion.div key="wifi" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-6">
+          <motion.div key="wifi" {...tabTransition} className="card p-6 space-y-6">
             <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: 'var(--color-line)' }}>
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
@@ -215,7 +216,7 @@ export default function NetworkDoctorHub() {
         )}
 
         {subTab === 'bluetooth' && (
-          <motion.div key="bluetooth" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
+          <motion.div key="bluetooth" {...tabTransition} className="space-y-6">
             {/* AirDrop Doctor */}
             <div className="card p-6 space-y-4">
               <div className="flex items-center justify-between">

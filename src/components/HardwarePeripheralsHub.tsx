@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { tabTransition } from '../motion';
 import {
   HardDrive, Volume2, Camera, Monitor, Keyboard,
   RefreshCw, CheckCircle2, AlertTriangle, ShieldCheck, HelpCircle
@@ -104,7 +105,7 @@ export default function HardwarePeripheralsHub() {
       {/* Content */}
       <AnimatePresence mode="wait">
         {subTab === 'disk' && (
-          <motion.div key="disk" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
+          <motion.div key="disk" {...tabTransition} className="space-y-6">
             <div className="card p-6 space-y-4 border-l-4 border-l-emerald-500">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
@@ -143,7 +144,7 @@ export default function HardwarePeripheralsHub() {
         )}
 
         {subTab === 'audio' && (
-          <motion.div key="audio" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-6">
+          <motion.div key="audio" {...tabTransition} className="card p-6 space-y-6">
             <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
@@ -178,7 +179,7 @@ export default function HardwarePeripheralsHub() {
         )}
 
         {subTab === 'camera' && (
-          <motion.div key="camera" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-4">
+          <motion.div key="camera" {...tabTransition} className="card p-6 space-y-4">
             <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
               Camera &amp; Microphone Array Status
             </h3>
@@ -200,7 +201,7 @@ export default function HardwarePeripheralsHub() {
         )}
 
         {subTab === 'display' && (
-          <motion.div key="display" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-4">
+          <motion.div key="display" {...tabTransition} className="card p-6 space-y-4">
             <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
@@ -223,7 +224,7 @@ export default function HardwarePeripheralsHub() {
         )}
 
         {subTab === 'peripherals' && (
-          <motion.div key="peripherals" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6 space-y-4">
+          <motion.div key="peripherals" {...tabTransition} className="card p-6 space-y-4">
             <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
               Connected Peripherals &amp; Battery Status
             </h3>

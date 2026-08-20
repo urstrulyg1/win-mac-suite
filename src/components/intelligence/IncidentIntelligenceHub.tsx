@@ -14,6 +14,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { tabTransition } from '../../motion';
 import {
   Siren, RefreshCw, Plus, ChevronRight, ShieldCheck, XCircle,
   HelpCircle, Clock, AlertTriangle, CheckCircle2, GitBranch, FlaskConical, Hash,
@@ -170,7 +171,7 @@ export default function IncidentIntelligenceHub() {
 
           {d && (
             <AnimatePresence mode="wait">
-              <motion.div key={d.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <motion.div key={d.id} {...tabTransition} className="space-y-6">
                 {/* Identity */}
                 <div className="card p-6 space-y-3" style={{ borderLeft: `4px solid ${STATUS_COLOR[d.status]}` }}>
                   <div className="flex flex-wrap items-center gap-2">

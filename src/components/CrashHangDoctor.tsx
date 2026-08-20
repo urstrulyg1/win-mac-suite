@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { tabTransition } from '../motion';
 import {
   AlertTriangle, ShieldAlert, FileText, CheckCircle2,
   RefreshCw, ChevronRight, Activity, HelpCircle, Flame, Sparkles
@@ -92,7 +93,7 @@ export default function CrashHangDoctor() {
       {/* Content */}
       <AnimatePresence mode="wait">
         {subTab === 'crashes' && (
-          <motion.div key="crashes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
+          <motion.div key="crashes" {...tabTransition} className="space-y-6">
             {/* Root-cause Card: "Why did this app crash?" */}
             <div className="card p-6 space-y-4 border-l-4 border-l-amber-500">
               <div className="flex items-center gap-3">
@@ -161,7 +162,7 @@ export default function CrashHangDoctor() {
         )}
 
         {subTab === 'stability' && (
-          <motion.div key="stability" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
+          <motion.div key="stability" {...tabTransition} className="space-y-6">
             <div className="card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-l-4 border-l-emerald-500">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/25 flex items-center justify-center text-xl font-extrabold font-mono">

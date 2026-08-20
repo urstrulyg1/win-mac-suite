@@ -14,7 +14,7 @@ interface Props {
  */
 export default function CountUp({
   value,
-  duration = 1200,
+  duration = 900,
   decimals = 0,
   prefix = '',
   suffix = '',
