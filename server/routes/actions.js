@@ -990,6 +990,192 @@ router.post('/rebuild-icon-cache', async (_req, res) => {
   }
 });
 
+// ── Shared helper: resolve the Homebrew executable across Apple Silicon & Intel ──
+function resolveBrewPath() {
+  // Apple Silicon Homebrew lives at /opt/homebrew/bin/brew; Intel at /usr/local/bin/brew.
+  const candidates = ['/opt/homebrew/bin/brew', '/usr/local/bin/brew'];
+  const found = candidates.find((p) => fs.existsSync(p));
+  return found || 'brew'; // fall back to PATH lookup
+}
+
+/**
+ * Run a command and return { stdout, stderr, code, ok } without throwing on a
+ * non-zero exit (brew doctor exits non-zero when it reports warnings).
+ */
+async function runCommandCapturing(bin, args, timeoutMs = 60000) {
+  const { execFile } = await import('child_process');
+  const { promisify } = await import('util');
+  const execFileAsync = promisify(execFile);
+  const env = {
+    ...process.env,
+    PATH: `${process.env.PATH || ''}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`,
+  };
+  try {
+    const { stdout, stderr } = await execFileAsync(bin, args, { timeout: timeoutMs, maxBuffer: 10 * 1024 * 1024, env });
+    return { stdout: (stdout || '').trim(), stderr: (stderr || '').trim(), code: 0, ok: true };
+  } catch (err) {
+    return {
+      stdout: (err.stdout || '').trim(),
+      stderr: (err.stderr || '').trim(),
+      code: typeof err.code === 'number' ? err.code : 1,
+      ok: false,
+    };
+  }
+}
+
+// ── POST /api/actions/brew-doctor ───────────────────────────────────────────
+// Read-only Homebrew health check (brew doctor). Reports the real warnings
+// Homebrew emits; never fabricates a "clean" result.
+router.post('/brew-doctor', async (_req, res) => {
+  const isMacOs = process.platform === 'darwin';
+  if (!isMacOs) return res.status(400).json({ error: 'Homebrew doctor is only supported on macOS.' });
+  try {
+    const brewPath = resolveBrewPath();
+    const { stdout, stderr, code, ok } = await runCommandCapturing(brewPath, ['doctor'], 60000);
+
+    // `brew doctor` prints "Your system is ready to brew." when there are zero issues.
+    const ready = /ready to brew/i.test(stdout);
+    // Warnings are the "Warning:" lines Homebrew emits.
+    const warnings = stdout
+      .split('\n')
+      .filter((l) => /^warning:/i.test(l.trim()))
+      .map((l) => l.replace(/^warning:\s*/i, '').trim());
+
+    const audit = logAuditEntry({
+      operation: 'Homebrew Health Check (brew doctor)',
+      commandId: 'mac.brew.doctor',
+      risk: 'safe',
+      permissionLevel: 'Standard User',
+      result: ok || ready ? 'success' : 'warning',
+      changesMade: ['Ran brew doctor — read-only Homebrew integrity check (no changes made).'],
+    });
+
+    res.json({
+      success: true,
+      ready,
+      warningCount: warnings.length,
+      warnings,
+      output: stdout,
+      stderr: stderr || null,
+      exitCode: code,
+      audit,
+      message: ready
+        ? 'Homebrew reports: Your system is ready to brew.'
+        : warnings.length > 0
+          ? `brew doctor found ${warnings.length} warning(s).`
+          : 'brew doctor completed; review the captured output.',
+    });
+  } catch (err) {
+    res.status(500).json(createErrorResponse({
+      code: 'BREW_DOCTOR_FAILED',
+      error: err.message,
+      remediation: 'Confirm Homebrew is installed (brew --version) and reachable on PATH.',
+    }));
+  }
+});
+
+// ── POST /api/actions/brew-autoremove ───────────────────────────────────────
+// Remove orphaned Homebrew dependencies (brew autoremove). Reports the packages
+// Homebrew actually removed by capturing stdout.
+router.post('/brew-autoremove', async (_req, res) => {
+  const isMacOs = process.platform === 'darwin';
+  if (!isMacOs) return res.status(400).json({ error: 'Homebrew autoremove is only supported on macOS.' });
+  try {
+    const brewPath = resolveBrewPath();
+    const { stdout, stderr, code } = await runCommandCapturing(brewPath, ['autoremove'], 120000);
+
+    // brew autoremove prints "Uninstalling <formula>..." for each orphan it removes,
+    // and "Removing: <formula>..." style lines vary by version — capture both.
+    const removed = stdout
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => /^(uninstalling|removing)\s+/i.test(l))
+      .map((l) => l.replace(/^(uninstalling|removing)\s+/i, '').replace(/\s*\.\.\..*$/, '').trim());
+
+    const audit = logAuditEntry({
+      operation: 'Remove Orphaned Homebrew Dependencies (brew autoremove)',
+      commandId: 'mac.brew.autoremove',
+      risk: 'moderate',
+      permissionLevel: 'Standard User',
+      result: 'success',
+      changesMade: removed.length > 0
+        ? removed.map((p) => `Removed orphaned dependency: ${p}`)
+        : ['brew autoremove ran; no orphaned dependencies were found.'],
+    });
+
+    res.json({
+      success: true,
+      removedCount: removed.length,
+      removed,
+      output: stdout,
+      stderr: stderr || null,
+      exitCode: code,
+      audit,
+      message: removed.length > 0
+        ? `Removed ${removed.length} orphaned Homebrew dependenc${removed.length === 1 ? 'y' : 'ies'}.`
+        : 'No orphaned Homebrew dependencies to remove.',
+    });
+  } catch (err) {
+    res.status(500).json(createErrorResponse({
+      code: 'BREW_AUTOREMOVE_FAILED',
+      error: err.message,
+      remediation: 'Confirm Homebrew is installed and no brew operation is already running.',
+    }));
+  }
+});
+
+// ── POST /api/actions/clean-xcode-simulators ────────────────────────────────
+// Delete unavailable iOS/watchOS/tvOS simulator runtimes (xcrun simctl delete
+// unavailable). Measures reclaimable space from the simulator caches beforehand
+// so the reported figure is observed, not invented.
+router.post('/clean-xcode-simulators', async (_req, res) => {
+  const isMacOs = process.platform === 'darwin';
+  if (!isMacOs) return res.status(400).json({ error: 'Xcode simulator cleanup is only supported on macOS.' });
+  try {
+    const xcrun = fs.existsSync('/usr/bin/xcrun') ? '/usr/bin/xcrun' : 'xcrun';
+
+    // Measure the simulator device/data directories before deletion so the
+    // reclaimed number is measured from disk, not hardcoded.
+    const simRoot = path.join(os.homedir(), 'Library', 'Developer', 'CoreSimulator');
+    const beforeBytes = fs.existsSync(simRoot) ? measureDirectorySize(simRoot) : 0;
+
+    const { stdout, stderr, code } = await runCommandCapturing(xcrun, ['simctl', 'delete', 'unavailable'], 60000);
+
+    const afterBytes = fs.existsSync(simRoot) ? measureDirectorySize(simRoot) : 0;
+    const reclaimedBytes = Math.max(0, beforeBytes - afterBytes);
+
+    const audit = logAuditEntry({
+      operation: 'Purge Unavailable Xcode Simulator Runtimes',
+      commandId: 'mac.simctl.delete-unavailable',
+      risk: 'moderate',
+      permissionLevel: 'Standard User',
+      result: 'success',
+      changesMade: ['Ran xcrun simctl delete unavailable to remove stale simulator runtimes and device caches.'],
+      reclaimedBytes,
+    });
+
+    res.json({
+      success: true,
+      reclaimedMB: Math.round(reclaimedBytes / (1024 * 1024)),
+      reclaimedBytes,
+      measurement: 'observed',
+      output: stdout,
+      stderr: stderr || null,
+      exitCode: code,
+      audit,
+      message: reclaimedBytes > 0
+        ? 'Unavailable Xcode simulator runtimes purged.'
+        : 'No unavailable simulator runtimes found; nothing to reclaim.',
+    });
+  } catch (err) {
+    res.status(500).json(createErrorResponse({
+      code: 'SIMCTL_CLEANUP_FAILED',
+      error: err.message,
+      remediation: 'Confirm Xcode command-line tools are installed (xcode-select --install).',
+    }));
+  }
+});
+
 // ── POST /api/actions/kill-port ─────────────────────────────────────────────
 // v10: fully guarded. Operation ID (P0 #7), idempotency key + lock + cooldown +
 // rate limit (P0 #8), chaos hook (P0 #5), before/after verification.

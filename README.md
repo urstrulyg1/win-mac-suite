@@ -2,11 +2,11 @@
 
 > **Cross-platform system maintenance, diagnostics, and optimization suite for Windows and macOS.**
 
-**Version:** 16.0.0  
+**Version:** 16.1.0  
 **Status:** CONDITIONALLY PRODUCTION READY (requires real Windows + macOS testing)  
 **Last Updated:** 2026-08-30  
 **Repository Files:** 158  
-**Endpoints:** 199 total (148 GET + 50 POST + 1 DELETE) across Windows + cross-platform APIs  
+**Endpoints:** 202 total (148 GET + 53 POST + 1 DELETE) across Windows + cross-platform APIs  
 **UI Tabs:** 45+ across 12 feature groups  
 
 ---
@@ -118,6 +118,7 @@ server/
 │   ├── windows.js                  # /api/windows/* (21 v1 endpoints)
 │   ├── windows-v2.js               # /api/windows/v2/* (38 v2 endpoints)
 │   ├── system.js, diagnostics.js, actions.js, security.js, storage.js
+│   ├── services.js                 # /api/services, /api/startup-items (launchctl / CIM)
 │   └── network.js, reports.js, v10.js, intelligence.js
 ├── helpers/
 │   ├── windows-advanced.js         # 14 v1 PowerShell/CIM functions (950 lines)
@@ -154,6 +155,7 @@ These features work on macOS, Windows, and Linux (where applicable):
 | Audit Trail | Reports | Complete operation history with timestamps | SQLite |
 | Safe Mode | — | Backend-enforced security boundary for all mutations | Middleware |
 | Ask Assistant | Ask Suite | Natural language queries directed to real diagnostic tools | Keyword routing |
+| Global Search & Command Palette | — (Ctrl/⌘+K) | Search real apps, processes, services, startup items, drivers; platform-aware command palette | Live API queries in parallel |
 
 ### Intelligence & Diagnostics
 
@@ -241,6 +243,34 @@ These features work on macOS, Windows, and Linux (where applicable):
 | Toggle startup | `POST /api/actions/toggle-startup` | Safe Mode, regex validation |
 | Remove quarantine | `POST /api/actions/remove-quarantine` | Safe Mode, confirmation |
 
+**macOS System, Apps & Security (cross-route endpoints):**
+
+These macOS capabilities live on the shared routes and power the Clean, Security, Developer, and macOS hubs:
+
+| Feature | Endpoint | Real Source |
+|---------|----------|-------------|
+| Installed Applications Inventory | `/api/apps/inventory` | `/Applications` + `system_profiler` scan |
+| App Footprint / Disk Usage | `/api/apps/footprint/:appName` | App bundle + container + cache sizing (`du`) |
+| Launch Services & Daemons | `/api/services` | `launchctl list` |
+| Deep Startup Inventory | `/api/startup-items` | LaunchAgents, LaunchDaemons, PrivilegedHelperTools |
+| Security Posture Score | `/api/security/posture` | `spctl`, `fdesetup`, `csrutil`, `socketfilterfw` |
+| TCC Privacy Auditor | `/api/privacy`, `/api/privacy/auditor`, `/api/privacy/score`, `/api/security/privacy-auditor` | TCC database (`~/Library/Application Support/com.apple.TCC`) |
+| Guided Troubleshoot Wizards | `/api/troubleshoot/:issueId` | Issue-specific guides wired to real actions |
+| Thermal State | `/api/thermal` | `pmset`, thermal pressure |
+| Listening Ports (system route) | `/api/network/listening-ports` | `lsof -i -P` |
+
+The **TCC Privacy Auditor** enumerates 13 permission categories — Camera, Microphone, Screen Recording, Accessibility, Full Disk Access, Files & Folders, Location, Contacts, Calendar, Photos, Bluetooth, Automation (AppleEvents), and Input Monitoring — reading real grants from the TCC database when Full Disk Access is available (and honestly reporting counts as unavailable without it).
+
+The **Troubleshoot Center** offers guided fix wizards for 5 common macOS issues, each routed to the real diagnostic/action endpoint:
+
+| Issue | Guide ID | Wired Action |
+|-------|----------|--------------|
+| Mac is slow / unresponsive | `mac-slow` | Purge RAM → Performance Doctor |
+| Battery drains / won't sleep | `battery-drain` | Power assertions / Battery Intelligence |
+| Port already in use (EADDRINUSE) | `port-in-use` | Port Killer (`lsof` + kill) |
+| App "damaged" / won't open | `app-damaged` | Remove quarantine (Gatekeeper xattr) |
+| Captive Wi-Fi portal not opening | `wifi-captive` | Flush DNS (`mac.flushdns`) |
+
 ### Windows Management Center
 
 The Windows Center provides **45+ features across 12 groups** with 59 API endpoints:
@@ -286,14 +316,17 @@ All mutation endpoints are Safe Mode protected and require explicit confirmation
 | Generate cleanup plan | `POST /api/actions/cleanup-plan` | Cross | Safe Mode |
 | Execute cleanup | `POST /api/actions/execute-cleanup` | Cross | Safe Mode, allowlist |
 | Undo cleanup | `POST /api/actions/undo-cleanup` | Cross | Safe Mode |
-| Clean Docker | `POST /api/actions/clean-docker` | macOS | Safe Mode, confirmation |
+| Clean Docker | `POST /api/actions/clean-docker` | Cross | Safe Mode, confirmation |
 | Clean Xcode | `POST /api/actions/clean-xcode` | macOS | Safe Mode, confirmation |
-| Clean storage | `POST /api/actions/clean-storage` | macOS | Safe Mode, confirmation |
-| Toggle startup item | `POST /api/actions/toggle-startup` | macOS | Safe Mode, regex |
-| Toggle service | `POST /api/actions/toggle-service` | macOS | Safe Mode, confirmation |
-| Run integrity check | `POST /api/actions/run-integrity-check` | macOS | Safe Mode |
+| Clean Xcode simulators | `POST /api/actions/clean-xcode-simulators` | macOS | Safe Mode, `xcrun simctl delete unavailable` |
+| Clean storage | `POST /api/actions/clean-storage` | Cross | Safe Mode (mac: `brew cleanup`, win: temp files) |
+| Homebrew doctor | `POST /api/actions/brew-doctor` | macOS | Safe Mode (read-only `brew doctor`) |
+| Homebrew autoremove | `POST /api/actions/brew-autoremove` | macOS | Safe Mode (`brew autoremove`) |
+| Toggle startup item | `POST /api/actions/toggle-startup` | Cross | Safe Mode, regex (mac: LaunchAgent, win: registry) |
+| Toggle service | `POST /api/actions/toggle-service` | Windows | Safe Mode, confirmation |
+| Run integrity check | `POST /api/actions/run-integrity-check` | Cross | Safe Mode (mac: `diskutil verify`, win: `sfc`) |
 | Thin snapshots | `POST /api/actions/thin-snapshots` | macOS | Safe Mode, confirmation |
-| Purge RAM | `POST /api/actions/purge-ram` | macOS | Safe Mode, validation |
+| Purge RAM | `POST /api/actions/purge-ram` | Cross | Safe Mode, validation (mac: `purge`, win: memory trim) |
 | Restart audio | `POST /api/actions/restart-audio` | macOS | Safe Mode |
 | Rebuild icon cache | `POST /api/actions/rebuild-icon-cache` | macOS | Safe Mode |
 | Kill port | `POST /api/actions/kill-port` | Cross | Safe Mode, validation |
@@ -673,9 +706,10 @@ All 59 Windows endpoints are documented. **Zero undocumented endpoints.**
 | Network diagnostics | ✅ FULL | ✅ FULL | ✅ FULL |
 | Process monitoring | ✅ FULL | ✅ FULL | ✅ FULL |
 | Storage analysis | ✅ FULL | ✅ PARTIAL | ⚠ PARTIAL |
-| Apps management | ❌ | ✅ FULL | ❌ |
+| Apps inventory | ✅ /Applications scan | ✅ FULL (Registry+AppX+winget) | ❌ |
+| Apps management (update/uninstall) | ⚠ read-only inventory | ✅ FULL | ❌ |
 | Driver management | ❌ | ✅ FULL | ❌ |
-| Services | ⚠ launchctl | ✅ FULL | ❌ |
+| Services | ✅ launchctl (read) | ✅ FULL (read + start/stop) | ❌ |
 | Safe Mode | ✅ FULL | ✅ FULL | ✅ FULL |
 
 ---
@@ -683,32 +717,46 @@ All 59 Windows endpoints are documented. **Zero undocumented endpoints.**
 ## API Reference
 
 ### System & Capabilities (GET)
-`/api/sysinfo`, `/api/capabilities`, `/api/permissions`, `/api/health`, `/api/thermal`
+`/api/sysinfo`, `/api/capabilities`, `/api/permissions`, `/api/health`, `/api/thermal`, `/api/thermal/deep`, `/api/developer/health`, `/api/apps/inventory`, `/api/apps/footprint/:appName`, `/api/services`, `/api/startup-items`
+
+### Security & Privacy (GET)
+`/api/security`, `/api/security/posture`, `/api/security/privacy-auditor`, `/api/privacy`, `/api/privacy/auditor`, `/api/privacy/score`
 
 ### Diagnostics (GET)
-`/api/health-check`, `/api/processes`, `/api/event-logs`, `/api/battery`, `/api/packages`, `/api/hardware`, `/api/spotlight`, `/api/power-assertions`  
-`/api/diagnostics/recommendations`, `correlation-incidents`, `multi-baseline`, `predictive-forecast`, `update-doctor`, `disk-health`, `crashes-hangs`, `system-stability`, `time-machine`, `audio`, `camera-mic`, `displays`, `peripherals`, `ssh-doctor`, `virtualization`, `browser-health`, `app-resource`, `system-timeline`, `baseline-diff`, `app-compatibility/:appName`
+`/api/health-check`, `/api/processes`, `/api/event-logs`, `/api/battery`, `/api/battery/intelligence`, `/api/packages`, `/api/hardware`, `/api/spotlight`, `/api/power-assertions`, `/api/performance/diagnosis`, `/api/troubleshoot/:issueId`  
+`/api/diagnostics/recommendations`, `correlation-incidents`, `multi-baseline`, `predictive-forecast`, `update-doctor`, `disk-health`, `crashes-hangs`, `system-stability`, `time-machine`, `icloud`, `apple-services`, `audio`, `camera-mic`, `displays`, `peripherals`, `finder-clipboard`, `ssh-doctor`, `virtualization`, `browser-health`, `app-resource`, `system-timeline`, `baseline-diff`, `app-compatibility/:appName`
 
 ### Network (GET)
-`/api/network/diagnostics`, `/api/network/doctor`, `/api/network/bluetooth`, `wifi-intelligence`, `listening-ports`
+`/api/network/diagnostics`, `/api/network/doctor`, `/api/network/bluetooth`, `wifi-intelligence`, `listening-ports`  
+System route: `/api/network/listening-ports`
 
 ### Storage (GET)
 `/api/storage`, `storage/system-data`, `storage/docker`, `storage/xcode`, `storage/ios-backups`, `storage/orphaned-leftovers`, `storage/external-drives`, `/api/developer-cleanup`, `/api/snapshots`
 
 ### Actions (POST — Blocked in Safe Mode)
-`/api/actions/run-phase`, `cleanup-plan`, `execute-cleanup`, `undo-cleanup`, `clean-docker`, `clean-xcode`, `clean-storage`, `toggle-startup`, `toggle-service`, `run-integrity-check`, `thin-snapshots`, `purge-ram`, `restart-audio`, `brew-doctor`, `brew-autoremove`, `kill-port`, `remove-quarantine`, `eject-drive`, `ask-assistant`, `cancel`  
+`/api/actions/run-phase`, `cleanup-plan`, `execute-cleanup`, `undo-cleanup`, `clean-docker`, `clean-xcode`, `clean-xcode-simulators`, `clean-storage`, `brew-doctor`, `brew-autoremove`, `toggle-startup`, `toggle-service`, `run-integrity-check`, `thin-snapshots`, `purge-ram`, `restart-audio`, `rebuild-icon-cache`, `kill-port`, `remove-quarantine`, `eject-drive`, `cancel`  
+Read-only / exempt: `ask-assistant`  
 `GET /api/actions/stream/:sessionId` (SSE), `GET /api/actions/operations/:operationId`
 
 ### Windows v1 (GET/POST) — See [Endpoint Registry](#endpoint-registry)
 
 ### Windows v2 (GET/POST) — See [Endpoint Registry](#endpoint-registry)
 
+### Reports & Audit
+`GET /api/reports`, `/api/reports/:id`, `/api/reports/full-system`, `/api/reports/db-stats`, `/api/reports/transactions`, `/api/audit-history`, `POST /api/reports/generate`, `DELETE /api/reports/:id`
+
 ### Safe Mode
 `GET /api/v10/safe-mode`, `POST /api/v10/safe-mode/activate`, `POST /api/v10/safe-mode/deactivate`
 
-### Contracts & Intelligence
-`GET /api/v10/health`, `permissions/matrix`, `runtime/status`, `operations`, `calibration`, `chaos/status`, `contracts/schemas`  
-`GET /api/intelligence/*`
+### Contracts, Trust & v10 Runtime (GET)
+`/api/v10/health`, `permissions/matrix`, `permissions/scenarios`, `runtime/status`, `runtime/resilience-demo`, `operations`, `operations/:id`, `calibration`, `calibration/predictions`, `chaos/status`, `contracts/schemas`, `contracts/enforcement-demo`, `capabilities-matrix`, `evidence/quality-demo`
+
+### v10 Mutations (POST)
+`/api/v10/calibration/resolve`, `/api/v10/chaos/arm`, `/api/v10/chaos/disarm`, `/api/v10/privacy/preview`, `/api/v10/privacy/redact-text`
+
+### Intelligence (GET/POST)
+**GET:** `/api/intelligence/hypotheses`, `/api/intelligence/telemetry`, `/api/intelligence/diagnose`, `/api/intelligence/incidents`, `/api/intelligence/incidents/:id`, `/api/intelligence/evidence-ledger`, `/api/intelligence/experiments`, `/api/intelligence/experiments/catalogue`, `/api/intelligence/experiments/:id`  
+**POST:** `/api/intelligence/analyze`, `/api/intelligence/correlate`, `/api/intelligence/incidents`, `/api/intelligence/incidents/from-telemetry`, `/api/intelligence/incidents/:id/events`, `/api/intelligence/incidents/:id/transition`, `/api/intelligence/experiments/propose`, `/api/intelligence/experiments/:id/approve`, `/api/intelligence/experiments/:id/reject`, `/api/intelligence/experiments/:id/before`, `/api/intelligence/experiments/:id/after`, `/api/intelligence/experiments/:id/analyze`
 
 ---
 
@@ -782,9 +830,10 @@ npm run test:audit    # Production audit
 |---------|:-------:|:-----:|:-----:|:---------:|:--------:|:------------:|
 | System telemetry | ✅ | ✅ | ✅ | ✅ | — | — |
 | Process monitor | ✅ | ✅ | ✅ | ✅ | Kill (v1) | — |
-| Application management | ✅ | — | — | ✅ | Update, Uninstall | Post-verify |
+| App inventory | ✅ | ✅ scan | — | ✅ | — | — |
+| Application management | ✅ Update/Uninstall | ⚠ inventory only | — | ✅ | Update, Uninstall (Win) | Post-verify |
 | Driver management | ✅ | — | — | ✅ | — | — |
-| Service management | ✅ | ⚠ launchd | — | ✅ | Start/Stop/Restart | Post-verify |
+| Service management | ✅ Start/Stop/Restart | ✅ launchctl (read) | — | ✅ | Start/Stop/Restart (Win) | Post-verify |
 | Startup management | ✅ | ✅ | — | ✅ | Toggle | — |
 | Windows Update | ✅ | — | — | ✅ | — | — |
 | Security center | ✅ | ✅ | — | ✅ | — | — |
@@ -893,6 +942,27 @@ npm run test:audit    # Production audit
 ---
 
 ## Changelog
+
+### v16.1.0 (2026-08-30) — README/Implementation Parity Audit & Missing Endpoint Fixes
+
+**Fixed ghost endpoints (frontend called them, backend returned 404):**
+- Implemented `POST /api/actions/brew-doctor` — real read-only `brew doctor`, parses warnings, reports "ready to brew" honestly
+- Implemented `POST /api/actions/brew-autoremove` — real `brew autoremove`, captures actually-removed orphan formulae
+- Implemented `POST /api/actions/clean-xcode-simulators` — real `xcrun simctl delete unavailable` with measured (before/after) disk reclaim
+- All three are macOS-only (400 elsewhere) and Safe Mode protected (403 `SAFE_MODE_BLOCKED` when active)
+
+**README documentation gaps closed (features existed but were undocumented):**
+- Added macOS System, Apps & Security table: `/api/apps/inventory`, `/api/apps/footprint/:appName`, `/api/services` (launchctl), `/api/startup-items`, `/api/security/posture`, TCC Privacy Auditor (4 routes), Troubleshoot Center (`/api/troubleshoot/:issueId`)
+- Documented TCC Privacy Auditor's 13 permission categories and the 5 guided Troubleshoot wizards
+- Expanded API Reference with all previously-wildcarded endpoints: intelligence (hypotheses, telemetry, diagnose, evidence-ledger, experiment lifecycle, incident events), v10 (permissions/scenarios, resilience-demo, enforcement-demo, capabilities-matrix, evidence/quality-demo, calibration/predictions, privacy endpoints)
+- Added Global Search / Command Palette (Ctrl/⌘+K) to the Features table (was only in the changelog)
+- Added Reports & Audit, Security & Privacy, and v10 Mutation groups to the API Reference
+
+**Corrections:**
+- Fixed Platform Support Matrix: macOS now shows App inventory (✅ /Applications scan) and launchctl services (✅ read) instead of ❌
+- Corrected mutation platform labels: `clean-docker`, `clean-storage`, `toggle-startup`, `run-integrity-check`, `purge-ram`, `kill-port` are cross-platform (they branch on Windows); `toggle-service` is Windows-only
+- Added missing `services.js` route file to the Architecture tree
+- Endpoint count updated to reflect the 3 new POST routes (202 total: 148 GET + 53 POST + 1 DELETE)
 
 ### v16.0.0 (2026-08-30) — Production Hardening, Global Search & Zero-Fabrication Audit
 
