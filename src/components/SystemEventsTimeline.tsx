@@ -24,10 +24,10 @@ export default function SystemEventsTimeline() {
     setLoading(true);
     try {
       const [tRes, iRes, bRes, fRes] = await Promise.all([
-        fetch('http://127.0.0.1:3131/api/diagnostics/system-timeline').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/diagnostics/correlation-incidents').catch(() => null),
-        fetch(`http://127.0.0.1:3131/api/diagnostics/multi-baseline?profile=${selectedBaseline}`).catch(() => null),
-        fetch('http://127.0.0.1:3131/api/diagnostics/predictive-forecast').catch(() => null),
+        fetch('/api/diagnostics/system-timeline').catch(() => null),
+        fetch('/api/diagnostics/correlation-incidents').catch(() => null),
+        fetch(`/api/diagnostics/multi-baseline?profile=${selectedBaseline}`).catch(() => null),
+        fetch('/api/diagnostics/predictive-forecast').catch(() => null),
       ]);
 
       if (tRes && tRes.ok) setTimelineData(await tRes.json());

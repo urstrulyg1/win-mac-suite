@@ -12,24 +12,25 @@ export default function StartupManager() {
   const [items, setItems] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [inspectItem, setInspectItem] = useState<InspectorData | null>(null);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
 
   const fetchStartup = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const res = await fetch('http://127.0.0.1:3131/api/startup-items');
+      const res = await fetch('/api/startup-items');
       if (res.ok) {
         const data = await res.json();
         setItems(data.list || []);
+      } else {
+        setError(`Startup items unavailable (HTTP ${res.status})`);
+        setItems([]);
       }
     } catch {
-      setItems([
-        { id: 's-1', name: 'Docker Desktop', rawId: 'com.docker.helper', location: '~/Library/LaunchAgents', type: 'LaunchAgent (User)', path: '~/Library/LaunchAgents/com.docker.helper.plist', enabled: true, impact: 'High', impactScore: 3, whyIsItRunning: 'Spawns Docker Desktop background VM hypervisor on login.', canDisableTemporarily: true },
-        { id: 's-2', name: 'Google Keystone Updater', rawId: 'com.google.keystone.agent', location: '~/Library/LaunchAgents', type: 'LaunchAgent (User)', path: '~/Library/LaunchAgents/com.google.keystone.agent.plist', enabled: true, impact: 'Medium', impactScore: 2, whyIsItRunning: 'Periodically checks for Chrome and Google application updates.', canDisableTemporarily: true },
-        { id: 's-3', name: 'Raycast', rawId: 'com.raycast.macos', location: 'Login Items', type: 'Login Item', path: '/Applications/Raycast.app', enabled: true, impact: 'Low', impactScore: 1, whyIsItRunning: 'Provides global hotkey accessibility hooks for instant search.', canDisableTemporarily: true },
-        { id: 's-4', name: 'Adobe Creative Cloud', rawId: 'com.adobe.acc.installer', location: '/Library/LaunchDaemons', type: 'LaunchDaemon (Root)', path: '/Library/LaunchDaemons/com.adobe.acc.installer.plist', enabled: true, impact: 'High', impactScore: 3, whyIsItRunning: 'Daemon managing Adobe core runtime licenses and font sync.', canDisableTemporarily: true }
-      ]);
+      setError('Unable to reach startup manager backend.');
+      setItems([]);
     } finally {
       setLoading(false);
     }
@@ -46,7 +47,7 @@ export default function StartupManager() {
     );
 
     try {
-      await fetch('http://127.0.0.1:3131/api/actions/toggle-startup', {
+      await fetch('/api/actions/toggle-startup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ itemName: item.name, enable: nextState }),

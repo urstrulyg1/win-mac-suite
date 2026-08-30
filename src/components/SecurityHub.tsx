@@ -23,9 +23,9 @@ export default function SecurityHub() {
     setLoading(true);
     try {
       const [sRes, pRes, cRes] = await Promise.all([
-        fetch('http://127.0.0.1:3131/api/security/posture').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/security/privacy-auditor').catch(() => null),
-        fetch(`http://127.0.0.1:3131/api/diagnostics/app-compatibility/${selectedApp}`).catch(() => null),
+        fetch('/api/security/posture').catch(() => null),
+        fetch('/api/security/privacy-auditor').catch(() => null),
+        fetch(`/api/diagnostics/app-compatibility/${selectedApp}`).catch(() => null),
       ]);
 
       if (sRes && sRes.ok) setPostureData(await sRes.json());
@@ -43,7 +43,7 @@ export default function SecurityHub() {
 
   const handleRemoveQuarantine = async () => {
     try {
-      await fetch('http://127.0.0.1:3131/api/actions/remove-quarantine', {
+      await fetch('/api/actions/remove-quarantine', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ appName: selectedApp }),

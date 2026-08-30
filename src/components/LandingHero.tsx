@@ -164,13 +164,13 @@ export default function LandingHero({ onStart, systemInfo, summary, lastRunTimes
                       category: 'Connection Status',
                       badge: 'Online',
                       subtitle: `Real-time bidirectional system hooks on port 3131.`,
-                      dataSource: 'http://127.0.0.1:3131/api/sysinfo',
+                      dataSource: '/api/sysinfo',
                       evidenceQuality: 'Observed',
                       freshness: 'Live',
                       details: [
                         { label: 'Host Platform', value: systemInfo.os },
                         { label: 'Host Architecture', value: isMac ? 'Apple Silicon (arm64)' : 'x64' },
-                        { label: 'API Endpoint', value: 'http://127.0.0.1:3131/api/sysinfo', isCode: true },
+                        { label: 'API Endpoint', value: '/api/sysinfo', isCode: true },
                       ],
                     })
                   }

@@ -22,10 +22,10 @@ export default function AppleServicesHub() {
     setLoading(true);
     try {
       const [uRes, tRes, iRes, sRes] = await Promise.all([
-        fetch('http://127.0.0.1:3131/api/diagnostics/update-doctor').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/diagnostics/time-machine').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/diagnostics/icloud').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/diagnostics/apple-services').catch(() => null),
+        fetch('/api/diagnostics/update-doctor').catch(() => null),
+        fetch('/api/diagnostics/time-machine').catch(() => null),
+        fetch('/api/diagnostics/icloud').catch(() => null),
+        fetch('/api/diagnostics/apple-services').catch(() => null),
       ]);
 
       if (uRes && uRes.ok) setUpdateData(await uRes.json());

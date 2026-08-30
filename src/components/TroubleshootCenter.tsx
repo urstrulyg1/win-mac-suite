@@ -34,7 +34,7 @@ export default function TroubleshootCenter({ onNavigateTab }: Props) {
     setLoading(true);
     setActionDone(null);
     try {
-      const res = await fetch(`http://127.0.0.1:3131/api/troubleshoot/${issueId}`);
+      const res = await fetch(`/api/troubleshoot/${issueId}`);
       if (res.ok) {
         const data = await res.json();
         setDiagnosisData(data);
@@ -55,7 +55,7 @@ export default function TroubleshootCenter({ onNavigateTab }: Props) {
     if (act.endpoint) {
       setLoading(true);
       try {
-        const res = await fetch(`http://127.0.0.1:3131/api/actions/${act.endpoint}`, {
+        const res = await fetch(`/api/actions/${act.endpoint}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(act.parameters || {}),

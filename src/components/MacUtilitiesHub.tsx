@@ -25,9 +25,9 @@ export default function MacUtilitiesHub() {
     setLoading(true);
     try {
       const [pRes, tRes, dRes] = await Promise.all([
-        fetch('http://127.0.0.1:3131/api/network/listening-ports').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/thermal').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/developer/health').catch(() => null),
+        fetch('/api/network/listening-ports').catch(() => null),
+        fetch('/api/thermal').catch(() => null),
+        fetch('/api/developer/health').catch(() => null),
       ]);
 
       if (pRes && pRes.ok) {
@@ -55,7 +55,7 @@ export default function MacUtilitiesHub() {
   const runUtilityAction = async (endpoint: string, actionName: string, successMsg: string, payload: any = {}) => {
     setActionInProgress(actionName);
     try {
-      const res = await fetch(`http://127.0.0.1:3131/api/actions/${endpoint}`, {
+      const res = await fetch(`/api/actions/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

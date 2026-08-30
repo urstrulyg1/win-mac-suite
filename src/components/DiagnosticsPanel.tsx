@@ -40,7 +40,7 @@ export default function DiagnosticsPanel({ systemInfo, onStartAction }: Props) {
   const fetchHealth = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://127.0.0.1:3131/api/health-check');
+      const res = await fetch('/api/health-check');
       if (res.ok) {
         const data = await res.json();
         setHealthItems(data.issues || []);

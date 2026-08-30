@@ -562,16 +562,8 @@ export async function getMacDeepStartupInventory() {
     }
   }
 
-  // Fallbacks if system has restricted permissions
-  if (items.length === 0) {
-    items.push(
-      { id: 's-1', name: 'Docker Desktop', rawId: 'com.docker.helper', location: '~/Library/LaunchAgents', type: 'LaunchAgent (User)', path: '~/Library/LaunchAgents/com.docker.helper.plist', enabled: true, impact: 'High', impactScore: 3, whyIsItRunning: 'Spawns Docker Desktop background VM hypervisor on login.', canDisableTemporarily: true },
-      { id: 's-2', name: 'Google Keystone Updater', rawId: 'com.google.keystone.agent', location: '~/Library/LaunchAgents', type: 'LaunchAgent (User)', path: '~/Library/LaunchAgents/com.google.keystone.agent.plist', enabled: true, impact: 'Medium', impactScore: 2, whyIsItRunning: 'Periodically checks for Chrome and Google application updates.', canDisableTemporarily: true },
-      { id: 's-3', name: 'Raycast', rawId: 'com.raycast.macos', location: 'Login Items', type: 'Login Item', path: '/Applications/Raycast.app', enabled: true, impact: 'Low', impactScore: 1, whyIsItRunning: 'Provides global hotkey accessibility hooks for instant search.', canDisableTemporarily: true },
-      { id: 's-4', name: 'Adobe Creative Cloud', rawId: 'com.adobe.acc.installer', location: '/Library/LaunchDaemons', type: 'LaunchDaemon (Root)', path: '/Library/LaunchDaemons/com.adobe.acc.installer.plist', enabled: true, impact: 'High', impactScore: 3, whyIsItRunning: 'Daemon managing Adobe core runtime licenses and font sync.', canDisableTemporarily: true }
-    );
-  }
-
+  // If no items found, return empty — never fabricate startup entries.
+  // An empty list honestly means no startup items were discovered.
   return items;
 }
 
@@ -757,29 +749,37 @@ export async function getMacThermalDeep() {
 export async function getMacNetworkDoctor() {
   const [netIfaces, defaultGw] = await Promise.all([
     si.networkInterfaces(),
-    si.networkGatewayDefault().catch(() => '192.168.1.1'),
+    si.networkGatewayDefault().catch(() => null),
   ]);
 
   const active = Array.isArray(netIfaces) ? netIfaces.find(n => n.operstate === 'up' && !n.internal) || netIfaces[0] : null;
 
-  // 6-step diagnostic workflow
+  const hasIp = !!active?.ip4;
+  const hasGw = !!defaultGw;
+
+  // 6-step diagnostic workflow — each step reports real state or UNAVAILABLE
   const workflow = [
-    { step: 1, title: 'Wi-Fi Interface Connected', passed: true, detail: `${active?.iface || 'en0'} (Status: UP)` },
-    { step: 2, title: 'Local IP Address Assigned', passed: !!active?.ip4, detail: `IPv4: ${active?.ip4 || '192.168.1.50'}` },
-    { step: 3, title: 'Default Gateway Reachable', passed: true, detail: `Gateway: ${defaultGw || '192.168.1.1'} (1.2ms)` },
-    { step: 4, title: 'DNS Resolution Operational', passed: true, detail: 'Resolved apple.com & cloudflare.com in 14ms' },
-    { step: 5, title: 'Internet Backbone Reachable', passed: true, detail: 'HTTPS 200 OK from global CDN' },
-    { step: 6, title: 'Captive Portal Detection', passed: true, detail: 'No captive walled garden interception' },
+    { step: 1, title: 'Wi-Fi Interface Connected', passed: !!active, detail: active ? `${active.iface} (Status: ${active.operstate || 'unknown'})` : 'No active network interface found' },
+    { step: 2, title: 'Local IP Address Assigned', passed: hasIp, detail: hasIp ? `IPv4: ${active.ip4}` : 'No IPv4 address assigned' },
+    { step: 3, title: 'Default Gateway Reachable', passed: hasGw, detail: hasGw ? `Gateway: ${defaultGw}` : 'No default gateway detected' },
+    { step: 4, title: 'DNS Resolution', passed: null, detail: 'DNS latency not measured — requires active probe' },
+    { step: 5, title: 'Internet Backbone Reachable', passed: null, detail: 'External connectivity not tested — requires network request' },
+    { step: 6, title: 'Captive Portal Detection', passed: null, detail: 'Captive portal detection not performed' },
   ];
 
+  const measuredSteps = workflow.filter(w => w.passed !== null);
+  const allPassed = measuredSteps.length > 0 && measuredSteps.every(w => w.passed === true);
+
   return {
-    allPassed: true,
+    allPassed,
     workflow,
-    activeAdapter: active?.iface || 'en0',
-    ip4: active?.ip4 || '192.168.1.50',
-    gateway: defaultGw || '192.168.1.1',
-    dnsLatencyMs: 14,
-    packetLossPct: 0,
+    activeAdapter: active?.iface || null,
+    ip4: active?.ip4 || null,
+    gateway: defaultGw || null,
+    dnsLatencyMs: null,
+    packetLossPct: null,
+    measurement: 'observed',
+    note: 'DNS latency, internet reachability, and captive portal detection require active network probes not currently implemented.',
   };
 }
 
@@ -1145,57 +1145,62 @@ export async function getMacAppCompatibility(appName) {
 export async function askMacAssistantQuery(userPrompt) {
   const p = userPrompt.toLowerCase().trim();
 
+  // NOTE: This assistant directs users to real diagnostic tools.
+  // It never fabricates evidence, scores, or telemetry values.
+  // Each response identifies which tool provides the real data.
+
   if (p.includes('hot') || p.includes('heat') || p.includes('fan') || p.includes('temperature') || p.includes('thermal')) {
     return {
       query: userPrompt,
-      topic: 'Thermal & Process Load Correlation',
-      diagnosis: 'Elevated thermal load correlates directly with background Docker hypervisor virtualization and multi-threaded Chromium rendering.',
-      evidence: [
-        'Docker Desktop (com.docker.backend) is currently utilizing 68.4% CPU cycles across performance cores.',
-        'Google Chrome is maintaining 14 active renderer threads consuming 3.8 GB unified RAM.',
-        'Thermal state index is NOMINAL with active heat dissipation active.',
-      ],
-      confidence: 'High (96%)',
-      confidenceScore: 96,
+      topic: 'Thermal & Process Load',
+      diagnosis: 'Use the Performance & Thermal Doctor to see real CPU usage, memory pressure, and thermal state from your system.',
+      evidence: 'Real thermal and process data is available through the Performance Doctor, which queries powermetrics and top.',
+      confidence: null,
+      confidenceScore: null,
       suggestedAction: {
         label: 'Open Performance & Thermal Doctor',
         tabTarget: 'performance',
       },
+      note: 'This assistant does not fabricate CPU percentages, process counts, or thermal readings.',
     };
   }
 
   if (p.includes('system data') || p.includes('storage') || p.includes('70gb') || p.includes('space')) {
-    const sysData = await getMacSystemDataBreakdown();
-    return {
-      query: userPrompt,
-      topic: 'Storage Intelligence',
-      diagnosis: `Your System Data is currently taking ${sysData.totalSystemDataGB} GB of storage. The largest contributors are APFS local snapshots, Xcode DerivedData, and User/Browser Caches.`,
-      evidence: [
-        `APFS Local Snapshots: ~${sysData.categories[0]?.sizeGB || 12.8} GB in delta extents.`,
-        `Xcode DerivedData & iOS Simulators: ~${sysData.categories[1]?.sizeGB || 14.2} GB.`,
-        `User & Browser Caches: ~${sysData.categories[2]?.sizeGB || 8.6} GB.`,
-      ],
-      confidence: 'High (98%)',
-      confidenceScore: 98,
-      suggestedAction: {
-        label: 'Launch Safe Cleanup Engine',
-        tabTarget: 'storage',
-      },
-    };
+    try {
+      const sysData = await getMacSystemDataBreakdown();
+      return {
+        query: userPrompt,
+        topic: 'Storage Intelligence',
+        diagnosis: `Your System Data is ${sysData.totalSystemDataGB ?? 'unknown'} GB based on real filesystem analysis.`,
+        evidence: Array.isArray(sysData.categories) ? sysData.categories.map(c => `${c.name}: ${c.sizeGB} GB`) : [],
+        confidence: null,
+        confidenceScore: null,
+        suggestedAction: {
+          label: 'Launch Safe Cleanup Engine',
+          tabTarget: 'storage',
+        },
+      };
+    } catch {
+      return {
+        query: userPrompt,
+        topic: 'Storage Intelligence',
+        diagnosis: 'Storage analysis is unavailable right now.',
+        evidence: 'The storage probe could not complete.',
+        confidence: null,
+        confidenceScore: null,
+        suggestedAction: { label: 'Open Storage Analyzer', tabTarget: 'storage' },
+      };
+    }
   }
 
   if (p.includes('crash') || p.includes('ips') || p.includes('chrome crash') || p.includes('hang')) {
     return {
       query: userPrompt,
       topic: 'Crash & Hang Intelligence',
-      diagnosis: 'Chrome experienced 3 crash incidents in DiagnosticReports triggered by memory pressure during WebGL shader rendering.',
-      evidence: [
-        '3 crash reports (.ips) recorded in ~/Library/Logs/DiagnosticReports.',
-        'EXC_BAD_ACCESS memory fault occurred while Unified Memory Pressure exceeded 78%.',
-        'No kernel panics or hardware fault events were recorded in system logs.',
-      ],
-      confidence: 'High (94%)',
-      confidenceScore: 94,
+      diagnosis: 'Use the Crash & Stability Doctor to see real crash reports from ~/Library/Logs/DiagnosticReports and system event logs.',
+      evidence: 'Crash data is collected from actual .ips diagnostic reports and system logs — not estimated.',
+      confidence: null,
+      confidenceScore: null,
       suggestedAction: {
         label: 'Open Crash & Stability Doctor',
         tabTarget: 'crashes',
@@ -1204,38 +1209,45 @@ export async function askMacAssistantQuery(userPrompt) {
   }
 
   if (p.includes('slow') || p.includes('lag') || p.includes('freeze') || p.includes('unresponsive')) {
-    const perf = await getMacPerformanceDiagnosis();
-    return {
-      query: userPrompt,
-      topic: 'Performance Root-Cause Diagnosis',
-      diagnosis: `Diagnostic analysis shows: ${perf.verdict} Inactive memory buffers and background LaunchAgents are increasing dispatch latency.`,
-      evidence: [
-        'Unified memory pressure is elevated with 2.4 GB held in inactive page cache.',
-        'Disk I/O rate is nominal with zero swap thrashing on NVMe.',
-        '4 background LaunchAgents initialized on startup.',
-      ],
-      confidence: 'High (95%)',
-      confidenceScore: 95,
-      suggestedAction: {
-        label: 'Open Performance Doctor',
-        tabTarget: 'performance',
-      },
-    };
+    try {
+      const perf = await getMacPerformanceDiagnosis();
+      return {
+        query: userPrompt,
+        topic: 'Performance Root-Cause Diagnosis',
+        diagnosis: `Real diagnostic analysis: ${perf.verdict || 'Performance data collected from system probes.'}`,
+        evidence: perf.evidence || [],
+        confidence: null,
+        confidenceScore: null,
+        suggestedAction: {
+          label: 'Open Performance Doctor',
+          tabTarget: 'performance',
+        },
+      };
+    } catch {
+      return {
+        query: userPrompt,
+        topic: 'Performance Diagnosis',
+        diagnosis: 'Performance probes are currently unavailable.',
+        evidence: [],
+        confidence: null,
+        confidenceScore: null,
+        suggestedAction: { label: 'Open Performance Doctor', tabTarget: 'performance' },
+      };
+    }
   }
 
   if (p.includes('port') || p.includes('3000') || p.includes('eaddrinuse') || p.includes('listening')) {
     const portMatch = p.match(/\b(\d{2,5})\b/);
-    const targetPort = portMatch ? parseInt(portMatch[1], 10) : 3000;
+    const targetPort = portMatch ? parseInt(portMatch[1], 10) : null;
     return {
       query: userPrompt,
       topic: 'Network Listening Sockets',
-      diagnosis: `Port ${targetPort} is currently held by a background process. You can terminate the socket cleanly with 1-click Port Killer.`,
-      evidence: [
-        `TCP listening socket bound to 127.0.0.1:${targetPort}.`,
-        'Process holding socket identified in local lsof table.',
-      ],
-      confidence: 'High (99%)',
-      confidenceScore: 99,
+      diagnosis: targetPort
+        ? `Use the Port Killer tool to check if port ${targetPort} is bound and terminate the holding process.`
+        : 'Use the Port Killer tool in Developer Hub to inspect and free listening ports.',
+      evidence: 'Port status is determined by real lsof queries — not assumed.',
+      confidence: null,
+      confidenceScore: null,
       suggestedAction: {
         label: 'Open Port Killer in Developer Hub',
         tabTarget: 'developer',
@@ -1247,16 +1259,12 @@ export async function askMacAssistantQuery(userPrompt) {
     return {
       query: userPrompt,
       topic: 'Battery & Sleep Intelligence',
-      diagnosis: 'Your Mac maintained an optimal sleep profile with 4% overnight drain and 0 rogue power assertions.',
-      evidence: [
-        'Battery condition is at 96% maximum capacity.',
-        'Overnight sleep duration: 7h 20m with nominal background maintenance wakes.',
-        'Zero runaway RTC wake-locks in pmset logs.',
-      ],
-      confidence: 'High (96%)',
-      confidenceScore: 96,
+      diagnosis: 'Use the Battery & Power Doctor to see real battery health, cycle count, and power assertion data from pmset and system_profiler.',
+      evidence: 'Battery metrics come from actual macOS power management APIs — not hardcoded estimates.',
+      confidence: null,
+      confidenceScore: null,
       suggestedAction: {
-        label: 'Inspect Battery Timeline',
+        label: 'Inspect Battery & Power',
         tabTarget: 'diagnostics',
       },
     };
@@ -1266,14 +1274,10 @@ export async function askMacAssistantQuery(userPrompt) {
     return {
       query: userPrompt,
       topic: 'macOS Update Readiness',
-      diagnosis: 'Your Mac has sufficient free storage (18.4 GB available vs 14.2 GB required) for the latest macOS Sequoia update.',
-      evidence: [
-        'Eligible for macOS Sequoia 15.3.1 Security Rollup.',
-        'Available free space exceeds staging requirement by 4.2 GB.',
-        'No pending restart locks or stuck update downloads detected.',
-      ],
-      confidence: 'High (98%)',
-      confidenceScore: 98,
+      diagnosis: 'Use the macOS Update Doctor to check real update availability, storage requirements, and download status from softwareupdate.',
+      evidence: 'Update status is queried from the actual macOS softwareupdate command — not assumed.',
+      confidence: null,
+      confidenceScore: null,
       suggestedAction: {
         label: 'Open macOS Update Doctor',
         tabTarget: 'apple',
@@ -1283,15 +1287,11 @@ export async function askMacAssistantQuery(userPrompt) {
 
   return {
     query: userPrompt,
-    topic: 'General Mac Intelligence',
-    diagnosis: 'System telemetry across all 8 pillars indicates your Mac is operating with nominal stability, memory pressure, and network throughput.',
-    evidence: [
-      'Hardware thermal index is Nominal.',
-      'APFS filesystem integrity verified cleanly.',
-      'Security posture score verified at 96/100.',
-    ],
-    confidence: 'High (95%)',
-    confidenceScore: 95,
+    topic: 'Mac Diagnostics',
+    diagnosis: 'Use the diagnostic tools in the sidebar to inspect your Mac. Each tool queries real system data.',
+    evidence: 'WinSuite never fabricates telemetry. If a probe cannot run, the value is reported as unavailable.',
+    confidence: null,
+    confidenceScore: null,
     suggestedAction: {
       label: 'View System Events Timeline',
       tabTarget: 'timeline',
@@ -1484,28 +1484,34 @@ export async function getMacLargeFiles() {
 export async function getMacBatteryStatus() {
   try {
     const batt = await si.battery();
+    const healthPct = batt.maxCapacity && batt.designedCapacity
+      ? Math.round((batt.maxCapacity / batt.designedCapacity) * 100)
+      : null;
     return {
-      hasBattery: batt.hasBattery,
-      percent: batt.percent ?? 100,
-      isCharging: !!batt.isCharging,
-      acConnected: !!batt.acConnected,
-      cycleCount: batt.cycleCount || 0,
-      healthPct: batt.maxCapacity && batt.designedCapacity ? Math.round((batt.maxCapacity / batt.designedCapacity) * 100) : 100,
-      timeRemainingMin: batt.timeRemaining || 0,
-      model: batt.model || 'Apple Internal Battery',
-      type: batt.type || 'Li-ion',
+      hasBattery: batt.hasBattery ?? null,
+      percent: batt.percent ?? null,
+      isCharging: batt.isCharging != null ? !!batt.isCharging : null,
+      acConnected: batt.acConnected != null ? !!batt.acConnected : null,
+      cycleCount: batt.cycleCount ?? null,
+      healthPct,
+      timeRemainingMin: batt.timeRemaining ?? null,
+      model: batt.model || null,
+      type: batt.type || null,
+      measurement: 'observed',
     };
   } catch {
     return {
-      hasBattery: true,
-      percent: 100,
-      isCharging: false,
-      acConnected: true,
-      cycleCount: 0,
-      healthPct: 100,
-      timeRemainingMin: 0,
-      model: 'Apple Power Adapter',
-      type: 'Li-ion',
+      hasBattery: null,
+      percent: null,
+      isCharging: null,
+      acConnected: null,
+      cycleCount: null,
+      healthPct: null,
+      timeRemainingMin: null,
+      model: null,
+      type: null,
+      measurement: 'unavailable',
+      note: 'Battery information could not be retrieved from system_profiler or pmset.',
     };
   }
 }

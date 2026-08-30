@@ -37,11 +37,11 @@ export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
     setLoading(true);
     try {
       const [hRes, eRes, bRes, sRes, pRes] = await Promise.all([
-        fetch('http://127.0.0.1:3131/api/health-check').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/event-logs').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/battery/intelligence').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/spotlight').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/power-assertions').catch(() => null),
+        fetch('/api/health-check').catch(() => null),
+        fetch('/api/event-logs').catch(() => null),
+        fetch('/api/battery/intelligence').catch(() => null),
+        fetch('/api/spotlight').catch(() => null),
+        fetch('/api/power-assertions').catch(() => null),
       ]);
 
       if (hRes && hRes.ok) {

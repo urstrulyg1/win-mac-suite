@@ -18,7 +18,7 @@ export default function RecommendationCenter({ onNavigateTab }: Props) {
   const fetchRecommendations = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://127.0.0.1:3131/api/diagnostics/recommendations');
+      const res = await fetch('/api/diagnostics/recommendations');
       if (res.ok) {
         const data = await res.json();
         setRecommendations(data.recommendations || []);
@@ -50,10 +50,10 @@ export default function RecommendationCenter({ onNavigateTab }: Props) {
       reversible: rec.actionId === 'storage.purgeRam',
       onConfirm: async () => {
         if (rec.actionId === 'storage.purgeRam') {
-          await fetch('http://127.0.0.1:3131/api/actions/purge-ram', { method: 'POST' });
+          await fetch('/api/actions/purge-ram', { method: 'POST' });
           setExecutedMsg('Inactive memory buffers purged successfully.');
         } else if (rec.actionId === 'storage.cleanXcode') {
-          await fetch('http://127.0.0.1:3131/api/actions/clean-xcode', { method: 'POST' });
+          await fetch('/api/actions/clean-xcode', { method: 'POST' });
           setExecutedMsg('Xcode DerivedData cleaned successfully.');
         } else if (onNavigateTab) {
           onNavigateTab(rec.category);

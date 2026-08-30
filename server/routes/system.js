@@ -41,14 +41,12 @@ router.get('/sysinfo', async (_req, res) => {
       si.cpuTemperature().catch(() => ({ main: null })),
     ]);
 
-    // Compute or estimate real-time CPU temperature
     const cpuPct = Math.round(currentLoad.currentLoad || 0);
-    const load1m = os.loadavg()[0];
-    const cores = cpu.cores || os.cpus().length || 8;
-    let cpuTemp = cpuTempRaw?.main && cpuTempRaw.main > 0
-      ? Math.round(cpuTempRaw.main)
-      : Math.min(100, Math.max(35, Math.round(38 + (cpuPct / 100) * 28 + Math.min(25, (load1m / cores) * 18))));
-    const cpuTempFormatted = `${cpuTemp}°C`;
+
+    // CPU temperature: use real sensor data or report UNAVAILABLE
+    // NEVER fabricate a temperature from CPU load — that's misleading telemetry
+    const cpuTemp = cpuTempRaw?.main && cpuTempRaw.main > 0 ? Math.round(cpuTempRaw.main) : null;
+    const cpuTempFormatted = cpuTemp !== null ? `${cpuTemp}°C` : 'UNAVAILABLE';
 
     const primaryDisk = Array.isArray(fsSize)
       ? fsSize.find((f) => f.mount === '/System/Volumes/Data' || f.mount === '/' || f.mount === 'C:') || fsSize[0]
@@ -100,10 +98,10 @@ router.get('/sysinfo', async (_req, res) => {
 router.get('/capabilities', async (_req, res) => {
   const capabilities = isWin
     ? [
-        { id: 'win.ps', name: 'PowerShell 7/5.1', command: 'powershell', status: 'available', version: '5.1.22621', description: 'Windows Management & Automation Engine' },
+        { id: 'win.ps', name: 'PowerShell 7/5.1', command: 'powershell', status: 'expected', description: 'Windows Management & Automation Engine (version varies by build)' },
         { id: 'win.sfc', name: 'System File Checker (SFC)', command: 'sfc /scannow', status: 'available', description: 'Windows Resource Protection File Hash Verifier' },
         { id: 'win.dism', name: 'Deployment Image Servicing (DISM)', command: 'dism.exe', status: 'available', description: 'Windows Component Store Integrity & Repair' },
-        { id: 'win.winget', name: 'Windows Package Manager (Winget)', command: 'winget', status: 'available', version: 'v1.7.10691', description: 'Official Windows CLI Application & Manifest Engine' },
+        { id: 'win.winget', name: 'Windows Package Manager (Winget)', command: 'winget', status: 'optional', description: 'Official Windows CLI Application & Manifest Engine (may not be installed)' },
         { id: 'win.defender', name: 'Microsoft Defender Antivirus', command: 'Update-MpSignature', status: 'available', description: 'Kernel Security Subsystem & Antivirus Definition Manager' },
         { id: 'win.sense', name: 'Windows Storage Sense', command: 'StorageSense', status: 'available', description: 'Automated Disk Cleanup & Slab Consolidation' },
         { id: 'win.restore', name: 'System Restore Point Provider', command: 'Checkpoint-Computer', status: 'permission-required', description: 'VSS Shadow Copy System Snapshot Engine' },
@@ -276,13 +274,12 @@ router.get('/apps/footprint/:appName', async (req, res) => {
   try {
     const footprint = isMac ? await getMacAppFootprint(req.params.appName) : {
       appName: req.params.appName,
-      totalMB: 450,
-      totalGB: 0.45,
-      breakdown: [
-        { label: 'Application Binary (.exe)', sizeMB: 350, path: `C:\\Program Files\\${req.params.appName}` },
-        { label: 'AppData / Roaming', sizeMB: 80, path: `C:\\Users\\User\\AppData\\Roaming\\${req.params.appName}` },
-        { label: 'Local Caches', sizeMB: 20, path: `C:\\Users\\User\\AppData\\Local\\${req.params.appName}` },
-      ],
+      totalMB: null,
+      totalGB: null,
+      breakdown: [],
+      platform: process.platform,
+      note: `App footprint scanning for '${req.params.appName}' requires platform-specific directory measurement. Use macOS or Windows for detailed results.`,
+      measurement: 'unavailable',
     };
     res.json(footprint);
   } catch (err) {
@@ -293,15 +290,45 @@ router.get('/apps/footprint/:appName', async (req, res) => {
 // ── GET /api/developer/health ──────────────────────────────────────────────
 router.get('/developer/health', async (_req, res) => {
   try {
-    const devHealth = isMac ? await getMacDeveloperEnvironmentHealth() : {
-      platform: 'windows',
-      tools: [
-        { name: 'Node.js', status: 'Installed', version: 'v20.11.0', healthy: true },
-        { name: 'Python 3', status: 'Installed', version: '3.11.4', healthy: true },
-        { name: 'Docker Desktop', status: 'Active', version: '24.0.6', healthy: true },
-      ],
-      totalInstalled: 3,
-    };
+    const devHealth = isMac ? await getMacDeveloperEnvironmentHealth() : await (async () => {
+      // Real tool detection for non-macOS platforms
+      const { execFile } = await import('child_process');
+      const { promisify } = await import('util');
+      const execAsync = promisify(execFile);
+      const tools = [];
+      // Node.js
+      try {
+        const { stdout } = await execAsync('node', ['--version'], { timeout: 3000 });
+        tools.push({ name: 'Node.js', status: 'Installed', version: stdout.trim(), healthy: true });
+      } catch { tools.push({ name: 'Node.js', status: 'Not Found', version: null, healthy: false }); }
+      // Python 3
+      try {
+        const { stdout } = await execAsync('python3', ['--version'], { timeout: 3000 });
+        tools.push({ name: 'Python 3', status: 'Installed', version: stdout.trim().replace('Python ', ''), healthy: true });
+      } catch {
+        try {
+          const { stdout } = await execAsync('python', ['--version'], { timeout: 3000 });
+          tools.push({ name: 'Python', status: 'Installed', version: stdout.trim().replace('Python ', ''), healthy: true });
+        } catch { tools.push({ name: 'Python 3', status: 'Not Found', version: null, healthy: false }); }
+      }
+      // npm
+      try {
+        const { stdout } = await execAsync('npm', ['--version'], { timeout: 3000 });
+        tools.push({ name: 'npm', status: 'Installed', version: stdout.trim(), healthy: true });
+      } catch { /* optional */ }
+      // Docker
+      try {
+        const { stdout } = await execAsync('docker', ['--version'], { timeout: 3000 });
+        const verMatch = /(\d+\.\d+\.\d+)/.exec(stdout);
+        tools.push({ name: 'Docker', status: 'Installed', version: verMatch?.[1] || stdout.trim(), healthy: true });
+      } catch { tools.push({ name: 'Docker', status: 'Not Found', version: null, healthy: false }); }
+      return {
+        platform: process.platform,
+        tools,
+        totalInstalled: tools.filter(t => t.healthy).length,
+        source: 'Real command probes (node, python, npm, docker --version)',
+      };
+    })();
     res.json(devHealth);
   } catch (err) {
     res.status(500).json({ error: err.message });
