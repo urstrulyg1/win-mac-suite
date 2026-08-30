@@ -20,8 +20,8 @@ export default function CrashHangDoctor() {
     setLoading(true);
     try {
       const [cRes, sRes] = await Promise.all([
-        fetch('http://127.0.0.1:3131/api/diagnostics/crashes-hangs').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/diagnostics/system-stability').catch(() => null),
+        fetch('/api/diagnostics/crashes-hangs').catch(() => null),
+        fetch('/api/diagnostics/system-stability').catch(() => null),
       ]);
 
       if (cRes && cRes.ok) setCrashData(await cRes.json());

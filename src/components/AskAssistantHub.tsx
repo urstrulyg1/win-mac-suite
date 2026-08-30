@@ -33,7 +33,7 @@ export default function AskAssistantHub({ onNavigateTab }: Props) {
     setResponse(null);
 
     try {
-      const res = await fetch('http://127.0.0.1:3131/api/actions/ask-assistant', {
+      const res = await fetch('/api/actions/ask-assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: userQuery }),
@@ -48,7 +48,7 @@ export default function AskAssistantHub({ onNavigateTab }: Props) {
         topic: 'Telemetry Daemon Unreachable',
         diagnosis: `Unable to process query "${userQuery}". The local telemetry daemon is offline or did not respond.`,
         evidence: [
-          'Live telemetry probe failed: POST http://127.0.0.1:3131/api/actions/ask-assistant',
+          'Live telemetry probe failed: POST /api/actions/ask-assistant',
           'Please ensure the backend daemon (node server.js) is running on port 3131.',
         ],
         confidence: 'Unavailable',

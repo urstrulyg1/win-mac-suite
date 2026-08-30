@@ -24,9 +24,9 @@ export default function SystemAppsHub() {
     setLoading(true);
     try {
       const [sRes, pRes, hRes] = await Promise.all([
-        fetch('http://127.0.0.1:3131/api/services').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/packages').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/hardware').catch(() => null),
+        fetch('/api/services').catch(() => null),
+        fetch('/api/packages').catch(() => null),
+        fetch('/api/hardware').catch(() => null),
       ]);
 
       if (sRes && sRes.ok) {

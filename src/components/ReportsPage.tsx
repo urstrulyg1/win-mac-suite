@@ -35,9 +35,9 @@ export default function ReportsPage({ onStartNew }: Props) {
     setLoading(true);
     try {
       const [rRes, tRes, aRes] = await Promise.all([
-        fetch('http://127.0.0.1:3131/api/reports').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/reports/transactions').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/audit-history').catch(() => null),
+        fetch('/api/reports').catch(() => null),
+        fetch('/api/reports/transactions').catch(() => null),
+        fetch('/api/audit-history').catch(() => null),
       ]);
 
       if (rRes && rRes.ok) {
@@ -66,7 +66,7 @@ export default function ReportsPage({ onStartNew }: Props) {
   const handleGenerateAndSave = async () => {
     setGenerating(true);
     try {
-      const res = await fetch('http://127.0.0.1:3131/api/reports/generate', {
+      const res = await fetch('/api/reports/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -86,7 +86,7 @@ export default function ReportsPage({ onStartNew }: Props) {
 
   const handleDeleteReport = async (reportId: string) => {
     try {
-      const res = await fetch(`http://127.0.0.1:3131/api/reports/${reportId}`, {
+      const res = await fetch(`/api/reports/${reportId}`, {
         method: 'DELETE',
       });
       if (res.ok) {
@@ -98,7 +98,7 @@ export default function ReportsPage({ onStartNew }: Props) {
 
   const handleViewReport = async (reportId: string) => {
     try {
-      const res = await fetch(`http://127.0.0.1:3131/api/reports/${reportId}`);
+      const res = await fetch(`/api/reports/${reportId}`);
       if (res.ok) {
         const data = await res.json();
         setSelectedReport(data);
@@ -110,7 +110,7 @@ export default function ReportsPage({ onStartNew }: Props) {
 
   const handleUndo = async (txId: string) => {
     try {
-      const res = await fetch('http://127.0.0.1:3131/api/actions/undo-cleanup', {
+      const res = await fetch('/api/actions/undo-cleanup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transactionId: txId }),
@@ -353,12 +353,7 @@ function buildRichHtmlReport(config: any, data: any): string {
           </tr>
         </thead>
         <tbody>
-          ${(secChecks.length > 0 ? secChecks : [
-            { name: 'Apple Gatekeeper & XProtect', detail: 'Assessments active · Signed binaries enforced', passed: true },
-            { name: 'FileVault Volume Encryption', detail: 'APFS full disk cryptographic protection on', passed: true },
-            { name: 'System Integrity Protection (SIP)', detail: 'Rootless kernel protection enabled', passed: true },
-            { name: 'macOS Application Firewall', detail: 'Stealth mode and packet filtering enabled', passed: true },
-          ]).map((chk: any) => `
+          ${(secChecks.length > 0 ? secChecks : []).map((chk: any) => `
           <tr>
             <td><strong>${chk.name}</strong></td>
             <td style="color: var(--ink-3);">${chk.detail || 'Verified kernel assessment'}</td>
@@ -379,22 +374,22 @@ function buildRichHtmlReport(config: any, data: any): string {
       <div class="vitals-grid" style="margin-bottom: 0;">
         <div class="vital-box">
           <div class="vital-lbl">Cycle Count</div>
-          <div class="vital-val" style="font-size: 18px; color: #60a5fa;">${battery.cycleCount || 249} / 1000</div>
+          <div class="vital-val" style="font-size: 18px; color: #60a5fa;">${battery?.cycleCount ?? 'N/A'} / 1000</div>
           <div class="vital-sub">Design Lifetime</div>
         </div>
         <div class="vital-box">
           <div class="vital-lbl">Capacity Health</div>
-          <div class="vital-val" style="font-size: 18px; color: var(--emerald);">${battery.healthPercent || 100}%</div>
+          <div class="vital-val" style="font-size: 18px; color: var(--emerald);">${battery?.healthPercent ?? 'N/A'}%</div>
           <div class="vital-sub">Maximum Capacity</div>
         </div>
         <div class="vital-box">
           <div class="vital-lbl">Charge Level</div>
-          <div class="vital-val" style="font-size: 18px; color: var(--cyan);">${battery.percent || 74}%</div>
-          <div class="vital-sub">${battery.isCharging ? 'Charging' : 'On Battery Power'}</div>
+          <div class="vital-val" style="font-size: 18px; color: var(--cyan);">${battery?.percent ?? 'N/A'}%</div>
+          <div class="vital-sub">${battery?.isCharging ? 'Charging' : battery ? 'On Battery Power' : 'Unavailable'}</div>
         </div>
         <div class="vital-box">
           <div class="vital-lbl">Power Adapter</div>
-          <div class="vital-val" style="font-size: 18px; color: var(--amber);">${battery.powerAdapter?.watts ? `${battery.powerAdapter.watts}W` : 'Connected'}</div>
+          <div class="vital-val" style="font-size: 18px; color: var(--amber);">${battery?.powerAdapter?.watts ? `${battery?.powerAdapter.watts}W` : 'Connected'}</div>
           <div class="vital-sub">MagSafe / USB-C PD</div>
         </div>
       </div>
@@ -412,14 +407,7 @@ function buildRichHtmlReport(config: any, data: any): string {
           </tr>
         </thead>
         <tbody>
-          ${(runtimes.length > 0 ? runtimes.filter((r: any) => r.installed) : [
-            { name: 'Node.js', version: 'v26.7.0', path: '/opt/homebrew/bin/node' },
-            { name: 'npm CLI', version: '11.19.0', path: '/opt/homebrew/bin/npm' },
-            { name: 'Python 3', version: '3.14.7', path: '/opt/homebrew/bin/python3' },
-            { name: 'Go Runtime', version: 'go1.26.7', path: '/opt/homebrew/bin/go' },
-            { name: 'Homebrew', version: 'Homebrew 6.0.18', path: '/opt/homebrew/bin/brew' },
-            { name: 'Git SCM', version: '2.50.1 (Apple Git-155)', path: '/usr/bin/git' },
-          ]).map((r: any) => `
+          ${(runtimes.length > 0 ? runtimes : []).map((r: any) => `
           <tr>
             <td><strong>${r.name}</strong></td>
             <td><code style="color: #38bdf8;">${r.version}</code></td>
@@ -452,7 +440,7 @@ function buildRichHtmlReport(config: any, data: any): string {
 
   const handleViewLiveReport = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:3131/api/reports/full-system');
+      const res = await fetch('/api/reports/full-system');
       if (res.ok) {
         const data = await res.json();
         setSelectedReport({
@@ -470,7 +458,7 @@ function buildRichHtmlReport(config: any, data: any): string {
 
   const handlePreviewHtmlReport = async (customData?: any) => {
     try {
-      const data = customData || (await (await fetch('http://127.0.0.1:3131/api/reports/full-system')).json());
+      const data = customData || (await (await fetch('/api/reports/full-system')).json());
       const html = buildRichHtmlReport(config, data);
       const blob = new Blob([html], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
@@ -480,7 +468,7 @@ function buildRichHtmlReport(config: any, data: any): string {
 
   const handleDownloadFullReport = async (format: 'json' | 'html', customData?: any) => {
     try {
-      const data = customData || (await (await fetch('http://127.0.0.1:3131/api/reports/full-system')).json());
+      const data = customData || (await (await fetch('/api/reports/full-system')).json());
       let blob: Blob;
       let filename: string;
       const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -539,29 +527,11 @@ function InPageReportDetail({
     { name: 'macOS System & Application Logs', path: '~/Library/Logs, /var/log', sizeGB: 0.2 },
   ];
 
-  const secChecks = data.securityPosture?.checks || data.sec?.checks || [
-    { name: 'Apple Gatekeeper & XProtect', detail: 'Assessments active · Signed binaries enforced', passed: true },
-    { name: 'FileVault Volume Encryption', detail: 'APFS full disk cryptographic protection on', passed: true },
-    { name: 'System Integrity Protection (SIP)', detail: 'Rootless kernel protection enabled', passed: true },
-    { name: 'macOS Application Firewall', detail: 'Stealth mode and packet filtering enabled', passed: true },
-  ];
+  const secChecks = data.securityPosture?.checks || data.sec?.checks || [];
 
-  const runtimes = (data.developerDoctor?.runtimes || data.dev?.runtimes || [
-    { name: 'Node.js', version: 'v26.7.0', path: '/opt/homebrew/bin/node', installed: true },
-    { name: 'npm CLI', version: '11.19.0', path: '/opt/homebrew/bin/npm', installed: true },
-    { name: 'Python 3', version: '3.14.7', path: '/opt/homebrew/bin/python3', installed: true },
-    { name: 'Go Runtime', version: 'go1.26.7', path: '/opt/homebrew/bin/go', installed: true },
-    { name: 'Homebrew', version: 'Homebrew 6.0.18', path: '/opt/homebrew/bin/brew', installed: true },
-    { name: 'Git SCM', version: '2.50.1 (Apple Git-155)', path: '/usr/bin/git', installed: true },
-  ]).filter((r: any) => r.installed);
+  const runtimes = (data.developerDoctor?.runtimes || data.dev?.runtimes || []).filter((r: any) => r.installed);
 
-  const battery = data.batteryIntelligence || data.batt || {
-    percent: 74,
-    cycleCount: 249,
-    healthPercent: 100,
-    isCharging: false,
-    powerAdapter: { connected: true, watts: 70 }
-  };
+  const battery = data.batteryIntelligence || data.batt || null;
 
   return (
     <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
@@ -739,21 +709,21 @@ function InPageReportDetail({
               <p className="text-xs text-slate-400 mt-0.5">Lithium-ion cycle degradation and power adapter telemetry.</p>
             </div>
             <span className="pill text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/25">
-              {battery.healthPercent || 100}% Capacity Health
+              {battery?.healthPercent ?? 'N/A'}% Capacity Health
             </span>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3.5 rounded-xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
               <span className="text-[10px] text-slate-400 uppercase font-bold">Cycle Count</span>
-              <p className="text-lg font-extrabold font-mono text-blue-400">{battery.cycleCount || 249} / 1000</p>
+              <p className="text-lg font-extrabold font-mono text-blue-400">{battery?.cycleCount ?? 'N/A'} / 1000</p>
               <p className="text-[10px] text-slate-500">Design Lifetime Rating</p>
             </div>
 
             <div className="p-3.5 rounded-xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
               <span className="text-[10px] text-slate-400 uppercase font-bold">Charge Level</span>
-              <p className="text-lg font-extrabold font-mono text-emerald-400">{battery.percent || 74}%</p>
-              <p className="text-[10px] text-slate-500">{battery.isCharging ? 'Charging Active' : 'On Battery Power'}</p>
+              <p className="text-lg font-extrabold font-mono text-emerald-400">{battery?.percent ?? 'N/A'}%</p>
+              <p className="text-[10px] text-slate-500">{battery?.isCharging ? 'Charging Active' : battery ? 'On Battery Power' : 'Unavailable'}</p>
             </div>
 
             <div className="p-3.5 rounded-xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
@@ -764,7 +734,7 @@ function InPageReportDetail({
 
             <div className="p-3.5 rounded-xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
               <span className="text-[10px] text-slate-400 uppercase font-bold">Power Adapter</span>
-              <p className="text-sm font-extrabold text-amber-400">{battery.powerAdapter?.watts ? `${battery.powerAdapter.watts}W` : 'Connected'}</p>
+              <p className="text-sm font-extrabold text-amber-400">{battery?.powerAdapter?.watts ? `${battery?.powerAdapter.watts}W` : 'Connected'}</p>
               <p className="text-[10px] text-slate-500">MagSafe / USB-C PD</p>
             </div>
           </div>
@@ -1051,7 +1021,7 @@ function InPageReportDetail({
                         </button>
                         <button
                           onClick={async () => {
-                            const res = await fetch(`http://127.0.0.1:3131/api/reports/${r.id}`);
+                            const res = await fetch(`/api/reports/${r.id}`);
                             if (res.ok) {
                               const d = await res.json();
                               handlePreviewHtmlReport(d.data);
@@ -1065,7 +1035,7 @@ function InPageReportDetail({
                         </button>
                         <button
                           onClick={async () => {
-                            const res = await fetch(`http://127.0.0.1:3131/api/reports/${r.id}`);
+                            const res = await fetch(`/api/reports/${r.id}`);
                             if (res.ok) {
                               const d = await res.json();
                               handleDownloadFullReport('html', d.data);

@@ -242,7 +242,27 @@ router.get('/diagnostics/crashes-hangs', async (_req, res) => {
 
 router.get('/diagnostics/system-stability', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacSystemStability() : { stabilityScore: 98 });
+    if (isMac) {
+      return res.json(await getMacSystemStability());
+    }
+    // Real stability indicators for non-macOS
+    const os = await import('os');
+    const uptimeHours = os.uptime() / 3600;
+    const loadAvg = os.loadavg();
+    const cpus = os.cpus().length;
+    const loadRatio = loadAvg[0] / Math.max(cpus, 1);
+    // Stability based on uptime and load — real signals
+    const stabilityScore = Math.min(100, Math.max(0, Math.round(
+      (uptimeHours > 24 ? 40 : uptimeHours > 1 ? 30 : 20) +
+      (loadRatio < 0.5 ? 40 : loadRatio < 1 ? 30 : 15) +
+      (loadAvg[4] < loadAvg[0] ? 20 : 10)
+    )));
+    res.json({
+      stabilityScore,
+      uptimeHours: Math.round(uptimeHours * 10) / 10,
+      loadAverage: loadAvg.map(l => Math.round(l * 100) / 100),
+      source: 'os.uptime() + os.loadavg()',
+    });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -320,7 +340,27 @@ router.get('/diagnostics/browser-health', async (_req, res) => {
 
 router.get('/diagnostics/app-resource', async (req, res) => {
   try {
-    res.json(isMac ? await getMacAppResourceDoctor(req.query.appName || 'Google Chrome') : { cpuUtilizationPct: 10 });
+    if (isMac) {
+      return res.json(await getMacAppResourceDoctor(req.query.appName || 'Google Chrome'));
+    }
+    // Real process-based resource measurement for non-macOS
+    const appName = req.query.appName || 'chrome';
+    const processes = await si.processes().catch(() => ({ list: [] }));
+    const procList = (processes && Array.isArray(processes.list)) ? processes.list : [];
+    const appRegex = new RegExp(appName, 'i');
+    const matchingProcs = procList.filter(p => appRegex.test(p.name));
+    const totalCpu = matchingProcs.reduce((s, p) => s + (p.cpu || 0), 0);
+    const totalMem = matchingProcs.reduce((s, p) => s + (p.mem || 0), 0);
+    const mem = await si.mem().catch(() => ({ total: 1 }));
+    const memMB = mem.total > 0 ? Math.round((totalMem / 100) * (mem.total / 1024 / 1024)) : 0;
+    res.json({
+      appName,
+      cpuUtilizationPct: Math.round(totalCpu * 10) / 10,
+      memoryMB: memMB,
+      processCount: matchingProcs.length,
+      source: 'si.processes() filter by app name',
+      note: matchingProcs.length === 0 ? `${appName} is not running — 0 processes found.` : undefined,
+    });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

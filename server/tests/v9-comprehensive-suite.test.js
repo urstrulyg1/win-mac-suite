@@ -46,9 +46,10 @@ async function runExperimentAndVerificationTests() {
   console.log('\nRunning v9.0 Experiment & Verification Tests...');
 
   const exp = await DiagnosticExperimentEngine.runExperiment('exp-docker-ram');
-  assert.strictEqual(exp.resultDelta.memoryPressureReductionPct > 0, true);
-  assert.strictEqual(exp.hypothesisVerdict.includes('Strongly Supported'), true);
-  console.log(`✓ Test 5 Passed: Diagnostic Experiment proved hypothesis: "${exp.hypothesisVerdict}"`);
+  // Experiments return null results until actually executed with real before/after measurement
+  assert.strictEqual(exp.resultDelta, null);
+  assert.strictEqual(exp.status, 'REQUIRES_EXECUTION');
+  console.log(`✓ Test 5 Passed: Diagnostic Experiment correctly reports REQUIRES_EXECUTION (no fabricated results)`);
 
   const ver = await VerificationEngine.verifyExecution('network.flushDNS', async () => {});
   assert.strictEqual(ver.verified, true);

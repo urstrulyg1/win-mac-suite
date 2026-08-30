@@ -35,32 +35,32 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
   const [actionMsg, setActionMsg] = useState<string | null>(null);
 
   const fetchStorageData = () => {
-    fetch('http://127.0.0.1:3131/api/storage/system-data')
+    fetch('/api/storage/system-data')
       .then((r) => r.ok ? r.json() : null)
       .then((d) => d && setSystemDataInfo(d))
       .catch(() => {});
 
-    fetch('http://127.0.0.1:3131/api/apps/inventory')
+    fetch('/api/apps/inventory')
       .then((r) => r.ok ? r.json() : null)
       .then((d) => d && setInstalledApps(d.apps || []))
       .catch(() => {});
 
-    fetch('http://127.0.0.1:3131/api/storage/orphaned-leftovers')
+    fetch('/api/storage/orphaned-leftovers')
       .then((r) => r.ok ? r.json() : null)
       .then((d) => d && setOrphans(d.leftovers || []))
       .catch(() => {});
 
-    fetch('http://127.0.0.1:3131/api/storage/ios-backups')
+    fetch('/api/storage/ios-backups')
       .then((r) => r.ok ? r.json() : null)
       .then((d) => d && setIosBackups(d))
       .catch(() => {});
 
-    fetch('http://127.0.0.1:3131/api/snapshots')
+    fetch('/api/snapshots')
       .then((r) => r.ok ? r.json() : null)
       .then((d) => d && setSnapshotsData(d))
       .catch(() => {});
 
-    fetch('http://127.0.0.1:3131/api/storage/external-drives')
+    fetch('/api/storage/external-drives')
       .then((r) => r.ok ? r.json() : null)
       .then((d) => d && setExternalDrives(d.drives || []))
       .catch(() => {});
@@ -72,7 +72,7 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
 
   const inspectAppFootprint = async (appName: string) => {
     try {
-      const res = await fetch(`http://127.0.0.1:3131/api/apps/footprint/${appName}`);
+      const res = await fetch(`/api/apps/footprint/${appName}`);
       if (res.ok) {
         const data = await res.json();
         setSelectedAppMap(data);
@@ -82,7 +82,7 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
 
   const handleEjectDrive = async (volumePath: string) => {
     try {
-      const res = await fetch('http://127.0.0.1:3131/api/actions/eject-drive', {
+      const res = await fetch('/api/actions/eject-drive', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ volumePath }),
@@ -406,7 +406,7 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
                   onClick={async () => {
                     setThinningSnapshots(true);
                     try {
-                      const res = await fetch('http://127.0.0.1:3131/api/actions/thin-snapshots', { method: 'POST' });
+                      const res = await fetch('/api/actions/thin-snapshots', { method: 'POST' });
                       const d = await res.json();
                       if (d.success) {
                         setActionMsg(d.message || 'Thinned local APFS snapshots successfully.');

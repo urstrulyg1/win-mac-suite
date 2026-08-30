@@ -38,15 +38,39 @@ router.get('/security', async (_req, res) => {
 // ── GET /api/security/posture ───────────────────────────────────────────────
 router.get('/security/posture', async (_req, res) => {
   try {
-    const posture = isMac ? await getMacSecurityPosture() : {
-      securityScore: 94,
-      checks: [
-        { name: 'Microsoft Defender Antivirus', passed: true, detail: 'Real-time protection enabled' },
-        { name: 'BitLocker Drive Encryption', passed: true, detail: 'System volume encrypted' },
-        { name: 'Windows Firewall', passed: true, detail: 'Domain & Private profiles active' },
-      ],
-    };
-    res.json(posture);
+    if (isMac) {
+      res.json(await getMacSecurityPosture());
+    } else {
+      // Use real Windows security probe — never fabricate a score
+      const winSec = await getWindowsSecurityStatus();
+      const checks = [];
+      if (winSec.realtimeProtection !== null) {
+        checks.push({ name: 'Microsoft Defender Antivirus', passed: !!winSec.realtimeProtection, detail: winSec.realtimeProtection ? `Real-time protection active (sig ${winSec.signatureVersion || 'unknown'})` : 'Real-time protection not enabled' });
+      } else {
+        checks.push({ name: 'Microsoft Defender Antivirus', passed: null, detail: 'UNAVAILABLE — Defender status could not be queried' });
+      }
+      if (winSec.encryption?.status !== null) {
+        checks.push({ name: 'BitLocker Drive Encryption', passed: winSec.encryption?.status === 'On', detail: winSec.encryption?.status === 'On' ? `Encrypted (${winSec.encryption?.percentage ?? '?'}%)` : `Status: ${winSec.encryption?.status || 'Unknown'}` });
+      } else {
+        checks.push({ name: 'BitLocker Drive Encryption', passed: null, detail: 'UNAVAILABLE — BitLocker status could not be queried' });
+      }
+      if (winSec.firewall?.active !== null) {
+        checks.push({ name: 'Windows Firewall', passed: !!winSec.firewall?.active, detail: winSec.firewall?.active ? 'At least one profile active' : 'No firewall profiles active' });
+      } else {
+        checks.push({ name: 'Windows Firewall', passed: null, detail: 'UNAVAILABLE — Firewall status could not be queried' });
+      }
+      // Score is ONLY computed from real probe results — no hardcoded value
+      const scoredChecks = checks.filter(c => c.passed !== null);
+      const securityScore = scoredChecks.length > 0
+        ? Math.round((scoredChecks.filter(c => c.passed).length / scoredChecks.length) * 100)
+        : null;
+      res.json({
+        securityScore,
+        checks,
+        measurement: winSec.measurement,
+        note: securityScore === null ? 'Security score unavailable — Windows security APIs did not respond.' : undefined,
+      });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -55,13 +79,18 @@ router.get('/security/posture', async (_req, res) => {
 // ── GET /api/privacy & /api/privacy/auditor & /api/security/privacy-auditor ──
 const handlePrivacyAuditor = async (_req, res) => {
   try {
-    const privacy = isMac ? await getMacFullPrivacyAuditor() : {
-      privacyScore: 90,
-      status: 'Protected',
-      categories: [],
-      recentChanges: [],
-    };
-    res.json(privacy);
+    if (isMac) {
+      res.json(await getMacFullPrivacyAuditor());
+    } else {
+      // No real Windows privacy auditor exists — report honestly, never fabricate a score
+      res.json({
+        privacyScore: null,
+        status: 'UNAVAILABLE',
+        categories: [],
+        recentChanges: [],
+        note: 'Privacy auditor is not implemented for Windows. No score is reported rather than fabricating one.',
+      });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -74,8 +103,11 @@ router.get('/security/privacy-auditor', handlePrivacyAuditor);
 // ── GET /api/privacy/score ─────────────────────────────────────────────────
 router.get('/privacy/score', async (_req, res) => {
   try {
-    const auditor = isMac ? await getMacFullPrivacyAuditor() : { privacyScore: 90, categories: [] };
-    res.json(auditor);
+    if (isMac) {
+      res.json(await getMacFullPrivacyAuditor());
+    } else {
+      res.json({ privacyScore: null, categories: [], note: 'Privacy score unavailable on this platform.' });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

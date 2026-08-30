@@ -73,10 +73,10 @@ export default function SystemGraphicalView({ onNavigateTab, onStartAction }: Pr
   const fetchLiveTelemetry = async () => {
     try {
       const [sysRes, battRes, diskRes, stabRes] = await Promise.all([
-        fetch('http://127.0.0.1:3131/api/sysinfo').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/battery/intelligence').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/diagnostics/disk-health').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/diagnostics/system-stability').catch(() => null),
+        fetch('/api/sysinfo').catch(() => null),
+        fetch('/api/battery/intelligence').catch(() => null),
+        fetch('/api/diagnostics/disk-health').catch(() => null),
+        fetch('/api/diagnostics/system-stability').catch(() => null),
       ]);
 
       const sysData = sysRes && sysRes.ok ? await sysRes.json() : {};

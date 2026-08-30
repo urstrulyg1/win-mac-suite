@@ -28,25 +28,25 @@ router.get('/diagnostics', async (_req, res) => {
   try {
     const [netInterfaces, defaultGateway] = await Promise.all([
       si.networkInterfaces(),
-      si.networkGatewayDefault().catch(() => '192.168.1.1'),
+      si.networkGatewayDefault().catch(() => null),
     ]);
 
     const activeIface = Array.isArray(netInterfaces)
       ? netInterfaces.find((n) => n.operstate === 'up' && !n.internal) || netInterfaces[0]
-      : { iface: 'Local Interface', ip4: '127.0.0.1', type: 'wired' };
+      : null;
 
-    let dnsTimeMs = 12;
+    let dnsTimeMs = null;
     try {
       const start = performance.now();
       await resolveAsync('apple.com').catch(() => resolveAsync('cloudflare.com'));
       dnsTimeMs = Math.round(performance.now() - start);
     } catch {
-      dnsTimeMs = 38;
+      dnsTimeMs = null; // DNS resolution failed — report as unavailable, not a fake value
     }
 
     // Measure real gateway latency using ping (1 packet)
     let gatewayLatencyMs = null;
-    if (defaultGateway && defaultGateway !== '192.168.1.1') {
+    if (defaultGateway) {
       try {
         const { execFile } = await import('child_process');
         const { promisify } = await import('util');
@@ -60,9 +60,9 @@ router.get('/diagnostics', async (_req, res) => {
     res.json({
       online: activeIface?.operstate === 'up',
       defaultGateway,
-      dnsResolutionTimeMs: Math.max(dnsTimeMs, 1),
+      dnsResolutionTimeMs: dnsTimeMs,
       gatewayLatencyMs,
-      packetLossPct: 0,
+      packetLossPct: null,
       activeAdapter: {
         name: activeIface?.iface || 'en0',
         type: activeIface?.type || 'wireless',
@@ -79,23 +79,94 @@ router.get('/diagnostics', async (_req, res) => {
 // ── GET /api/network/doctor (6-Step Guided Troubleshooting Pipeline) ────────
 router.get('/doctor', async (_req, res) => {
   try {
-    const doctorData = isMac ? await getMacNetworkDoctor() : {
-      allPassed: true,
+    if (isMac) {
+      return res.json(await getMacNetworkDoctor());
+    }
+
+    // Real network diagnostics for non-macOS platforms
+    const [netInterfaces, defaultGateway] = await Promise.all([
+      si.networkInterfaces().catch(() => []),
+      si.networkGatewayDefault().catch(() => null),
+    ]);
+
+    const activeIface = Array.isArray(netInterfaces)
+      ? netInterfaces.find((n) => n.operstate === 'up' && !n.internal) || null
+      : null;
+
+    // Step 1: Network adapter connected
+    const adapterConnected = !!activeIface && activeIface.operstate === 'up';
+
+    // Step 2: IPv4 address assigned
+    const ip4 = activeIface?.ip4 || null;
+    const hasIp = !!ip4 && ip4 !== '127.0.0.1';
+
+    // Step 3: Default gateway ping
+    let gatewayReachable = false;
+    let gatewayDetail = 'UNAVAILABLE';
+    if (defaultGateway) {
+      try {
+        const { execFile } = await import('child_process');
+        const { promisify } = await import('util');
+        const execAsync = promisify(execFile);
+        await execAsync('ping', ['-c', '1', '-W', '2', defaultGateway], { timeout: 3000 });
+        gatewayReachable = true;
+        gatewayDetail = 'Gateway reachable';
+      } catch {
+        gatewayDetail = 'Gateway unreachable';
+      }
+    }
+
+    // Step 4: DNS resolution
+    let dnsTimeMs = null;
+    let dnsPassed = false;
+    try {
+      const start = performance.now();
+      await resolveAsync('cloudflare.com');
+      dnsTimeMs = Math.round(performance.now() - start);
+      dnsPassed = true;
+    } catch {
+      dnsTimeMs = null;
+    }
+
+    // Step 5: Internet HTTP test
+    let internetPassed = false;
+    let internetDetail = 'UNAVAILABLE';
+    try {
+      const https = await import('https');
+      internetPassed = await new Promise((resolve) => {
+        const req = https.get('https://1.1.1.1', { timeout: 5000 }, (res) => {
+          res.resume();
+          resolve(res.statusCode >= 200 && res.statusCode < 400);
+        });
+        req.on('error', () => resolve(false));
+        req.on('timeout', () => { req.destroy(); resolve(false); });
+      });
+      internetDetail = internetPassed ? 'HTTPS reachable' : 'HTTPS failed';
+    } catch {
+      internetDetail = 'HTTPS test unavailable';
+    }
+
+    // Step 6: Captive portal (best-effort)
+    const captivePortalPassed = dnsPassed && internetPassed;
+
+    const allPassed = adapterConnected && hasIp && gatewayReachable && dnsPassed && internetPassed;
+
+    res.json({
+      allPassed,
       workflow: [
-        { step: 1, title: 'Network Adapter Connected', passed: true, detail: 'Ethernet / Wi-Fi Active' },
-        { step: 2, title: 'IPv4 Address Assigned', passed: true, detail: '192.168.1.50' },
-        { step: 3, title: 'Default Gateway Ping', passed: true, detail: 'Gateway reachable' },
-        { step: 4, title: 'DNS Resolution', passed: true, detail: 'Resolved in 12ms' },
-        { step: 5, title: 'Internet HTTP/HTTPS Test', passed: true, detail: '200 OK' },
-        { step: 6, title: 'Captive Portal Interception', passed: true, detail: 'None' },
+        { step: 1, title: 'Network Adapter Connected', passed: adapterConnected, detail: adapterConnected ? `${activeIface.iface} (${activeIface.type || 'unknown'})` : 'No active adapter' },
+        { step: 2, title: 'IPv4 Address Assigned', passed: hasIp, detail: ip4 || 'No IPv4 address' },
+        { step: 3, title: 'Default Gateway Ping', passed: gatewayReachable, detail: gatewayDetail },
+        { step: 4, title: 'DNS Resolution', passed: dnsPassed, detail: dnsTimeMs !== null ? `Resolved in ${dnsTimeMs}ms` : 'DNS resolution failed' },
+        { step: 5, title: 'Internet HTTP/HTTPS Test', passed: internetPassed, detail: internetDetail },
+        { step: 6, title: 'Captive Portal Interception', passed: captivePortalPassed, detail: captivePortalPassed ? 'None detected' : 'Could not verify' },
       ],
-      activeAdapter: 'Ethernet',
-      ip4: '192.168.1.50',
-      gateway: '192.168.1.1',
-      dnsLatencyMs: 12,
+      activeAdapter: activeIface?.iface || 'UNAVAILABLE',
+      ip4: ip4 || 'UNAVAILABLE',
+      gateway: defaultGateway || 'UNAVAILABLE',
+      dnsLatencyMs: dnsTimeMs,
       packetLossPct: 0,
-    };
-    res.json(doctorData);
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -117,12 +188,22 @@ router.get('/bluetooth', async (_req, res) => {
 // ── GET /api/network/wifi-intelligence ──────────────────────────────────────
 router.get('/wifi-intelligence', async (_req, res) => {
   try {
-    const wifiData = isMac ? await getMacWifiIntelligence() : {
-      currentSsid: 'Office-Wired-Network',
-      reliabilityScore: 99,
+    if (isMac) {
+      return res.json(await getMacWifiIntelligence());
+    }
+    // Real network info for non-macOS platforms
+    const netInterfaces = await si.networkInterfaces().catch(() => []);
+    const activeIface = Array.isArray(netInterfaces)
+      ? netInterfaces.find((n) => n.operstate === 'up' && !n.internal) || null
+      : null;
+    res.json({
+      currentSsid: activeIface?.type === 'wireless' ? (activeIface.iface || 'Wireless') : 'Wired Connection',
+      reliabilityScore: activeIface?.operstate === 'up' ? null : null,
       savedNetworks: [],
-    };
-    res.json(wifiData);
+      connectionType: activeIface?.type || 'UNAVAILABLE',
+      interfaceName: activeIface?.iface || 'UNAVAILABLE',
+      note: 'WiFi SSID and reliability scoring requires macOS-specific APIs. Basic connection state is reported.',
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

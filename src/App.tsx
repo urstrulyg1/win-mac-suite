@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { pageMotionProps } from './motion';
 import TopNav from './components/TopNav';
+import GlobalSearch from './components/GlobalSearch';
 import LandingHero from './components/LandingHero';
 import RunningDashboard from './components/RunningDashboard';
 import DiagnosticsHub from './components/DiagnosticsHub';
@@ -22,11 +23,13 @@ import UnsupportedPlatformView from './components/UnsupportedPlatformView';
 import CausalReasoningHub from './components/intelligence/CausalReasoningHub';
 import IncidentIntelligenceHub from './components/intelligence/IncidentIntelligenceHub';
 import ExperimentCenterHub from './components/intelligence/ExperimentCenterHub';
+import WindowsManagementHub from './components/WindowsManagementHub';
 import { useDarkMode } from './hooks/useDarkMode';
 import { useToast } from './components/Toast';
 import type { Section, RunMode, LogEntry, RunSummary, AppPhase, SystemInfo } from './types';
 import { PlatformProvider, usePlatform, type PlatformCapabilities } from './platform';
 import { createMaintenancePlan, executeMaintenancePlan } from './maintenance';
+import { systemApi, reportsApi, type ApiResponse } from './utils/api';
 
 export function buildExportReport(
   platform: string,
@@ -132,26 +135,29 @@ function MainApp() {
     const poll = async () => {
       if (document.hidden) return; // Save laptop battery when browser tab is inactive
       try {
-        const res = await fetch('http://127.0.0.1:3131/api/sysinfo');
-        if (!res.ok) throw new Error('API down');
-        const data = await res.json();
+        const response = await systemApi.getInfo();
+        if (!response.ok || !response.data) {
+          if (!cancelled) setBackendOnline(false);
+          return;
+        }
+        const data = response.data as Record<string, unknown>;
         if (cancelled) return;
         setBackendOnline(true);
         setRealSysInfo({
-          hostName: data.hostName || 'Local Computer',
-          user: data.user || 'User',
-          os: data.os || 'OS',
-          build: data.build || '',
-          processor: data.processor || 'CPU',
-          ramGB: data.ramGB || 0,
-          freeDiskGB: data.freeDiskGB || 0,
-          totalDiskGB: data.totalDiskGB || 0,
-          isOnline: data.isOnline ?? true,
-          cpuUsage: data.cpuUsage ?? 0,
-          cpuTemp: data.cpuTemp ?? 44,
-          cpuTempFormatted: data.cpuTempFormatted || `${data.cpuTemp ?? 44}°C`,
-          memoryUsage: data.memoryUsage ?? 0,
-          uptime: data.uptime || '',
+          hostName: (data.hostName as string) || 'Local Computer',
+          user: (data.user as string) || 'User',
+          os: (data.os as string) || 'OS',
+          build: (data.build as string) || '',
+          processor: (data.processor as string) || 'CPU',
+          ramGB: (data.ramGB as number) || 0,
+          freeDiskGB: (data.freeDiskGB as number) || 0,
+          totalDiskGB: (data.totalDiskGB as number) || 0,
+          isOnline: (data.isOnline as boolean) ?? true,
+          cpuUsage: (data.cpuUsage as number) ?? 0,
+          cpuTemp: (data.cpuTemp as number | null) ?? undefined,
+          cpuTempFormatted: (data.cpuTempFormatted as string) || 'UNAVAILABLE',
+          memoryUsage: (data.memoryUsage as number) ?? 0,
+          uptime: (data.uptime as string) || '',
         });
       } catch {
         if (!cancelled) setBackendOnline(false);
@@ -265,17 +271,11 @@ function MainApp() {
     } catch {}
 
     // Save report to SQLite database in background
-    try {
-      fetch('http://127.0.0.1:3131/api/reports/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: `${config.productName} Maintenance Run (${mode} Mode)`,
-          reportType: 'maintenance-run',
-          summary: `Completed ${finalSummary.passedPhases} of ${finalSummary.totalPhases} phases. Reclaimed ${finalSummary.spaceReclaimed >= 1024 ? `${(finalSummary.spaceReclaimed / 1024).toFixed(1)} GB` : `${finalSummary.spaceReclaimed} MB`} disk space.`,
-        }),
-      }).catch(() => null);
-    } catch {}
+    reportsApi.generate({
+      title: `${config.productName} Maintenance Run (${mode} Mode)`,
+      reportType: 'maintenance-run',
+      summary: `Completed ${finalSummary.passedSections} of ${finalSummary.totalSections} phases. Reclaimed ${finalSummary.spaceReclaimed >= 1024 ? `${(finalSummary.spaceReclaimed / 1024).toFixed(1)} GB` : `${finalSummary.spaceReclaimed} MB`} disk space.`,
+    }).catch(() => null);
 
     setRealSysInfo((prev) => ({
       ...prev,
@@ -362,6 +362,7 @@ function MainApp() {
 
   return (
     <div className="min-h-screen app-bg antialiased selection:bg-blue-200 selection:text-blue-900 overflow-x-hidden">
+      <GlobalSearch onNavigate={setActiveTab} />
       <TopNav
         phase={phase}
         activeTab={activeTab}
@@ -406,6 +407,13 @@ function MainApp() {
             {...pageMotionProps} className="w-full"
           >
             <ExperimentCenterHub />
+          </motion.div>
+        ) : activeTab === 'windows' ? (
+          <motion.div
+            key="windows-tab"
+            {...pageMotionProps} className="w-full"
+          >
+            <WindowsManagementHub />
           </motion.div>
         ) : activeTab === 'ask' ? (
           <motion.div
@@ -584,29 +592,27 @@ export default function App() {
   });
 
   useEffect(() => {
-    fetch('http://127.0.0.1:3131/api/sysinfo')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data) {
-          if (data.platform) setBackendPlatform(data.platform);
-          if (data.capabilities) setBackendCapabilities(data.capabilities);
-          setSystemInfo({
-            hostName: data.hostName || '',
-            user: data.user || '',
-            os: data.os || '',
-            build: data.build || '',
-            processor: data.processor || '',
-            ramGB: data.ramGB || 0,
-            freeDiskGB: data.freeDiskGB || 0,
-            totalDiskGB: data.totalDiskGB || 0,
-            isOnline: data.isOnline ?? true,
-            cpuUsage: data.cpuUsage ?? 0,
-            memoryUsage: data.memoryUsage ?? 0,
-            uptime: data.uptime || '',
-          });
-        }
-      })
-      .catch(() => {});
+    systemApi.getInfo().then((response) => {
+      if (response.ok && response.data) {
+        const data = response.data as Record<string, unknown>;
+        if (data.platform) setBackendPlatform(data.platform as string);
+        if (data.capabilities) setBackendCapabilities(data.capabilities as PlatformCapabilities);
+        setSystemInfo({
+          hostName: (data.hostName as string) || '',
+          user: (data.user as string) || '',
+          os: (data.os as string) || '',
+          build: (data.build as string) || '',
+          processor: (data.processor as string) || '',
+          ramGB: (data.ramGB as number) || 0,
+          freeDiskGB: (data.freeDiskGB as number) || 0,
+          totalDiskGB: (data.totalDiskGB as number) || 0,
+          isOnline: (data.isOnline as boolean) ?? true,
+          cpuUsage: (data.cpuUsage as number) ?? 0,
+          memoryUsage: (data.memoryUsage as number) ?? 0,
+          uptime: (data.uptime as string) || '',
+        });
+      }
+    });
   }, []);
 
   return (

@@ -5,7 +5,7 @@ import {
   Shield, Moon, Sun, Monitor, ChevronDown, Radio,
   Activity, Sparkles, HardDrive, FileText, Lock,
   Cpu, Wifi, MessageSquareCode, Code, Clock, Flame, Laptop, Wrench,
-  Brain, Siren, FlaskConical
+  Brain, Siren, FlaskConical, Settings
 } from 'lucide-react';
 import type { AppPhase, RunSummary, SystemInfo } from '../types';
 import { usePlatform } from '../platform';
@@ -50,6 +50,7 @@ const specialistNavTabs = [
   { id: 'crashes',      label: 'Crashes & Stability',  icon: Flame,        color: '#f97316', desc: 'Crash log parser & panic diagnostics' },
   { id: 'hardware',     label: 'Hardware & Displays',  icon: Monitor,      color: '#facc15', desc: 'Peripherals, display config & audio' },
   { id: 'startup',      label: 'Startup Manager',      icon: Sparkles,     color: '#e879f9', desc: 'LaunchAgents & Login item control' },
+  { id: 'windows',      label: 'Windows Center',       icon: Settings,     color: '#60a5fa', desc: 'Apps, Drivers, Services & System Tools' },
 ];
 
 export default function TopNav({

@@ -40,14 +40,14 @@ export async function getWindowsSecurityStatus() {
     $fw = Get-NetFirewallProfile -ErrorAction SilentlyContinue
     $bl = Get-BitLockerVolume -MountPoint "C:" -ErrorAction SilentlyContinue
     [PSCustomObject]@{
-      defenderAntivirus = if ($def) { $def.AntivirusEnabled } else { $true }
-      realtimeProtection = if ($def) { $def.RealTimeProtectionEnabled } else { $true }
-      signatureVersion = if ($def) { $def.AntivirusSignatureVersion } else { "1.403.210.0" }
-      firewallDomain = if ($fw) { ($fw | Where-Object Profile -eq "Domain").Enabled } else { $true }
-      firewallPrivate = if ($fw) { ($fw | Where-Object Profile -eq "Private").Enabled } else { $true }
-      firewallPublic = if ($fw) { ($fw | Where-Object Profile -eq "Public").Enabled } else { $true }
-      bitlockerProtection = if ($bl) { $bl.ProtectionStatus.ToString() } else { "On" }
-      bitlockerEncryption = if ($bl) { $bl.EncryptionPercentage } else { 100 }
+      defenderAntivirus = if ($def) { $def.AntivirusEnabled } else { $null }
+      realtimeProtection = if ($def) { $def.RealTimeProtectionEnabled } else { $null }
+      signatureVersion = if ($def) { $def.AntivirusSignatureVersion } else { $null }
+      firewallDomain = if ($fw) { ($fw | Where-Object Profile -eq "Domain").Enabled } else { $null }
+      firewallPrivate = if ($fw) { ($fw | Where-Object Profile -eq "Private").Enabled } else { $null }
+      firewallPublic = if ($fw) { ($fw | Where-Object Profile -eq "Public").Enabled } else { $null }
+      bitlockerProtection = if ($bl) { $bl.ProtectionStatus.ToString() } else { $null }
+      bitlockerEncryption = if ($bl) { $bl.EncryptionPercentage } else { $null }
     } | ConvertTo-Json -Compress
   `;
 
@@ -58,37 +58,41 @@ export async function getWindowsSecurityStatus() {
       return {
         engine: 'Microsoft Defender',
         status: parsed.defenderAntivirus ? 'Active' : 'Warning',
-        realtimeProtection: !!parsed.realtimeProtection,
-        signatureVersion: parsed.signatureVersion || '1.403.210.0',
+        realtimeProtection: parsed.realtimeProtection !== null ? !!parsed.realtimeProtection : null,
+        signatureVersion: parsed.signatureVersion || null,
         firewall: {
           active: !!(parsed.firewallDomain || parsed.firewallPrivate || parsed.firewallPublic),
           profiles: {
-            domain: !!parsed.firewallDomain,
-            private: !!parsed.firewallPrivate,
-            public: !!parsed.firewallPublic,
+            domain: parsed.firewallDomain !== null ? !!parsed.firewallDomain : null,
+            private: parsed.firewallPrivate !== null ? !!parsed.firewallPrivate : null,
+            public: parsed.firewallPublic !== null ? !!parsed.firewallPublic : null,
           },
         },
         encryption: {
           type: 'BitLocker Volume Encryption',
-          status: parsed.bitlockerProtection === 'Off' ? 'Off' : 'Protected',
-          percentage: parsed.bitlockerEncryption ?? 100,
+          status: parsed.bitlockerProtection || null,
+          percentage: parsed.bitlockerEncryption !== undefined ? parsed.bitlockerEncryption : null,
         },
         smartScreen: {
-          status: 'Enabled',
-          filter: 'Reputation-based Filter Active',
+          status: null,
+          filter: null,
+          note: 'SmartScreen status requires separate PowerShell probe.',
         },
+        measurement: 'observed',
       };
     }
   } catch {}
 
   return {
     engine: 'Microsoft Defender',
-    status: 'Active',
-    realtimeProtection: true,
-    signatureVersion: 'Current',
-    firewall: { active: true, profiles: { domain: true, private: true, public: true } },
-    encryption: { type: 'BitLocker Volume Encryption', status: 'Protected', percentage: 100 },
-    smartScreen: { status: 'Enabled', filter: 'Reputation-based Filter Active' },
+    status: 'UNAVAILABLE',
+    realtimeProtection: null,
+    signatureVersion: null,
+    firewall: { active: null, profiles: { domain: null, private: null, public: null } },
+    encryption: { type: 'BitLocker Volume Encryption', status: 'UNAVAILABLE', percentage: null },
+    smartScreen: { status: 'UNAVAILABLE', filter: null },
+    measurement: 'unavailable',
+    note: 'PowerShell security probe failed. Security status cannot be determined without administrator access to Get-MpComputerStatus.',
   };
 }
 
@@ -118,11 +122,8 @@ export async function getWindowsEventLogs() {
     }
   } catch {}
 
-  return [
-    { id: '1', source: 'Service Control Manager', time: '10:14 AM', message: 'The Background Intelligent Transfer Service entered the running state.', level: 'Information' },
-    { id: '2', source: 'WindowsUpdateClient', time: '09:30 AM', message: 'Installation Successful: Windows successfully installed update KB5034441.', level: 'Information' },
-    { id: '3', source: 'DistributedCOM', time: '08:45 AM', message: 'The application-specific permission settings do not grant Local Activation permission.', level: 'Warning', probableCause: 'AppContainer CLSID policy restriction' },
-  ];
+  return [];
+  // Empty array = no events retrieved. Never fabricate event log entries.
 }
 
 /**
@@ -150,11 +151,8 @@ export async function getWindowsServicesList() {
     }
   } catch {}
 
-  return [
-    { id: '1', name: 'wuauserv', displayName: 'Windows Update', status: 'Running', startupType: 'Manual (Trigger)', user: 'LocalSystem', description: 'Enables the detection, download, and installation of updates for Windows and other programs.' },
-    { id: '2', name: 'WinDefend', displayName: 'Microsoft Defender Antivirus Service', status: 'Running', startupType: 'Automatic', user: 'LocalSystem', description: 'Protects system against malware and security threats.' },
-    { id: '3', name: 'SysMain', displayName: 'SysMain (Superfetch)', status: 'Running', startupType: 'Automatic', user: 'LocalSystem', description: 'Maintains and optimizes memory performance over time.' },
-  ];
+  return [];
+  // Empty array = no services retrieved. Never fabricate service entries.
 }
 
 /**
@@ -182,10 +180,8 @@ export async function getWindowsStartupItems() {
     }
   } catch {}
 
-  return [
-    { id: '1', name: 'Microsoft Teams', location: 'HKCU\\Run', type: 'Registry', path: 'C:\\Program Files\\WindowsApps\\MSTeams.exe', enabled: true, impact: 'High' },
-    { id: '2', name: 'SecurityHealthSystray', location: 'HKLM\\Run', type: 'Registry', path: 'C:\\Windows\\System32\\SecurityHealthSystray.exe', enabled: true, impact: 'Low' },
-  ];
+  return [];
+  // Empty array = no startup items retrieved. Never fabricate startup entries.
 }
 
 /**
@@ -206,19 +202,26 @@ export async function getWindowsDeveloperArtifacts() {
   const artifacts = [];
   for (const item of candidates) {
     if (fs.existsSync(item.realPath)) {
+      // Measure real directory size
+      let sizeBytes = 0;
+      try {
+        const { execFileSync } = await import('child_process');
+        const sizeOut = execFileSync('powershell.exe', ['-NoProfile', '-Command', `(Get-ChildItem -Path '${item.realPath}' -Recurse -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum`], { timeout: 5000, windowsHide: true });
+        sizeBytes = parseInt(sizeOut.toString().trim(), 10) || 0;
+      } catch {
+        sizeBytes = 0;
+      }
       artifacts.push({
         id: item.id,
         name: item.name,
         path: item.path,
-        sizeMB: 850,
+        sizeMB: Math.round(sizeBytes / 1024 / 1024),
+        measurement: sizeBytes > 0 ? 'observed' : 'exists-but-unmeasured',
       });
     }
   }
 
-  return artifacts.length > 0 ? artifacts : [
-    { id: '1', name: 'npm Global Cache', path: '%APPDATA%\\npm-cache', sizeMB: 450 },
-    { id: '2', name: 'NuGet Package Cache', path: '%USERPROFILE%\\.nuget\\packages', sizeMB: 1200 },
-  ];
+  return artifacts;
 }
 
 /**
@@ -240,30 +243,56 @@ export async function getWindowsBatteryStatus() {
     };
   } catch {
     return {
-      hasBattery: true,
-      percent: 100,
-      isCharging: false,
-      acConnected: true,
-      cycleCount: 0,
-      healthPct: 100,
-      timeRemainingMin: 0,
-      model: 'Windows Power Adapter',
-      type: 'Li-ion',
+      hasBattery: null,
+      percent: null,
+      isCharging: null,
+      acConnected: null,
+      cycleCount: null,
+      healthPct: null,
+      timeRemainingMin: null,
+      model: null,
+      type: null,
+      measurement: 'unavailable',
+      note: 'Battery probe failed. System battery status cannot be determined.',
     };
   }
 }
 
 /**
  * Gets Windows package manager status (Winget, Chocolatey).
+ * Uses real commands to query installed packages.
  */
 export async function getWindowsPackageStatus() {
+  let wingetInstalled = null;
+  let wingetOutdated = null;
+  let wingetAvailable = false;
+
+  try {
+    const { stdout } = await execFileAsync('winget', ['list', '--accept-source-agreements'], { timeout: 10000, windowsHide: true });
+    wingetAvailable = true;
+    // Count lines that look like package entries (have an ID column)
+    const lines = stdout.split('\n').filter(l => l.includes(' ') && !l.startsWith('-') && !l.startsWith('Name'));
+    wingetInstalled = lines.length;
+  } catch {
+    wingetAvailable = false;
+  }
+
+  let chocoAvailable = false;
+  try {
+    await execFileAsync('choco', ['--version'], { timeout: 3000, windowsHide: true });
+    chocoAvailable = true;
+  } catch { /* not installed */ }
+
   return {
     packageManager: 'Windows Package Manager (Winget)',
-    formulaCount: 24,
+    wingetAvailable,
+    formulaCount: wingetInstalled,
     caskCount: 0,
-    totalInstalled: 24,
-    outdatedCount: 0,
-    status: 'Synchronized',
+    totalInstalled: wingetInstalled,
+    outdatedCount: wingetOutdated,
+    chocolateyAvailable: chocoAvailable,
+    status: wingetAvailable ? 'Available' : 'Not Installed',
+    measurement: wingetAvailable ? 'observed' : 'unavailable',
   };
 }
 

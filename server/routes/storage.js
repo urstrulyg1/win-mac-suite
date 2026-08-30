@@ -45,9 +45,9 @@ router.get('/storage', async (_req, res) => {
     const freeGB = primary ? +( (primary.size - primary.used) / 1024 / 1024 / 1024 ).toFixed(1) : 128;
     const percentUsed = primary ? Math.round(primary.use || 50) : 50;
 
-    const largeFiles = isMac ? await getMacLargeFiles() : [
-      { name: 'Installer_Stale.iso', path: 'C:\\Downloads\\Installer_Stale.iso', size: '2.4 GB' },
-    ];
+    const largeFiles = isMac ? await getMacLargeFiles() : [];
+    // Non-macOS: large file scanning requires platform-specific implementation.
+    // Report empty rather than fabricating file names.
 
     res.json({
       platform: isMac ? 'macos' : 'windows',
@@ -82,22 +82,19 @@ router.get('/storage/system-data', async (_req, res) => {
       const breakdown = await getMacSystemDataBreakdown();
       res.json(breakdown);
     } else {
+      // Report real filesystem data without fabricating categories
+      const fsSize = await si.fsSize().catch(() => []);
+      const primary = Array.isArray(fsSize)
+        ? fsSize.find((f) => f.mount === '/' || f.mount === 'C:') || fsSize[0]
+        : null;
+      const usedGB = primary ? Math.round(primary.used / 1024 / 1024 / 1024) : null;
       res.json({
-        platform: 'windows',
-        totalSystemDataGB: 34.5,
-        potentialRecoveryGB: 18.2,
-        growth30d: '+12.4 GB',
-        growthSummary: 'System Data increased by 12.4 GB over the last 30 days due to Windows Update staging and temp dumps.',
-        categories: [
-          { id: 'winsxs', name: 'WinSxS Component Store', sizeGB: 12.4, reclaimable: true, safeToPurge: true, description: 'Obsolete Windows Update package backups.' },
-          { id: 'delivery', name: 'Delivery Optimization Cache', sizeGB: 4.8, reclaimable: true, safeToPurge: true, description: 'Peer-to-peer Windows update fragments.' },
-          { id: 'temp-dumps', name: 'Memory & Minidump Dumps', sizeGB: 3.2, reclaimable: true, safeToPurge: true, description: 'Crash reports and memory minidumps.' },
-          { id: 'hiberfil', name: 'Hibernation State (hiberfil.sys)', sizeGB: 14.1, reclaimable: false, safeToPurge: false, description: 'RAM sleep image.' },
-        ],
-        timeline: [
-          { day: '30d ago', systemDataGB: 22.1, event: 'Patch Tuesday Rollup' },
-          { day: 'Today', systemDataGB: 34.5, event: 'Current Live State' },
-        ],
+        platform: process.platform,
+        totalSystemDataGB: null,
+        potentialRecoveryGB: null,
+        usedGB,
+        note: 'Detailed system data categorization (WinSxS, delivery optimization, etc.) requires Windows-specific APIs. Only total disk usage is reported.',
+        measurement: usedGB !== null ? 'observed' : 'unavailable',
       });
     }
   } catch (err) {
@@ -177,26 +174,26 @@ router.get('/snapshots', async (_req, res) => {
     if (isMac) {
       const tmOut = await runSafeCommand('/usr/bin/tmutil', ['listlocalsnapshots', '/']);
       const lines = tmOut ? tmOut.split('\n').filter((l) => l.includes('com.apple.TimeMachine')) : [];
-      const snapshots = lines.map((line, idx) => ({
+      const snapshots = lines.map((line) => ({
         id: line.trim(),
         date: line.replace('com.apple.TimeMachine.', ''),
-        size: idx === 0 ? '1.4 GB' : '900 MB',
+        size: null, // Size requires additional du command per snapshot — report honestly
       }));
 
       res.json({
         platform: 'macos',
         count: snapshots.length,
-        snapshots: snapshots.length > 0 ? snapshots : [
-          { id: 'com.apple.TimeMachine.LocalSnapshot', date: 'Current', size: '1.2 GB' },
-        ],
+        snapshots,
+        measurement: snapshots.length > 0 ? 'observed' : 'none-found',
       });
     } else {
+      // Windows system restore points require WMI/CIM queries — report honestly
       res.json({
-        platform: 'windows',
-        count: 1,
-        snapshots: [
-          { id: 'RestorePoint-101', date: 'Recent', description: 'Pre-Update System Restore Point', size: '1.2 GB' },
-        ],
+        platform: process.platform,
+        count: null,
+        snapshots: [],
+        measurement: 'unavailable',
+        note: 'Windows System Restore point enumeration requires WMI/CIM queries (vssadmin list shadows). Not yet implemented for this platform.',
       });
     }
   } catch (err) {

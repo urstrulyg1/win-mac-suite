@@ -23,9 +23,9 @@ export default function NetworkDoctorHub() {
     setLoading(true);
     try {
       const [dRes, bRes, wRes] = await Promise.all([
-        fetch('http://127.0.0.1:3131/api/network/doctor').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/network/bluetooth').catch(() => null),
-        fetch('http://127.0.0.1:3131/api/network/wifi-intelligence').catch(() => null),
+        fetch('/api/network/doctor').catch(() => null),
+        fetch('/api/network/bluetooth').catch(() => null),
+        fetch('/api/network/wifi-intelligence').catch(() => null),
       ]);
 
       if (dRes && dRes.ok) setDoctorData(await dRes.json());
@@ -44,7 +44,7 @@ export default function NetworkDoctorHub() {
   const handleFlushDNS = async () => {
     setFlushingDNS(true);
     try {
-      await fetch('http://127.0.0.1:3131/api/actions/run-phase', {
+      await fetch('/api/actions/run-phase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ commandId: isMac ? 'mac.flushdns' : 'win.flushdns' }),
@@ -162,11 +162,11 @@ export default function NetworkDoctorHub() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
               <div className="p-3 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
                 <span className="text-[10px] uppercase text-slate-400 font-bold">Local IP</span>
-                <p className="text-xs font-mono font-bold text-blue-500 mt-0.5">{doctorData?.ip4 || '192.168.1.50'}</p>
+                <p className="text-xs font-mono font-bold text-blue-500 mt-0.5">{doctorData?.ip4 || 'UNAVAILABLE'}</p>
               </div>
               <div className="p-3 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
                 <span className="text-[10px] uppercase text-slate-400 font-bold">Gateway</span>
-                <p className="text-xs font-mono font-bold text-blue-400 mt-0.5">{doctorData?.gateway || '192.168.1.1'}</p>
+                <p className="text-xs font-mono font-bold text-blue-400 mt-0.5">{doctorData?.gateway || 'UNAVAILABLE'}</p>
               </div>
               <div className="p-3 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
                 <span className="text-[10px] uppercase text-slate-400 font-bold">DNS Latency</span>

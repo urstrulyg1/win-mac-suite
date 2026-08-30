@@ -27,6 +27,9 @@
  */
 
 import express from 'express';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 import { executeAllowlistedCommand, cancelActiveExecution } from '../security/exec-guard.js';
 import { runGuardedOperation } from '../runtime/operation-executor.js';
 import { operationRegistry } from '../runtime/operations.js';
@@ -289,7 +292,7 @@ router.post('/execute-cleanup', validateRequest('POST /api/actions/execute-clean
       `Processed ${selectedItemIds.length} selected cleanup item(s)`,
       `Created recovery manifest transaction #${transaction.id}`,
     ],
-    reclaimedBytes: reclaimedBytes ?? 0,
+    reclaimedBytes: totalReclaimed,
   });
 
   res.json({
@@ -298,9 +301,9 @@ router.post('/execute-cleanup', validateRequest('POST /api/actions/execute-clean
     operationId: outcome.operationId,
     actionId: 'storage.executeCleanup',
     // Measured, quality-tagged. We do not invent a reclaim figure.
-    reclaimedBytes,
-    reclaimedMB: measurable ? Math.round(reclaimedBytes / 1024 / 1024) : null,
-    reclaimedGB: measurable ? +(reclaimedBytes / 1024 / 1024 / 1024).toFixed(2) : null,
+    reclaimedBytes: totalReclaimed,
+    reclaimedMB: measurable ? Math.round(totalReclaimed / 1024 / 1024) : null,
+    reclaimedGB: measurable ? +(totalReclaimed / 1024 / 1024 / 1024).toFixed(2) : null,
     measurement: measurable ? 'observed' : 'unavailable',
     measurementNote: measurable
       ? 'Reclaimed space is the observed difference in free bytes before and after the operation.'

@@ -12,7 +12,7 @@ export default function DiagnosticExperimentsHub() {
   const handleRunExperiment = async (expId: string) => {
     setRunningExp(true);
     try {
-      const res = await fetch(`http://127.0.0.1:3131/api/diagnostics/run-experiment?hypothesisId=${expId}`);
+      const res = await fetch(`/api/diagnostics/run-experiment?hypothesisId=${expId}`);
       if (res.ok) {
         setExperimentResult(await res.json());
       }

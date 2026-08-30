@@ -9,25 +9,24 @@ export default function ProcessMonitor() {
   const [search, setSearch] = useState('');
   const [filterMode, setFilterMode] = useState<'all' | 'cpu' | 'mem'>('cpu');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [inspectItem, setInspectItem] = useState<InspectorData | null>(null);
 
   const fetchProcesses = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const res = await fetch('http://127.0.0.1:3131/api/processes');
+      const res = await fetch('/api/processes');
       if (res.ok) {
         const data = await res.json();
         setProcesses(data.list || []);
+      } else {
+        setError(`Process data unavailable (HTTP ${res.status})`);
+        setProcesses([]);
       }
     } catch {
-      // Fallback sample processes
-      setProcesses([
-        { pid: 1420, name: 'System', cpu: 2.1, mem: 1.4, user: 'SYSTEM' },
-        { pid: 2840, name: 'node.exe', cpu: 1.8, mem: 3.2, user: 'User' },
-        { pid: 3120, name: 'chrome.exe', cpu: 4.5, mem: 8.9, user: 'User' },
-        { pid: 4890, name: 'explorer.exe', cpu: 0.8, mem: 2.1, user: 'User' },
-        { pid: 5120, name: 'Code.exe', cpu: 1.2, mem: 6.4, user: 'User' },
-      ]);
+      setError('Unable to reach the process monitor backend.');
+      setProcesses([]);
     } finally {
       setLoading(false);
     }
@@ -129,7 +128,18 @@ export default function ProcessMonitor() {
         </div>
       </div>
 
+      {/* Error State */}
+      {error && (
+        <div className="card p-6 text-center space-y-2">
+          <ShieldAlert size={28} className="mx-auto text-amber-400" />
+          <p className="text-sm font-bold" style={{ color: 'var(--color-ink)' }}>Process Monitor Unavailable</p>
+          <p className="text-xs" style={{ color: 'var(--color-ink-3)' }}>{error}</p>
+          <p className="text-xs" style={{ color: 'var(--color-ink-4)' }}>No process data is shown because real data could not be retrieved. WinSuite never displays fabricated process lists.</p>
+        </div>
+      )}
+
       {/* Processes Table */}
+      {!error && (
       <div className="card overflow-hidden">
         <div className="overflow-x-auto min-w-0">
           <table className="w-full text-left text-xs border-collapse min-w-[480px]">
@@ -180,6 +190,7 @@ export default function ProcessMonitor() {
           </table>
         </div>
       </div>
+      )}
     </div>
   );
 }
