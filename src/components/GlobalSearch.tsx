@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Search, X, Package, Activity, Server, Zap, Clock, HardDrive, Shield, Wifi, Cpu, Code, FileText } from 'lucide-react';
+import { Search, X, Package, Activity, Server, Zap, HardDrive, Shield, Wifi, Cpu, Code, FileText } from 'lucide-react';
 
 interface SearchResult {
   id: string;
@@ -49,14 +49,14 @@ const getCommands = (platform: string): SearchResult[] => {
   return commands;
 };
 
-export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
+export default function GlobalSearch({ onNavigate: _onNavigate }: GlobalSearchProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [platform, setPlatform] = useState('unknown');
   const inputRef = useRef<HTMLInputElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Detect platform on mount
   useEffect(() => {

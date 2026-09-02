@@ -2,15 +2,13 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { tabTransition } from '../motion';
 import {
-  Code, Terminal, Layers, Trash2, CheckCircle2, AlertTriangle,
-  Radio, HardDrive, Sparkles, RefreshCw, ChevronRight, XCircle,
-  Key, Globe, Shield, Lock, Box
+  Code, Terminal, Layers, Trash2, AlertTriangle,
+  Radio, HardDrive, RefreshCw, XCircle,
+  Key, Globe, Box
 } from 'lucide-react';
-import { usePlatform } from '../platform';
 import InspectorModal, { type InspectorData } from './InspectorModal';
 
 export default function DeveloperDoctorHub() {
-  const { config, isMac } = usePlatform();
   const [subTab, setSubTab] = useState<'env' | 'docker' | 'xcode' | 'ssh' | 'vm' | 'browser' | 'ports'>('env');
   const [envData, setEnvData] = useState<any>(null);
   const [dockerData, setDockerData] = useState<any>(null);

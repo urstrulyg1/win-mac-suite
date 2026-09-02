@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { HelpCircle, X, CheckCircle2, AlertTriangle, Info } from 'lucide-react';
+import { HelpCircle, X } from 'lucide-react';
 import { modalPanel } from '../motion';
 
 export interface ExplainData {

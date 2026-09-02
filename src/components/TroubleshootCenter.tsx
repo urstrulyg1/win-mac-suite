@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   HelpCircle, AlertTriangle, CheckCircle2, Play, RefreshCw,
   Cpu, Battery, Radio, Shield, Wifi, HardDrive, ArrowRight,
-  Terminal, Sparkles, ChevronRight, Check
+  ChevronRight, Check
 } from 'lucide-react';
 import { usePlatform } from '../platform';
 import InspectorModal, { type InspectorData } from './InspectorModal';
@@ -22,7 +21,7 @@ const issuesList = [
 ];
 
 export default function TroubleshootCenter({ onNavigateTab }: Props) {
-  const { config, isMac } = usePlatform();
+  const { config } = usePlatform();
   const [selectedIssue, setSelectedIssue] = useState<string>('mac-slow');
   const [diagnosisData, setDiagnosisData] = useState<any>(null);
   const [loading, setLoading] = useState(false);

@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { tabTransition } from '../motion';
 import {
-  MessageSquareCode, Send, Sparkles, Terminal, Activity,
-  HardDrive, Cpu, Shield, ArrowRight, CheckCircle2, AlertTriangle, Layers
+  MessageSquareCode, Send,
+  ArrowRight, CheckCircle2
 } from 'lucide-react';
 import { usePlatform } from '../platform';
 
@@ -22,7 +22,7 @@ const suggestedPrompts = [
 ];
 
 export default function AskAssistantHub({ onNavigateTab }: Props) {
-  const { config, isMac } = usePlatform();
+  const { config } = usePlatform();
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<any>(null);

@@ -1,4 +1,4 @@
-import type { Section, RunMode, LogEntry } from '../types';
+import type { RunMode, LogEntry } from '../types';
 
 export type PlatformType = 'windows' | 'macos' | 'unsupported';
 

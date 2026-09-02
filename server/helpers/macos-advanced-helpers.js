@@ -250,7 +250,7 @@ export async function getMacSpotlightDoctor() {
 // ── 6. Time Machine Doctor ──────────────────────────────────────────────────
 export async function getMacTimeMachineDoctor() {
   const out = await runSafe('/usr/bin/tmutil', ['destinationinfo'], 4000);
-  const isConfigured = out && !out.includes('No destinations configured') && out.length > 5;
+  const isConfigured = Boolean(out && !out.includes('No destinations configured') && out.length > 5);
 
   let backupDestination = 'No destination configured';
   if (isConfigured) {
@@ -323,7 +323,7 @@ export async function getMacAudioDoctor() {
   return {
     dataSource: 'ps -axco command (coreaudiod inspection)',
     evidenceQuality: 'Observed',
-    coreAudioDaemon: coreAudioRunning ? 'Active (coreaudiod running)' : 'Offline',
+    coreAudioDaemon: coreAudioRunning ? 'Active (coreaudiod running)' : 'Offline (coreaudiod inactive)',
     diagnosisVerdict: coreAudioRunning
       ? 'CoreAudio audio server daemon (coreaudiod) is active and processing system audio streams.'
       : 'CoreAudio daemon is not running.',

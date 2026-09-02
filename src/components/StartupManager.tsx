@@ -1,14 +1,11 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import {
   Sparkles, ToggleLeft, ToggleRight, Search, RefreshCw, FileText,
-  ChevronRight, AlertTriangle, ShieldCheck, HelpCircle
+  ChevronRight
 } from 'lucide-react';
-import { usePlatform } from '../platform';
 import InspectorModal, { type InspectorData } from './InspectorModal';
 
 export default function StartupManager() {
-  const { config, isMac } = usePlatform();
   const [items, setItems] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
@@ -38,12 +35,12 @@ export default function StartupManager() {
 
   useEffect(() => {
     fetchStartup();
-  }, [isMac]);
+  }, []);
 
   const toggleItem = async (item: any) => {
     const nextState = !item.enabled;
-    setItems((prev) =>
-      prev.map((it) => (it.id === item.id ? { ...it, enabled: nextState } : it))
+    setItems((prev: any[]) =>
+      prev.map((it: any) => (it.id === item.id ? { ...it, enabled: nextState } : it))
     );
 
     try {
@@ -56,9 +53,9 @@ export default function StartupManager() {
     } catch {}
   };
 
-  const filteredItems = items.filter((it) =>
-    it.name.toLowerCase().includes(search.toLowerCase()) ||
-    it.location.toLowerCase().includes(search.toLowerCase())
+  const filteredItems = items.filter((it: any) =>
+    (it.name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (it.location || '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -90,6 +87,13 @@ export default function StartupManager() {
         </button>
       </div>
 
+      {error && (
+        <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/25 text-xs text-red-500 flex items-center justify-between">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-slate-400 hover:text-slate-200">×</button>
+        </div>
+      )}
+
       {actionMsg && (
         <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-500 flex items-center justify-between">
           <span>✓ {actionMsg}</span>
@@ -113,7 +117,7 @@ export default function StartupManager() {
 
       {/* Items List */}
       <div className="card divide-y overflow-hidden" style={{ borderColor: 'var(--color-line)' }}>
-        {filteredItems.map((item) => (
+        {filteredItems.map((item: any) => (
           <div
             key={item.id}
             onClick={() =>

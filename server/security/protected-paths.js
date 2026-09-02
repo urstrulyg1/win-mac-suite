@@ -131,18 +131,36 @@ export function screenPathInput(targetPath) {
   return { ok: true };
 }
 
+/** Normalises paths for cross-platform prefix comparison */
+function normalizePathForComparison(p) {
+  let norm = p.replace(/\\/g, '/');
+  if (/^[A-Za-z]:\//i.test(norm)) {
+    norm = norm.slice(2); // e.g. "C:/System" -> "/System"
+  }
+  return norm;
+}
+
+function matchPrefix(target, prefix) {
+  if (target === prefix || target.startsWith(prefix + path.sep) || target.startsWith(prefix + '/')) {
+    return true;
+  }
+  const normTarget = normalizePathForComparison(target);
+  const normPrefix = normalizePathForComparison(prefix);
+  return normTarget === normPrefix || normTarget.startsWith(normPrefix + '/');
+}
+
 /** Pure lexical classification. Retained as ONE INPUT to the real decision, never alone. */
 function classifyLexical(resolved) {
   for (const p of SYSTEM_PROTECTED_PREFIXES) {
-    if (resolved === p || resolved.startsWith(p + path.sep)) return PATH_CLASSIFICATION.SYSTEM_PROTECTED;
+    if (matchPrefix(resolved, p)) return PATH_CLASSIFICATION.SYSTEM_PROTECTED;
   }
   for (const p of USER_CRITICAL_DIRECTORIES) {
-    if (resolved === p || resolved.startsWith(p + path.sep)) return PATH_CLASSIFICATION.USER_CRITICAL;
+    if (matchPrefix(resolved, p)) return PATH_CLASSIFICATION.USER_CRITICAL;
   }
   for (const p of SAFE_RECLAIMABLE_PREFIXES) {
-    if (resolved === p || resolved.startsWith(p + path.sep)) return PATH_CLASSIFICATION.SAFE_RECLAIMABLE;
+    if (matchPrefix(resolved, p)) return PATH_CLASSIFICATION.SAFE_RECLAIMABLE;
   }
-  if (resolved.endsWith('.app') || resolved.includes('.app' + path.sep)) {
+  if (resolved.endsWith('.app') || resolved.includes('.app' + path.sep) || resolved.includes('.app/')) {
     return PATH_CLASSIFICATION.APPLICATION_BUNDLE;
   }
   return PATH_CLASSIFICATION.UNKNOWN_RISK;
@@ -153,14 +171,40 @@ function classifyLexical(resolved) {
  * Returns the chain plus the first symlink found, so errors can name the exact component.
  */
 export function inspectPathChain(absolutePath) {
-  const parts = absolutePath.split(path.sep).filter(Boolean);
+  const { root } = path.parse(absolutePath);
+  const relative = absolutePath.slice(root.length);
+  const parts = relative.split(/[/\\]/).filter(Boolean);
   const chain = [];
-  let current = path.sep;
+  let current = root;
   let firstSymlink = null;
 
   // Include the root itself.
-  for (let i = 0; i <= parts.length; i += 1) {
-    if (i > 0) current = path.join(current, parts[i - 1]);
+  try {
+    const st = fs.lstatSync(current);
+    chain.push({
+      component: current,
+      exists: true,
+      isSymlink: st.isSymbolicLink(),
+      isDirectory: st.isDirectory(),
+      isFile: st.isFile(),
+      dev: st.dev,
+      ino: st.ino,
+      mode: st.mode,
+      uid: st.uid,
+      target: null,
+    });
+  } catch (err) {
+    chain.push({
+      component: current,
+      exists: false,
+      isSymlink: false,
+      error: err.code || String(err.message),
+    });
+    return { chain, firstSymlink, fullyResolved: false };
+  }
+
+  for (let i = 0; i < parts.length; i += 1) {
+    current = path.join(current, parts[i]);
     let entry;
     try {
       const st = fs.lstatSync(current);

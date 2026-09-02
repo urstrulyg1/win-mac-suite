@@ -18,6 +18,7 @@
  */
 
 import express from 'express';
+import { getSafeModeStatus, activateSafeMode, deactivateSafeMode } from '../security/safe-mode.js';
 
 import {
   AVAILABILITY,
@@ -457,6 +458,24 @@ router.get('/evidence/quality-demo', (_req, res) => {
     evidence,
     renderingRule: 'The UI must print `displayValue` verbatim. Estimates carry a ~ prefix and the word (estimated).',
   });
+});
+
+/* ─────────────────────────── safe mode state ────────────────────────────── */
+
+router.get('/safe-mode/status', (_req, res) => {
+  res.json(getSafeModeStatus());
+});
+
+router.get('/safe-mode', (_req, res) => {
+  res.json(getSafeModeStatus());
+});
+
+router.post('/safe-mode/activate', (req, res) => {
+  res.json(activateSafeMode(req.body?.source || 'client'));
+});
+
+router.post('/safe-mode/deactivate', (req, res) => {
+  res.json(deactivateSafeMode(req.body?.source || 'client'));
 });
 
 export default router;

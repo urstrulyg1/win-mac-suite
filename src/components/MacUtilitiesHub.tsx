@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { tabTransition } from '../motion';
 import {
   Wrench, MemoryStick, Volume2, Sparkles, RefreshCw,
-  FolderSync, ShieldCheck, Play, Terminal, CheckCircle2,
-  AlertTriangle, Radio, Activity, ChevronRight, Cpu, Layers,
-  XCircle, Zap, Code, Shield, Check
+  FolderSync, ShieldCheck, Play, CheckCircle2,
+  Radio, Activity, Cpu, Layers,
+  Code
 } from 'lucide-react';
 import { usePlatform } from '../platform';
 import InspectorModal, { type InspectorData } from './InspectorModal';

@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Sparkles, ArrowRight, ShieldCheck, CheckCircle2, RefreshCw, Zap } from 'lucide-react';
-import { usePlatform } from '../platform';
+import { ArrowRight, RefreshCw } from 'lucide-react';
 import RepairPreviewModal, { type RepairPreviewData } from './RepairPreviewModal';
 
 interface Props {
@@ -9,7 +7,6 @@ interface Props {
 }
 
 export default function RecommendationCenter({ onNavigateTab }: Props) {
-  const { config, isMac } = usePlatform();
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [previewData, setPreviewData] = useState<RepairPreviewData | null>(null);

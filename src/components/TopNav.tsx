@@ -54,8 +54,8 @@ const specialistNavTabs = [
 ];
 
 export default function TopNav({
-  phase, activeTab, isRunning, dark, diagnosticOnly = true, onToggleDiagnosticOnly,
-  onToggleDark, onHome, onReset, onBack, onNavTab, summary, systemInfo,
+  phase: _phase, activeTab, isRunning, dark, diagnosticOnly = true, onToggleDiagnosticOnly,
+  onToggleDark, onHome, onReset: _onReset, onBack: _onBack, onNavTab, summary: _summary, systemInfo: _systemInfo,
 }: Props) {
   const { config } = usePlatform();
   const active = activeTab;

@@ -1,4 +1,4 @@
-import type { Section, SystemInfo, RunMode, LogEntry } from './types';
+import type { Section, SystemInfo } from './types';
 import { WINDOWS_PHASES, WINDOWS_CONFIG } from './platform/windows';
 
 export const SYSTEM_INFO: SystemInfo = {

@@ -29,7 +29,7 @@ import { useToast } from './components/Toast';
 import type { Section, RunMode, LogEntry, RunSummary, AppPhase, SystemInfo } from './types';
 import { PlatformProvider, usePlatform, type PlatformCapabilities } from './platform';
 import { createMaintenancePlan, executeMaintenancePlan } from './maintenance';
-import { systemApi, reportsApi, type ApiResponse } from './utils/api';
+import { systemApi, reportsApi } from './utils/api';
 
 export function buildExportReport(
   platform: string,

@@ -2,14 +2,12 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { tabTransition } from '../motion';
 import {
-  Shield, Lock, Key, CheckCircle2, ShieldCheck, RefreshCw,
-  Flame, ChevronRight, Eye, AlertTriangle, FileCode, Check, Zap
+  Shield, ShieldCheck, RefreshCw,
+  Eye, FileCode, Zap
 } from 'lucide-react';
-import { usePlatform } from '../platform';
 import InspectorModal, { type InspectorData } from './InspectorModal';
 
 export default function SecurityHub() {
-  const { config, isMac } = usePlatform();
   const [subTab, setSubTab] = useState<'posture' | 'privacy' | 'compat'>('posture');
   const [postureData, setPostureData] = useState<any>(null);
   const [privacyAuditor, setPrivacyAuditor] = useState<any>(null);

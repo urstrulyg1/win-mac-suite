@@ -3,13 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { tabTransition } from '../motion';
 import {
   HardDrive, Volume2, Camera, Monitor, Keyboard,
-  RefreshCw, CheckCircle2, AlertTriangle, ShieldCheck, HelpCircle
+  RefreshCw
 } from 'lucide-react';
-import { usePlatform } from '../platform';
 import InspectorModal, { type InspectorData } from './InspectorModal';
 
 export default function HardwarePeripheralsHub() {
-  const { config, isMac } = usePlatform();
   const [subTab, setSubTab] = useState<'disk' | 'audio' | 'camera' | 'display' | 'peripherals'>('disk');
   const [diskData, setDiskData] = useState<any>(null);
   const [audioData, setAudioData] = useState<any>(null);

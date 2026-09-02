@@ -1,5 +1,5 @@
-import React, { Component, type ReactNode, type ErrorInfo } from 'react';
-import { AlertTriangle, RefreshCw, Terminal, ShieldAlert } from 'lucide-react';
+import { Component, type ReactNode, type ErrorInfo } from 'react';
+import { RefreshCw, ShieldAlert } from 'lucide-react';
 
 interface Props {
   children: ReactNode;

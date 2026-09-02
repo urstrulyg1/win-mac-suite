@@ -4,7 +4,7 @@ import { easeOut, tabTransition, tapPress } from '../motion';
 import {
   Play, Sliders, CheckSquare, Square,
   SquareX, Timer, Search, Filter, ChevronsUpDown, ChevronsDownUp,
-  TrendingUp, Package, ShieldCheck, AlertTriangle, CheckCircle2,
+  TrendingUp, Package, ShieldCheck, CheckCircle2,
 } from 'lucide-react';
 import type { Section, RunMode, LogEntry, AppPhase, SystemInfo, RunSummary } from '../types';
 import { useElapsedTimer, formatDuration } from '../hooks/useElapsedTimer';
@@ -17,7 +17,6 @@ import FunnelBars from './charts/FunnelBars';
 import ConfirmationModal from './ConfirmationModal';
 import InspectorModal, { type InspectorData } from './InspectorModal';
 import { usePlatform } from '../platform';
-import { createMaintenancePlan } from '../maintenance';
 
 interface Props {
   phase: AppPhase;
@@ -49,7 +48,7 @@ export default function RunningDashboard({
   onModeChange, onToggleNoReboot, onToggleExportJson,
   onStart, onReset, onCancel, onClearLogs, onExport,
 }: Props) {
-  const { config, isMac, capabilities } = usePlatform();
+  const { config, isMac, capabilities: _capabilities } = usePlatform();
   const elapsed = useElapsedTimer(isRunning);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterKey>('all');
@@ -57,10 +56,6 @@ export default function RunningDashboard({
   const [collapseSignal, setCollapseSignal] = useState(0);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [inspectItem, setInspectItem] = useState<InspectorData | null>(null);
-
-  const plan = useMemo(() => {
-    return createMaintenancePlan(config, mode, capabilities);
-  }, [config, mode, capabilities]);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: sections.length, pending: 0, running: 0, done: 0, issues: 0 };
@@ -214,11 +209,11 @@ export default function RunningDashboard({
                       <div className="flex items-center gap-2 mb-0.5">
                         <span className="text-xs font-bold text-blue-400">Previous Run Completed</span>
                         <span className="pill text-[10px] bg-emerald-500/10 text-emerald-500 border-emerald-500/25">
-                          {summary.passedPhases} of {summary.totalPhases} Phases Passed
+                          {summary.passedSections} of {summary.totalSections} Phases Passed
                         </span>
                       </div>
                       <p className="text-xs text-slate-400">
-                        Reclaimed {summary.spaceReclaimed >= 1024 ? `${(summary.spaceReclaimed / 1024).toFixed(1)} GB` : `${summary.spaceReclaimed} MB`} · Updated {summary.packagesUpdated} pkgs · Phase outcomes retained below until you launch a new run.
+                        Reclaimed {summary.spaceReclaimed >= 1024 ? `${(summary.spaceReclaimed / 1024).toFixed(1)} GB` : `${summary.spaceReclaimed} MB`} · Updated {summary.totalUpdated} pkgs · Phase outcomes retained below until you launch a new run.
                       </p>
                     </div>
                   </div>
@@ -484,9 +479,7 @@ export default function RunningDashboard({
               <TerminalLog
                 logs={allLogs}
                 isRunning={isRunning}
-                overallProgress={overallProgress}
                 onClear={onClearLogs}
-                title={`${config.productName} Console`}
               />
             </div>
           </motion.div>

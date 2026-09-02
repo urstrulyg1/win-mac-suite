@@ -5,7 +5,7 @@ import type { MaintenancePlan, PlannedPhase } from './types';
 export function createMaintenancePlan(
   config: PlatformConfig,
   mode: RunMode,
-  capabilities?: PlatformCapabilities,
+  _capabilities?: PlatformCapabilities,
   selectedPhaseIds?: string[],
 ): MaintenancePlan {
   const phases: PlannedPhase[] = config.phases.map((template) => {

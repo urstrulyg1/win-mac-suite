@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { modalBackdrop, modalPanel, expandMotion } from '../motion';
-import { X, Terminal, Copy, Shield, Database, Clock, HelpCircle, CheckCircle2, AlertTriangle, Sparkles, Code2 } from 'lucide-react';
+import { X, Terminal, Copy, Shield, Database, Clock, HelpCircle, Sparkles, Code2 } from 'lucide-react';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 

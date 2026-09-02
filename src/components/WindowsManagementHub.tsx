@@ -13,25 +13,25 @@ import {
   Search, Download, Trash2, AlertTriangle, CheckCircle, XCircle,
   Info, Loader2, ChevronDown, ChevronRight, Wifi, Database,
   FileText, Code, Settings, Zap, Clock, BarChart3, Server,
-  FolderOpen, Battery, Lock, Eye, Heart, Layers, Wrench,
-  Bug, Thermometer, Printer, Globe, Key, Container,
-  ArrowUpDown, History, Camera, Sparkles, ShieldAlert,
+  FolderOpen, Battery, Eye, Heart, Layers, Wrench,
+  Bug, Printer, Globe, Key, Container,
+  History, Camera, ShieldAlert,
   Network, Radio, Flame, Gauge, MemoryStick, Volume2,
-  Bluetooth, Usb, ClipboardList, Timer, Bell, LayoutDashboard,
+  ClipboardList, Timer, Bell, LayoutDashboard,
 } from 'lucide-react';
 
 const API = '/api/windows';
 const V2 = '/api/windows/v2';
 
-async function fetchJson(url) {
+async function fetchJson(url: string): Promise<any> {
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
-  } catch (err) { return { error: err.message }; }
+  } catch (err: any) { return { error: err.message }; }
 }
 
-async function postJson(url, body) {
+async function postJson(url: string, body: any): Promise<any> {
   try {
     const res = await fetch(url, {
       method: 'POST',
@@ -39,7 +39,7 @@ async function postJson(url, body) {
       body: JSON.stringify(body),
     });
     return await res.json();
-  } catch (err) { return { error: err.message }; }
+  } catch (err: any) { return { error: err.message }; }
 }
 
 // ─── Navigation Structure ───────────────────────────────────────────────────
@@ -157,8 +157,12 @@ const NAV_GROUPS = [
 
 // ─── Shared UI Components ───────────────────────────────────────────────────
 
-function StatusBadge({ status }) {
-  const map = {
+interface StatusBadgeProps {
+  status?: string | boolean | null;
+}
+
+function StatusBadge({ status }: StatusBadgeProps) {
+  const map: Record<string, string> = {
     healthy: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
     'needs-attention': 'bg-amber-500/10 text-amber-600 border-amber-500/30',
     critical: 'bg-red-500/10 text-red-600 border-red-500/30',
@@ -175,14 +179,19 @@ function StatusBadge({ status }) {
     Succeeded: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
     Failed: 'bg-red-500/10 text-red-600 border-red-500/30',
   };
+  const key = String(status);
   return (
-    <span className={`px-2 py-0.5 rounded text-xs font-medium border inline-block ${map[status] || map[String(status)] || 'bg-gray-500/10 text-gray-500 border-gray-500/30'}`}>
-      {String(status)}
+    <span className={`px-2 py-0.5 rounded text-xs font-medium border inline-block ${map[key] || 'bg-gray-500/10 text-gray-500 border-gray-500/30'}`}>
+      {key}
     </span>
   );
 }
 
-function Spinner({ text = 'Loading...' }) {
+interface SpinnerProps {
+  text?: string;
+}
+
+function Spinner({ text = 'Loading...' }: SpinnerProps) {
   return (
     <div className="flex items-center gap-2 p-6 text-gray-500">
       <Loader2 className="w-4 h-4 animate-spin" />
@@ -191,7 +200,12 @@ function Spinner({ text = 'Loading...' }) {
   );
 }
 
-function ErrBox({ error, note }) {
+interface ErrBoxProps {
+  error?: string;
+  note?: string;
+}
+
+function ErrBox({ error, note }: ErrBoxProps) {
   return (
     <div className="p-4 rounded-lg bg-red-500/5 border border-red-500/20">
       <div className="flex items-center gap-2 text-red-600 text-sm font-medium">
@@ -202,7 +216,11 @@ function ErrBox({ error, note }) {
   );
 }
 
-function Unsupported({ feature }) {
+interface UnsupportedProps {
+  feature?: string;
+}
+
+function Unsupported({ feature = 'Feature' }: UnsupportedProps) {
   return (
     <div className="p-4 rounded-lg bg-blue-500/5 border border-blue-500/20">
       <div className="flex items-center gap-2 text-blue-600 text-sm font-medium">
@@ -215,7 +233,13 @@ function Unsupported({ feature }) {
   );
 }
 
-function SearchBar({ value, onChange, placeholder }) {
+interface SearchBarProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}
+
+function SearchBar({ value, onChange, placeholder }: SearchBarProps) {
   return (
     <div className="relative">
       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -229,7 +253,14 @@ function SearchBar({ value, onChange, placeholder }) {
   );
 }
 
-function Card({ title, icon: Icon, children, badge }) {
+interface CardProps {
+  title?: React.ReactNode;
+  icon?: React.ComponentType<{ className?: string }>;
+  children?: React.ReactNode;
+  badge?: string;
+}
+
+function Card({ title, icon: Icon, children, badge }: CardProps) {
   return (
     <div className="rounded-xl border p-4" style={{ borderColor: 'var(--color-line)' }}>
       {title && (
@@ -243,7 +274,21 @@ function Card({ title, icon: Icon, children, badge }) {
   );
 }
 
-function DataTable({ data, columns, maxRows = 100 }) {
+export interface Column {
+  key: string;
+  label: string;
+  mono?: boolean;
+  hidden?: boolean;
+  render?: (val: any, row?: any) => React.ReactNode;
+}
+
+interface DataTableProps {
+  data: any[];
+  columns: Column[];
+  maxRows?: number;
+}
+
+function DataTable({ data, columns, maxRows = 100 }: DataTableProps) {
   if (!data || data.length === 0) {
     return <div className="p-4 text-center text-sm text-gray-400">No data available</div>;
   }
@@ -274,8 +319,8 @@ function DataTable({ data, columns, maxRows = 100 }) {
   );
 }
 
-function useData(endpoint, deps = []) {
-  const [data, setData] = useState(null);
+function useData(endpoint: string, deps: any[] = []) {
+  const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const refresh = useCallback(() => {
     setLoading(true);
@@ -283,13 +328,6 @@ function useData(endpoint, deps = []) {
   }, [endpoint]);
   useEffect(() => { refresh(); }, [refresh, ...deps]);
   return { data, loading, refresh };
-}
-
-function DataWrapper({ data, loading, feature, loadingText }) {
-  if (loading) return <Spinner text={loadingText || 'Loading...'} />;
-  if (data?.platform === 'unsupported') return <Unsupported feature={feature} />;
-  if (data?.error) return <ErrBox error={data.error} />;
-  return null;
 }
 
 // ─── Dashboard Tab ──────────────────────────────────────────────────────────
@@ -328,7 +366,7 @@ function DashboardTab() {
             {ac.items.length === 0 && <span className="text-emerald-600">✅ No issues detected</span>}
           </div>
           <div className="space-y-2">
-            {ac.items.slice(0, 10).map((item, i) => (
+            {ac.items.slice(0, 10).map((item: any, i: number) => (
               <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg" style={{ background: 'var(--color-surface-2, rgba(0,0,0,0.02))' }}>
                 <div className="flex items-center gap-3">
                   <StatusBadge status={item.severity === 'critical' ? 'critical' : item.severity === 'high' ? 'needs-attention' : 'info'} />
@@ -347,7 +385,7 @@ function DashboardTab() {
       {health?.checks && (
         <Card title="Health Check" icon={Heart} badge={health.overall}>
           <div className="space-y-2">
-            {health.checks.map((c, i) => (
+            {health.checks.map((c: any, i: number) => (
               <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg" style={{ background: 'var(--color-surface-2, rgba(0,0,0,0.02))' }}>
                 <div className="flex items-center gap-3">
                   <StatusBadge status={c.status} />
@@ -390,7 +428,7 @@ function ActionCenterTab() {
         </div>
       )}
       <div className="space-y-2">
-        {(data?.items || []).map((item, i) => (
+        {(data?.items || []).map((item: any, i: number) => (
           <div key={i} className="flex items-center justify-between p-4 rounded-xl border" style={{ borderColor: 'var(--color-line)' }}>
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -411,14 +449,19 @@ function ActionCenterTab() {
   );
 }
 
-// ─── Generic Tab with endpoint ──────────────────────────────────────────────
+interface SimpleDataTabProps {
+  endpoint: string;
+  feature?: string;
+  loadingText?: string;
+  render: (data: any, refresh?: () => void) => React.ReactNode;
+}
 
-function SimpleDataTab({ endpoint, feature, loadingText, render }) {
+function SimpleDataTab({ endpoint, feature, loadingText, render }: SimpleDataTabProps) {
   const { data, loading, refresh } = useData(endpoint);
   if (loading) return <Spinner text={loadingText || 'Loading...'} />;
   if (data?.platform === 'unsupported') return <Unsupported feature={feature} />;
   if (data?.error) return <ErrBox error={data.error} />;
-  return render(data, refresh);
+  return <>{render(data, refresh)}</>;
 }
 
 // ─── Apps Installed Tab ─────────────────────────────────────────────────────
@@ -426,12 +469,12 @@ function SimpleDataTab({ endpoint, feature, loadingText, render }) {
 function AppsInstalledTab() {
   const { data, loading } = useData(`${API}/apps`);
   const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useState<any>(null);
 
   if (loading) return <Spinner text="Discovering applications..." />;
   if (data?.platform === 'unsupported') return <Unsupported feature="Applications Manager" />;
 
-  const filtered = data?.applications?.filter(a => {
+  const filtered = data?.applications?.filter((a: any) => {
     if (!search) return true;
     const q = search.toLowerCase();
     return (a.name || '').toLowerCase().includes(q) || (a.publisher || '').toLowerCase().includes(q);
@@ -466,7 +509,7 @@ function AppsInstalledTab() {
             { key: 'publisher', label: 'Publisher', hidden: true },
             { key: 'version', label: 'Version', mono: true, hidden: true },
             { key: 'packageType', label: 'Type' },
-            { key: 'sizeMB', label: 'Size', mono: true, render: (v) => v ? `${v} MB` : '—' },
+            { key: 'sizeMB', label: 'Size', mono: true, render: (v: any) => v ? `${v} MB` : '—' },
           ]}
         />
       </Card>
@@ -479,19 +522,33 @@ function AppsInstalledTab() {
 function AppsUpdatesTab() {
   const { data, loading, refresh } = useData(`${API}/apps/updates`);
   const [updating, setUpdating] = useState(false);
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState<any>(null);
 
   if (loading) return <Spinner text="Checking for updates..." />;
   if (data?.platform === 'unsupported') return <Unsupported feature="App Updates" />;
   if (!data?.wingetAvailable) return <ErrBox error="winget not installed" note={data?.note} />;
 
+  const updateAll = async () => {
+    setUpdating(true);
+    setResult(await postJson(`${API}/apps/updates/upgrade-all`, { confirmed: true }));
+    setUpdating(false);
+    refresh();
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">{data.updateCount} updates available</h3>
-        <button onClick={refresh} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
-          <RefreshCw className="w-3 h-3" /> Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          {data.updateCount > 0 && (
+            <button onClick={updateAll} disabled={updating} className="px-3 py-1 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
+              {updating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />} Update All
+            </button>
+          )}
+          <button onClick={refresh} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+            <RefreshCw className="w-3 h-3" /> Refresh
+          </button>
+        </div>
       </div>
       {result && (
         <div className={`p-3 rounded-lg text-sm ${result.success ? 'bg-emerald-500/5' : 'bg-amber-500/5'}`}>
@@ -513,7 +570,7 @@ function AppsUpdatesTab() {
   );
 }
 
-// ─── Drivers Tab ────────────────────────────────────────────────────────────
+// ─── Drivers Tab ────────────────────────────────────────────────────
 
 function DriversTab() {
   const { data, loading } = useData(`${API}/drivers`);
@@ -523,7 +580,7 @@ function DriversTab() {
   if (loading) return <Spinner text="Discovering drivers..." />;
   if (data?.platform === 'unsupported') return <Unsupported feature="Driver Manager" />;
 
-  const filtered = data?.drivers?.filter(d => {
+  const filtered = data?.drivers?.filter((d: any) => {
     if (filterProblems && !d.hasProblem) return false;
     if (!search) return true;
     const q = search.toLowerCase();
@@ -688,7 +745,7 @@ function StorageOverviewTab() {
 
   return (
     <div className="space-y-4">
-      {data?.drives?.map((d, i) => (
+      {data?.drives?.map((d: any, i: number) => (
         <Card key={i} title={`Drive ${d.letter} ${d.label ? `(${d.label})` : ''}`}>
           <div className="mb-3">
             <div className="flex justify-between text-sm mb-1">
@@ -706,7 +763,7 @@ function StorageOverviewTab() {
       {data?.tempFiles?.length > 0 && (
         <Card title="Temp Files" icon={Trash2}>
           <div className="space-y-1 text-sm">
-            {data.tempFiles.map((t, i) => (
+            {data.tempFiles.map((t: any, i: number) => (
               <div key={i} className="flex justify-between">
                 <span className="font-mono text-xs">{t.path}</span>
                 <span>{t.sizeMB} MB ({t.fileCount} files)</span>
@@ -727,14 +784,14 @@ function StorageOverviewTab() {
 
 function CleanupTab() {
   const { data, loading, refresh } = useData(`${V2}/cleanup`);
-  const [selected, setSelected] = useState(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [cleaning, setCleaning] = useState(false);
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState<any>(null);
 
   if (loading) return <Spinner text="Analyzing cleanup opportunities..." />;
   if (data?.platform === 'unsupported') return <Unsupported feature="Cleanup Advisor" />;
 
-  const toggle = (cat) => {
+  const toggle = (cat: string) => {
     setSelected(prev => { const n = new Set(prev); n.has(cat) ? n.delete(cat) : n.add(cat); return n; });
   };
 
@@ -750,7 +807,7 @@ function CleanupTab() {
     <div className="space-y-4">
       <h3 className="text-sm font-semibold">Safe to Clean</h3>
       <div className="space-y-2">
-        {(data?.safeToClean || []).map((item) => (
+        {(data?.safeToClean || []).map((item: any) => (
           <label key={item.category} className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-blue-500/5" style={{ borderColor: 'var(--color-line)' }}>
             <input type="checkbox" checked={selected.has(item.category)} onChange={() => toggle(item.category)} />
             <span className="flex-1 text-sm">{item.category}</span>
@@ -764,7 +821,7 @@ function CleanupTab() {
         <>
           <h3 className="text-sm font-semibold text-amber-600">Potentially Risky (Review First)</h3>
           <div className="space-y-2">
-            {data.potentiallyRisky.map((item) => (
+            {data.potentiallyRisky.map((item: any) => (
               <div key={item.category} className="flex items-center gap-3 p-3 rounded-lg border" style={{ borderColor: 'var(--color-line)' }}>
                 <span className="flex-1 text-sm">{item.category}</span>
                 <span className="text-sm font-mono">{item.sizeMB} MB</span>
@@ -805,7 +862,7 @@ function ConnectionsTab() {
   if (data?.platform === 'unsupported') return <Unsupported feature="Network Connections" />;
 
   const filtered = stateFilter
-    ? data?.connections?.filter(c => c.state === stateFilter) || []
+    ? data?.connections?.filter((c: any) => c.state === stateFilter) || []
     : data?.connections || [];
 
   return (
@@ -842,7 +899,7 @@ function HardwareTab() {
     <div className="space-y-4">
       {data?.cpu?.length > 0 && (
         <Card title="CPU" icon={Cpu}>
-          {data.cpu.map((c, i) => (
+          {data.cpu.map((c: any, i: number) => (
             <div key={i} className="text-sm space-y-1">
               <div className="font-medium">{c.name}</div>
               <div className="grid grid-cols-3 gap-2 text-xs text-gray-500">
@@ -858,7 +915,7 @@ function HardwareTab() {
       )}
       {data?.gpu?.length > 0 && (
         <Card title="GPU" icon={Monitor}>
-          {data.gpu.map((g, i) => (
+          {data.gpu.map((g: any, i: number) => (
             <div key={i} className="text-sm space-y-1">
               <div className="font-medium">{g.name}</div>
               <div className="text-xs text-gray-500">VRAM: {g.vramMB} MB | Driver: {g.driverVersion} | {g.resolution} @ {g.refreshRate}Hz</div>
@@ -874,7 +931,7 @@ function HardwareTab() {
             {data.ram.modules?.length > 0 && (
               <div className="mt-2">
                 <div className="text-xs text-gray-500 mb-1">Modules:</div>
-                {data.ram.modules.map((m, i) => (
+                {data.ram.modules.map((m: any, i: number) => (
                   <div key={i} className="text-xs">{m.slot}: {m.sizeGB} GB @ {m.speedMHz} MHz ({m.manufacturer})</div>
                 ))}
               </div>
@@ -912,7 +969,7 @@ function PrivacyTab() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {items.map((item) => (
+        {items.map((item: any) => (
           <Card key={item.label} title={`${item.icon} ${item.label}`}>
             <div className="text-sm">
               <StatusBadge status={item.enabled ? 'true' : 'false'} />
@@ -958,7 +1015,7 @@ function PowerTab() {
           {data?.powerPlan?.available && (
             <div className="mt-2">
               <div className="text-xs text-gray-500 mb-1">Available Plans:</div>
-              {(Array.isArray(data.powerPlan.available) ? data.powerPlan.available : []).map((p, i) => (
+              {(Array.isArray(data.powerPlan.available) ? data.powerPlan.available : []).map((p: any, i: number) => (
                 <div key={i} className="text-xs font-mono">{p}</div>
               ))}
             </div>
@@ -968,7 +1025,7 @@ function PowerTab() {
       {data?.powerPlan?.wakeArmedDevices?.length > 0 && (
         <Card title="Wake-Armed Devices">
           <div className="space-y-1 text-sm">
-            {data.powerPlan.wakeArmedDevices.map((d, i) => (
+            {data.powerPlan.wakeArmedDevices.map((d: any, i: number) => (
               <div key={i} className="text-xs">{d}</div>
             ))}
           </div>
@@ -1059,7 +1116,7 @@ function ReliabilityTab() {
           </span>
         </div>
       )}
-      {(data?.days || []).map((day) => (
+      {(data?.days || []).map((day: any) => (
         <Card key={day.date} title={day.date} badge={day.errors > 0 ? 'critical' : day.warnings > 0 ? 'needs-attention' : 'healthy'}>
           <div className="flex gap-4 text-xs mb-2">
             {day.errors > 0 && <span className="text-red-600">{day.errors} errors</span>}
@@ -1067,7 +1124,7 @@ function ReliabilityTab() {
             <span className="text-gray-500">{day.info} info</span>
           </div>
           <div className="space-y-1 max-h-40 overflow-y-auto">
-            {(day.events || []).slice(0, 5).map((e, i) => (
+            {(day.events || []).slice(0, 5).map((e: any, i: number) => (
               <div key={i} className="text-xs flex items-center gap-2">
                 <span className="text-gray-400">{e.time}</span>
                 <span className={e.severity === 'error' ? 'text-red-600' : e.severity === 'warning' ? 'text-amber-600' : 'text-gray-600'}>
@@ -1086,8 +1143,8 @@ function ReliabilityTab() {
 
 function IntegrityTab() {
   const { data, loading } = useData(`${V2}/integrity`);
-  const [running, setRunning] = useState(null);
-  const [result, setResult] = useState(null);
+  const [running, setRunning] = useState<string | null>(null);
+  const [result, setResult] = useState<any>(null);
 
   if (loading) return <Spinner text="Checking system integrity..." />;
   if (data?.platform === 'unsupported') return <Unsupported feature="SFC / DISM" />;
@@ -1097,7 +1154,7 @@ function IntegrityTab() {
     setResult(await postJson(`${V2}/integrity/sfc`, { confirmed: true }));
     setRunning(null);
   };
-  const runDISM = async (action) => {
+  const runDISM = async (action: string) => {
     setRunning(`dism-${action}`);
     setResult(await postJson(`${V2}/integrity/dism`, { confirmed: true, action }));
     setRunning(null);
@@ -1152,7 +1209,7 @@ function IntegrityTab() {
 function RecoveryTab() {
   const { data, loading } = useData(`${V2}/recovery`);
   const [creating, setCreating] = useState(false);
-  const [createResult, setCreateResult] = useState(null);
+  const [createResult, setCreateResult] = useState<any>(null);
 
   if (loading) return <Spinner text="Loading recovery data..." />;
   if (data?.platform === 'unsupported') return <Unsupported feature="Recovery Center" />;
@@ -1213,7 +1270,17 @@ function RecoveryTab() {
 
 // ─── Generic Table Tab (for simpler features) ─────────────────────────────
 
-function GenericTableTab({ endpoint, feature, loadingText, title, columns, dataKey, maxRows }) {
+interface GenericTableTabProps {
+  endpoint: string;
+  feature?: string;
+  loadingText?: string;
+  title: string;
+  columns: Column[];
+  dataKey: string;
+  maxRows?: number;
+}
+
+function GenericTableTab({ endpoint, feature, loadingText, title, columns, dataKey, maxRows }: GenericTableTabProps) {
   const { data, loading, refresh } = useData(endpoint);
   if (loading) return <Spinner text={loadingText || 'Loading...'} />;
   if (data?.platform === 'unsupported') return <Unsupported feature={feature} />;
@@ -1243,7 +1310,7 @@ export default function WindowsManagementHub() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [expandedGroups, setExpandedGroups] = useState(new Set(['overview']));
 
-  const toggleGroup = (id) => {
+  const toggleGroup = (id: string) => {
     setExpandedGroups(prev => {
       const n = new Set(prev);
       n.has(id) ? n.delete(id) : n.add(id);
@@ -1455,14 +1522,14 @@ export default function WindowsManagementHub() {
       );
       case 'wu-diagnostics': return (
         <SimpleDataTab endpoint={`${V2}/update/diagnostics`} feature="Update Diagnostics" loadingText="Running update diagnostics..."
-          render={(data) => (
+          render={(data: any) => (
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <h3 className="text-sm font-semibold">Update Diagnostics</h3>
                 <StatusBadge status={data?.allOk ? 'healthy' : 'needs-attention'} />
               </div>
               <div className="space-y-2">
-                {(data?.checks || []).map((c, i) => (
+                {(data?.checks || []).map((c: any, i: number) => (
                   <div key={i} className="flex items-center justify-between p-3 rounded-lg border" style={{ borderColor: 'var(--color-line)' }}>
                     <div className="flex items-center gap-2">
                       {c.ok ? <CheckCircle className="w-4 h-4 text-emerald-600" /> : <XCircle className="w-4 h-4 text-red-600" />}
@@ -1502,9 +1569,9 @@ export default function WindowsManagementHub() {
       );
       case 'storage-disks': return (
         <SimpleDataTab endpoint={`${V2}/storage/disks`} feature="Disk Health" loadingText="Checking disk health..."
-          render={(data) => (
+          render={(data: any) => (
             <div className="space-y-4">
-              {(data?.disks || []).map((d) => (
+              {(data?.disks || []).map((d: any) => (
                 <Card key={d.id} title={d.name} badge={d.healthStatus === 'Healthy' ? 'healthy' : 'needs-attention'}>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>Model: {d.model || 'N/A'}</div>
@@ -1528,7 +1595,7 @@ export default function WindowsManagementHub() {
           title="Network Adapters" dataKey="adapters"
           columns={[
             { key: 'name', label: 'Adapter' },
-            { key: 'status', label: 'Status', render: (v) => <StatusBadge status={v} /> },
+            { key: 'status', label: 'Status', render: (v: any) => <StatusBadge status={v} /> },
             { key: 'ipv4', label: 'IPv4', mono: true },
             { key: 'linkSpeed', label: 'Speed', hidden: true },
             { key: 'gateway', label: 'Gateway', mono: true, hidden: true },
@@ -1550,7 +1617,7 @@ export default function WindowsManagementHub() {
       );
       case 'network-wifi': return (
         <SimpleDataTab endpoint={`${V2}/network/wifi`} feature="WiFi Analyzer" loadingText="Scanning WiFi networks..."
-          render={(data) => (
+          render={(data: any) => (
             <div className="space-y-4">
               {data.currentSSID && <div className="text-sm">Connected: <strong>{data.currentSSID}</strong></div>}
               <Card>
@@ -1568,11 +1635,11 @@ export default function WindowsManagementHub() {
       );
       case 'network-dns': return (
         <SimpleDataTab endpoint={`${V2}/network/dns`} feature="DNS Diagnostics" loadingText="Running DNS diagnostics..."
-          render={(data) => (
+          render={(data: any) => (
             <div className="space-y-4">
               {data.configuredDNS?.length > 0 && (
                 <Card title="Configured DNS">
-                  {data.configuredDNS.map((d, i) => (
+                  {data.configuredDNS.map((d: any, i: number) => (
                     <div key={i} className="text-sm">{d.interface}: {(d.servers || []).join(', ')}</div>
                   ))}
                 </Card>
@@ -1581,9 +1648,9 @@ export default function WindowsManagementHub() {
                 <Card title="Resolution Tests">
                   <DataTable data={data.resolutionTests} columns={[
                     { key: 'domain', label: 'Domain' },
-                    { key: 'success', label: 'Success', render: (v) => v ? '✅' : '❌' },
+                    { key: 'success', label: 'Success', render: (v: any) => v ? '✅' : '❌' },
                     { key: 'timeMs', label: 'Time (ms)', mono: true },
-                    { key: 'addresses', label: 'Addresses', render: (v) => Array.isArray(v) ? v.join(', ') : '—', hidden: true },
+                    { key: 'addresses', label: 'Addresses', render: (v: any) => Array.isArray(v) ? v.join(', ') : '—', hidden: true },
                   ]} />
                 </Card>
               )}
@@ -1614,7 +1681,7 @@ export default function WindowsManagementHub() {
       // Diagnostics
       case 'events': return (
         <SimpleDataTab endpoint={`${API}/events`} feature="Event Analyzer" loadingText="Analyzing event logs..."
-          render={(data) => (
+          render={(data: any) => (
             <div className="space-y-4">
               {data.summary && (
                 <div className="flex gap-4 text-sm">
@@ -1651,7 +1718,7 @@ export default function WindowsManagementHub() {
       case 'bsod': return <BSODTab />;
       case 'app-crashes': return (
         <SimpleDataTab endpoint={`${V2}/crashes/apps`} feature="App Crashes" loadingText="Analyzing application crashes..."
-          render={(data) => (
+          render={(data: any) => (
             <div className="space-y-4">
               <div className="text-sm">Total crashes: {data?.totalCrashes || 0} | Applications affected: {data?.applications?.length || 0}</div>
               <Card>
@@ -1671,7 +1738,7 @@ export default function WindowsManagementHub() {
       case 'hardware-overview': return <HardwareTab />;
       case 'hardware-printers': return (
         <SimpleDataTab endpoint={`${V2}/printers`} feature="Printer Center" loadingText="Loading printers..."
-          render={(data) => (
+          render={(data: any) => (
             <div className="space-y-4">
               <div className="text-sm">Spooler: {data?.spooler?.status === 'Running' ? '✅ Running' : '❌ ' + (data?.spooler?.status || 'Unknown')}</div>
               <Card>
@@ -1679,7 +1746,7 @@ export default function WindowsManagementHub() {
                   { key: 'name', label: 'Printer' },
                   { key: 'driver', label: 'Driver' },
                   { key: 'port', label: 'Port', mono: true },
-                  { key: 'shared', label: 'Shared', render: (v) => v ? '✅' : '—' },
+                  { key: 'shared', label: 'Shared', render: (v: any) => v ? '✅' : '—' },
                 ]} />
               </Card>
             </div>
@@ -1696,15 +1763,15 @@ export default function WindowsManagementHub() {
           title="Developer Environment" dataKey="tools"
           columns={[
             { key: 'name', label: 'Tool' },
-            { key: 'installed', label: 'Installed', render: (v) => v ? '✅' : '❌' },
+            { key: 'installed', label: 'Installed', render: (v: any) => v ? '✅' : '❌' },
             { key: 'version', label: 'Version', mono: true },
-            { key: 'healthy', label: 'Health', render: (v) => v ? '✅' : '—' },
+            { key: 'healthy', label: 'Health', render: (v: any) => v ? '✅' : '—' },
           ]}
         />
       );
       case 'dev-environment': return (
         <SimpleDataTab endpoint={`${V2}/environment`} feature="Environment Health" loadingText="Analyzing environment..."
-          render={(data) => (
+          render={(data: any) => (
             <div className="space-y-4">
               <div className="flex gap-4 text-sm">
                 <span>PATH entries: {data?.pathEntries || 0}</span>
@@ -1713,17 +1780,17 @@ export default function WindowsManagementHub() {
               <Card title="PATH Analysis">
                 <DataTable data={data?.path || []} columns={[
                   { key: 'path', label: 'Path', mono: true },
-                  { key: 'exists', label: 'Exists', render: (v) => v ? '✅' : '❌' },
+                  { key: 'exists', label: 'Exists', render: (v: any) => v ? '✅' : '❌' },
                 ]} maxRows={50} />
               </Card>
               {data?.envVars && Object.keys(data.envVars).length > 0 && (
                 <Card title="Environment Variables">
                   <div className="space-y-1 text-sm">
-                    {Object.entries(data.envVars).map(([k, v]) => (
+                    {Object.entries(data.envVars).map(([k, v]: [string, any]) => (
                       <div key={k} className="flex items-center gap-2">
                         <code className="text-xs font-bold">{k}</code>
-                        <span className="text-xs font-mono text-gray-500">{v.value}</span>
-                        {v.exists ? '✅' : '❌'}
+                        <span className="text-xs font-mono text-gray-500">{v?.value}</span>
+                        {v?.exists ? '✅' : '❌'}
                       </div>
                     ))}
                   </div>

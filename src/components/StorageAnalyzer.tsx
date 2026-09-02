@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import { HardDrive, Trash2, ArrowRight, Sparkles, CheckCircle2, ChevronRight } from 'lucide-react';
 import type { SystemInfo, RunMode } from '../types';
 import { usePlatform } from '../platform';
@@ -11,7 +10,7 @@ interface Props {
 }
 
 export default function StorageAnalyzer({ systemInfo, onClean }: Props) {
-  const { config, isMac } = usePlatform();
+  const { isMac } = usePlatform();
   const [inspectItem, setInspectItem] = useState<InspectorData | null>(null);
 
   const totalDisk = systemInfo.totalDiskGB || 500;

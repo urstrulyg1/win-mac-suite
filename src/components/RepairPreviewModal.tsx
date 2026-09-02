@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, X, Check, AlertTriangle, ArrowRight, Wrench } from 'lucide-react';
+import { ShieldCheck, X, AlertTriangle, ArrowRight, Wrench } from 'lucide-react';
 import { modalPanel } from '../motion';
 
 export interface RepairPreviewData {

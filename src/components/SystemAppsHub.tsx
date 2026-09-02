@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { tabTransition } from '../motion';
 import {
   Sparkles, Layers, Package, Cpu, RefreshCw,
-  CheckCircle2, HardDrive, ShieldCheck, ChevronRight, Terminal,
+  ChevronRight
 } from 'lucide-react';
 import { usePlatform } from '../platform';
 import StartupManager from './StartupManager';
@@ -12,7 +12,7 @@ import InspectorModal, { type InspectorData } from './InspectorModal';
 type AppTab = 'startup' | 'services' | 'packages' | 'hardware';
 
 export default function SystemAppsHub() {
-  const { config, isMac } = usePlatform();
+  const { isMac } = usePlatform();
   const [subTab, setSubTab] = useState<AppTab>('startup');
   const [services, setServices] = useState<any[]>([]);
   const [packageInfo, setPackageInfo] = useState<any>(null);

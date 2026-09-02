@@ -2,10 +2,9 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { tabTransition } from '../motion';
 import {
-  Activity, Cpu, HardDrive, Shield,
-  Wifi, Battery, FileText, RefreshCw,
-  CheckCircle2, Wrench, Zap, ArrowRight, ZapOff, ChevronRight,
-  Search, Moon, ShieldAlert, Sparkles, AlertTriangle
+  Activity, Cpu,
+  Battery, FileText, RefreshCw,
+  Search, Moon
 } from 'lucide-react';
 import type { SystemInfo, RunMode } from '../types';
 import { usePlatform } from '../platform';
@@ -20,12 +19,10 @@ interface Props {
 
 type DiagTab = 'matrix' | 'battery' | 'processes' | 'events' | 'spotlight';
 
-export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
-  const { config, isMac } = usePlatform();
+export default function DiagnosticsHub({ systemInfo, onStartAction: _onStartAction }: Props) {
+  const { isMac } = usePlatform();
   const [activeSubTab, setActiveSubTab] = useState<DiagTab>('matrix');
   const [healthScore, setHealthScore] = useState(96);
-  const [healthMetrics, setHealthMetrics] = useState<any>(null);
-  const [recommendations, setRecommendations] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
   const [batteryIntelligence, setBatteryIntelligence] = useState<any>(null);
   const [spotlightInfo, setSpotlightInfo] = useState<any>(null);
@@ -47,8 +44,6 @@ export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
       if (hRes && hRes.ok) {
         const data = await hRes.json();
         setHealthScore(data.score || 96);
-        setHealthMetrics(data.metrics || null);
-        setRecommendations(data.recommendations || []);
       }
       if (eRes && eRes.ok) {
         const eData = await eRes.json();
@@ -139,7 +134,7 @@ export default function DiagnosticsHub({ systemInfo, onStartAction }: Props) {
       <AnimatePresence mode="wait">
         {activeSubTab === 'matrix' && (
           <motion.div key="matrix" {...tabTransition} className="space-y-6">
-            <HealthScore score={healthScore} onStartAction={onStartAction} />
+            <HealthScore score={healthScore} />
           </motion.div>
         )}
 

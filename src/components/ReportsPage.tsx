@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { tabTransition, modalPanel } from '../motion';
+import { tabTransition } from '../motion';
 import {
-  FileText, Download, RotateCcw, CheckCircle2, AlertTriangle,
-  History, Sparkles, HardDrive, Shield, Globe, Terminal, ArrowRight,
-  Database, Plus, Trash2, Eye, X, Check, RefreshCw, Layers, Cpu,
-  Copy, CheckCheck, Thermometer, Activity, Wifi, Smartphone, Server,
+  Download, RotateCcw,
+  History, Globe,
+  Database, Plus, Trash2, Eye, RefreshCw,
+  Copy, CheckCheck,
   ArrowLeft, Printer, Code2, ChevronDown, ChevronUp
 } from 'lucide-react';
 import type { RunSummary, RunMode } from '../types';
@@ -17,7 +17,7 @@ interface Props {
   onExport?: () => void;
 }
 
-export default function ReportsPage({ onStartNew }: Props) {
+export default function ReportsPage({ onStartNew: _onStartNew }: Props) {
   const { config, isMac } = usePlatform();
   const [subTab, setSubTab] = useState<'reports' | 'manifest' | 'audit'>('reports');
   const [savedReports, setSavedReports] = useState<any[]>([]);
@@ -28,8 +28,6 @@ export default function ReportsPage({ onStartNew }: Props) {
   const [generating, setGenerating] = useState(false);
   const [undoMsg, setUndoMsg] = useState<string | null>(null);
   const [selectedReport, setSelectedReport] = useState<any | null>(null);
-  const [reportViewMode, setReportViewMode] = useState<'overview' | 'raw'>('overview');
-  const [copiedJson, setCopiedJson] = useState(false);
 
   const fetchReports = async () => {
     setLoading(true);
@@ -102,8 +100,6 @@ export default function ReportsPage({ onStartNew }: Props) {
       if (res.ok) {
         const data = await res.json();
         setSelectedReport(data);
-        setReportViewMode('overview');
-        setCopiedJson(false);
       }
     } catch {}
   };
@@ -139,8 +135,6 @@ function buildRichHtmlReport(config: any, data: any): string {
   const secChecks = data.securityPosture?.checks || data.sec?.checks || [];
   const runtimes = data.developerDoctor?.runtimes || data.dev?.runtimes || [];
   const battery = data.batteryIntelligence || data.batt || {};
-  const perf = data.performanceDiagnosis || data.perf || {};
-  const net = data.networkDoctor || data.net || {};
 
   return `<!DOCTYPE html>
 <html lang="en">

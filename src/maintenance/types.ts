@@ -1,5 +1,5 @@
-import type { RunMode, Section, LogEntry, RunSummary } from '../types';
-import type { RiskLevel, PlatformType, PlatformCapabilities, MaintenancePhaseTemplate } from '../platform/types';
+import type { RunMode, Section, LogEntry } from '../types';
+import type { RiskLevel, PlatformType, MaintenancePhaseTemplate } from '../platform/types';
 
 export interface PlannedPhase {
   template: MaintenancePhaseTemplate;

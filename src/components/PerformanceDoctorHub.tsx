@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Cpu, Activity, Flame, Zap, ZapOff, RefreshCw, CheckCircle2,
-  AlertTriangle, ArrowRight, MemoryStick, HardDrive, Layers, Sparkles, ChevronRight
+  Cpu, Activity, Flame, RefreshCw,
+  MemoryStick, ChevronRight
 } from 'lucide-react';
-import { usePlatform } from '../platform';
 import InspectorModal, { type InspectorData } from './InspectorModal';
 
 interface Props {
@@ -12,7 +10,6 @@ interface Props {
 }
 
 export default function PerformanceDoctorHub({ onNavigateTab }: Props) {
-  const { config, isMac } = usePlatform();
   const [perfDiagnosis, setPerfDiagnosis] = useState<any>(null);
   const [thermalDeep, setThermalDeep] = useState<any>(null);
   const [loading, setLoading] = useState(false);

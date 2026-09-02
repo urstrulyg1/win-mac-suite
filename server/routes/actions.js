@@ -948,6 +948,27 @@ router.post('/purge-ram', validateRequest('POST /api/actions/purge-ram'), async 
   });
 });
 
+// ── POST /api/actions/flush-dns ─────────────────────────────────────────────
+router.post('/flush-dns', async (_req, res) => {
+  const isMacOs = process.platform === 'darwin';
+  const commandId = isMacOs ? 'mac.flushdns' : 'win.flushdns';
+  try {
+    const result = await executeAllowlistedCommand(commandId, {});
+    const audit = logAuditEntry({
+      operation: isMacOs ? 'Flush DNS Cache (dscacheutil)' : 'Flush DNS Resolver Cache (ipconfig /flushdns)',
+      commandId,
+      risk: 'safe',
+      permissionLevel: 'Standard User',
+      result: result.success ? 'success' : 'warning',
+      durationSeconds: result.durationSeconds || 0,
+      changesMade: ['DNS resolver cache flushed successfully.'],
+    });
+    res.json({ success: true, result, audit });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── POST /api/actions/restart-audio ─────────────────────────────────────────
 router.post('/restart-audio', async (_req, res) => {
   const isMacOs = process.platform === 'darwin';

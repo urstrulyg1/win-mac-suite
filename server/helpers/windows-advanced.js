@@ -548,12 +548,12 @@ export async function getSecurityCenter() {
     try {
       $def = Get-MpComputerStatus -ErrorAction Stop
       $result.defender = @{
-        enabled = $def.AntivirusEnabled
-        realtimeProtection = $def.RealTimeProtectionEnabled
+        enabled = [bool]$def.AntivirusEnabled
+        realtimeProtection = [bool]$def.RealTimeProtectionEnabled
         signatureVersion = $def.AntivirusSignatureVersion
-        signatureUpdated = $def.AntivirusSignatureUpdateDateTime.ToString('yyyy-MM-dd HH:mm')
-        lastFullScan = $def.FullScanEndTime.ToString('yyyy-MM-dd HH:mm')
-        lastQuickScan = $def.QuickScanEndTime.ToString('yyyy-MM-dd HH:mm')
+        signatureUpdated = if ($def.AntivirusSignatureUpdateDateTime) { $def.AntivirusSignatureUpdateDateTime.ToString('yyyy-MM-dd HH:mm') } else { $null }
+        lastFullScan = if ($def.FullScanEndTime) { $def.FullScanEndTime.ToString('yyyy-MM-dd HH:mm') } else { $null }
+        lastQuickScan = if ($def.QuickScanEndTime) { $def.QuickScanEndTime.ToString('yyyy-MM-dd HH:mm') } else { $null }
         threatCount = ($def.ThreatResources | Measure-Object).Count
       }
     } catch {
@@ -564,9 +564,9 @@ export async function getSecurityCenter() {
     try {
       $fw = Get-NetFirewallProfile -ErrorAction Stop
       $result.firewall = @{
-        domain = ($fw | Where-Object Name -eq 'Domain').Enabled
-        private = ($fw | Where-Object Name -eq 'Private').Enabled
-        public = ($fw | Where-Object Name -eq 'Public').Enabled
+        domain = [bool](($fw | Where-Object Name -eq 'Domain').Enabled)
+        private = [bool](($fw | Where-Object Name -eq 'Private').Enabled)
+        public = [bool](($fw | Where-Object Name -eq 'Public').Enabled)
       }
     } catch {
       $result.firewall = @{ error = $_.Exception.Message }
@@ -576,9 +576,9 @@ export async function getSecurityCenter() {
     try {
       $bl = Get-BitLockerVolume -MountPoint 'C:' -ErrorAction Stop
       $result.bitlocker = @{
-        status = $bl.ProtectionStatus.ToString()
+        status = if ($bl.ProtectionStatus) { $bl.ProtectionStatus.ToString() } else { 'Off' }
         encryption = $bl.EncryptionPercentage
-        method = $bl.EncryptionMethod.ToString()
+        method = if ($bl.EncryptionMethod) { $bl.EncryptionMethod.ToString() } else { 'None' }
       }
     } catch {
       $result.bitlocker = @{ error = $_.Exception.Message }

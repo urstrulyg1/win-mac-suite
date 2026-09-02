@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { modalPanel, tabTransition } from '../motion';
 import {
-  ShieldCheck, Trash2, AlertTriangle, CheckCircle2, RotateCcw,
-  Sparkles, FileText, Check, X, ArrowRight, HardDrive, RefreshCw
+  ShieldCheck, Trash2, CheckCircle2,
+  Sparkles, X, RefreshCw
 } from 'lucide-react';
 
 interface Props {

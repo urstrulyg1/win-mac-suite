@@ -242,8 +242,23 @@ router.get('/privacy', async (_req, res) => {
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+router.get('/security/privacy', async (_req, res) => {
+  try { res.json(await getPrivacyAudit()); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/security/defender', async (_req, res) => {
+  try { res.json(await getSecurityCenter()); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // WSL
 router.get('/wsl', async (_req, res) => {
+  try { res.json(await getWSLStatus()); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/developer/wsl', async (_req, res) => {
   try { res.json(await getWSLStatus()); }
   catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -254,8 +269,18 @@ router.get('/docker', async (_req, res) => {
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+router.get('/developer/docker', async (_req, res) => {
+  try { res.json(await getDockerHealth()); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Environment
 router.get('/environment', async (_req, res) => {
+  try { res.json(await getEnvironmentHealth()); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/developer/environment', async (_req, res) => {
   try { res.json(await getEnvironmentHealth()); }
   catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -557,7 +582,15 @@ router.post('/integrity/sfc', async (req, res) => {
 
     res.json({ success: true, output, duration, noViolations, corruptFound, timestamp: new Date().toISOString() });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    const errText = (err.stdout || '') + (err.stderr || '') + (err.message || '');
+    const isElevated = errText.toLowerCase().includes('elevat') || errText.toLowerCase().includes('administrator') || errText.toLowerCase().includes('permission') || errText.toLowerCase().includes('740');
+    res.json({
+      success: false,
+      error: isElevated ? 'Elevated Administrator privileges are required to run SFC.' : err.message,
+      output: errText.slice(0, 1000),
+      requiresAdmin: true,
+      timestamp: new Date().toISOString(),
+    });
   }
 });
 
@@ -600,7 +633,16 @@ router.post('/integrity/dism', async (req, res) => {
 
     res.json({ success: true, action, output, duration, timestamp: new Date().toISOString() });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    const errText = (err.stdout || '') + (err.stderr || '') + (err.message || '');
+    const isElevated = errText.toLowerCase().includes('elevat') || errText.toLowerCase().includes('administrator') || errText.toLowerCase().includes('permission') || errText.toLowerCase().includes('740');
+    res.json({
+      success: false,
+      action,
+      error: isElevated ? 'Elevated Administrator privileges are required to run DISM.' : err.message,
+      output: errText.slice(0, 1000),
+      requiresAdmin: true,
+      timestamp: new Date().toISOString(),
+    });
   }
 });
 

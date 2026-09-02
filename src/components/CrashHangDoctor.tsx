@@ -2,14 +2,12 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { tabTransition } from '../motion';
 import {
-  AlertTriangle, ShieldAlert, FileText, CheckCircle2,
-  RefreshCw, ChevronRight, Activity, HelpCircle, Flame, Sparkles
+  AlertTriangle, ShieldAlert,
+  RefreshCw, HelpCircle, Flame
 } from 'lucide-react';
-import { usePlatform } from '../platform';
 import InspectorModal, { type InspectorData } from './InspectorModal';
 
 export default function CrashHangDoctor() {
-  const { config, isMac } = usePlatform();
   const [crashData, setCrashData] = useState<any>(null);
   const [stabilityData, setStabilityData] = useState<any>(null);
   const [subTab, setSubTab] = useState<'crashes' | 'stability'>('crashes');

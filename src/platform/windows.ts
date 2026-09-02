@@ -1,5 +1,4 @@
 import type { PlatformConfig, MaintenancePhaseTemplate, QuickAction } from './types';
-import type { LogEntry, RunMode } from '../types';
 
 export const WINDOWS_PHASES: MaintenancePhaseTemplate[] = [
   {

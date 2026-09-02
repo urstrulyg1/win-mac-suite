@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { easeOut, expandMotion } from '../motion';
+import { easeOut } from '../motion';
 import {
   Package, ShieldCheck, Download, Store, Cpu, HardDrive,
   FileCheck, FolderSync, Trash, Gauge, ChevronDown,
   CheckCircle2, AlertTriangle, XCircle, Clock, Loader2, SkipForward,
-  Info, ExternalLink, Sparkles
+  Info, Sparkles
 } from 'lucide-react';
 import type { Section, SectionStatus } from '../types';
 import InspectorModal, { type InspectorData } from './InspectorModal';

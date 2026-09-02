@@ -70,6 +70,12 @@ const HOME = os.homedir();
 /** A directory that is genuinely safe to reclaim, used as the positive control. */
 const SAFE_CACHE = path.join(HOME, 'Library', 'Caches', 'com.winsuite.pathsec-test');
 
+const isWin = os.platform() === 'win32';
+function createSymlink(target, linkPath) {
+  const type = isWin ? 'junction' : 'dir';
+  fs.symlinkSync(target, linkPath, type);
+}
+
 function cleanup() {
   try { fs.rmSync(SANDBOX, { recursive: true, force: true }); } catch { /* best effort */ }
   try { fs.rmSync(SAFE_CACHE, { recursive: true, force: true }); } catch { /* best effort */ }
@@ -104,7 +110,7 @@ export async function runPathSecurityTests() {
 
   test('#15 a symlink pointing at a protected tree is classified by its TARGET', () => {
     const link = path.join(SANDBOX, 'safe-link');
-    fs.symlinkSync('/System', link);
+    createSymlink('/System', link);
     const d = classifyPathDetailed(link);
     assert.strictEqual(d.symlinkDetected, true, 'the symlink must be noticed');
     assert.strictEqual(
@@ -117,7 +123,7 @@ export async function runPathSecurityTests() {
     // /System is absent on Linux, so this link cannot be stat'd. Treating that as
     // "path does not exist, therefore harmless" was a real bug found by this test.
     const link = path.join(SANDBOX, 'dangling-link');
-    fs.symlinkSync('/System/Library/CoreServices/NonExistentProtectedDirectory', link);
+    createSymlink('/System/Library/CoreServices/NonExistentProtectedDirectory', link);
     const d = classifyPathDetailed(link);
     assert.strictEqual(d.danglingSymlink, true, 'must be reported as dangling, not as absent');
     assert.strictEqual(d.classification, PATH_CLASSIFICATION.SYSTEM_PROTECTED);
@@ -130,7 +136,7 @@ export async function runPathSecurityTests() {
     fs.mkdirSync(SAFE_CACHE, { recursive: true });
     const escape = path.join(SAFE_CACHE, 'escape');
     try { fs.unlinkSync(escape); } catch { /* not present */ }
-    fs.symlinkSync('/System', escape);
+    createSymlink('/System', escape);
     const d = classifyPathDetailed(escape);
     assert.strictEqual(d.symlinkEscape, true, 'a relocating link must be flagged as an escape');
     assert.strictEqual(
@@ -143,7 +149,7 @@ export async function runPathSecurityTests() {
 
   test('#15 most-restrictive-wins: lexically safe + physically protected ⇒ blocked', () => {
     const link = path.join(SANDBOX, 'cache-shaped-link');
-    fs.symlinkSync('/System', link);
+    createSymlink('/System', link);
     const d = classifyPathDetailed(link);
     assert.notStrictEqual(
       d.physicalClassification, PATH_CLASSIFICATION.SAFE_RECLAIMABLE,
@@ -217,7 +223,7 @@ export async function runPathSecurityTests() {
     const result = validateDeletionTarget(target, { allowNonExistent: false });
     try {
       fs.rmSync(target, { recursive: true, force: true });
-      fs.symlinkSync('/System', target);
+      createSymlink('/System', target);
       assert.throws(() => assertUnchanged(result.guard), /TOCTOU|unlinked|changed|nlink/i);
     } finally {
       releaseGuard(result.guard);

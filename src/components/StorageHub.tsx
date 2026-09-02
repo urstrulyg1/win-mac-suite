@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { tabTransition } from '../motion';
 import {
-  HardDrive, Trash2, Folder, FileCode, CheckCircle2, ChevronRight,
-  Camera, Sparkles, HelpCircle, Layers, Smartphone, Disc,
-  AlertTriangle, ShieldCheck, XCircle, ArrowRight
+  HardDrive, Trash2, ChevronRight,
+  Camera, Sparkles, Layers, Smartphone, Disc
 } from 'lucide-react';
 import type { SystemInfo, RunMode } from '../types';
 import { usePlatform } from '../platform';
@@ -20,7 +19,7 @@ interface Props {
 type StorageTab = 'analyzer' | 'systemData' | 'apps' | 'leftovers' | 'backups' | 'snapshots' | 'drives';
 
 export default function StorageHub({ systemInfo, onClean }: Props) {
-  const { config, isMac } = usePlatform();
+  const { isMac } = usePlatform();
   const [subTab, setSubTab] = useState<StorageTab>('analyzer');
   const [systemDataInfo, setSystemDataInfo] = useState<any>(null);
   const [installedApps, setInstalledApps] = useState<any[]>([]);

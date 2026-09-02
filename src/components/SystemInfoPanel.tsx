@@ -35,7 +35,7 @@ function Bar({
   );
 }
 
-export default function SystemInfoPanel({ systemInfo, selectedMode, live = false }: Props) {
+export default function SystemInfoPanel({ systemInfo, selectedMode: _selectedMode, live = false }: Props) {
   const { config, isMac } = usePlatform();
   const [inspectItem, setInspectItem] = useState<InspectorData | null>(null);
 

@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { easeOut, hoverLift, tapPress, springSoft } from '../motion';
+import { easeOut, hoverLift, tapPress } from '../motion';
 import { Shield, Zap, Flame, Search, Trash2, Layers, Check } from 'lucide-react';
 import type { RunMode } from '../types';
 import { usePlatform } from '../platform';

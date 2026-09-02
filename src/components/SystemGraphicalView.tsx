@@ -10,7 +10,7 @@ import InspectorModal, { InspectorData } from './InspectorModal';
 
 interface Props {
   onNavigateTab?: (tab: string) => void;
-  onStartAction?: (mode: string) => void;
+  onStartAction?: (mode?: any) => void;
 }
 
 type NodeId = 'kernel' | 'cpu' | 'memory' | 'storage' | 'battery' | 'security' | 'network';
@@ -559,10 +559,10 @@ export default function SystemGraphicalView({ onNavigateTab, onStartAction }: Pr
               </p>
 
               <div className="rounded-2xl border overflow-hidden divide-y text-xs" style={{ borderColor: 'var(--color-line)' }}>
-                {selectedNode.inspect.details.map((d) => (
+                {selectedNode.inspect.details.map((d: any) => (
                   <div key={d.label} className="flex items-start justify-between gap-3 px-3 py-2.5" style={{ backgroundColor: 'var(--color-surface-2)' }}>
                     <span className="font-semibold shrink-0" style={{ color: 'var(--color-ink-3)' }}>{d.label}</span>
-                    <span className={`font-mono font-bold text-right break-all ${d.isCode ? 'text-blue-500' : ''}`} style={{ color: d.isCode ? undefined : 'var(--color-ink)' }}>
+                    <span className={`font-mono font-bold text-right break-all ${(d as any).isCode ? 'text-blue-500' : ''}`} style={{ color: (d as any).isCode ? undefined : 'var(--color-ink)' }}>
                       {d.value}
                     </span>
                   </div>

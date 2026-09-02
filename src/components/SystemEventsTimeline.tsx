@@ -2,15 +2,11 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { tabTransition } from '../motion';
 import {
-  Clock, Activity, AlertTriangle, ShieldCheck, HardDrive,
-  Cpu, Wifi, Moon, Sparkles, MemoryStick, Layers, RefreshCw,
-  ChevronRight, ArrowRight, TrendingUp, HelpCircle, CheckCircle2
+  Clock, Activity, ShieldCheck, RefreshCw, TrendingUp
 } from 'lucide-react';
-import { usePlatform } from '../platform';
 import InspectorModal, { type InspectorData } from './InspectorModal';
 
 export default function SystemEventsTimeline() {
-  const { config, isMac } = usePlatform();
   const [subTab, setSubTab] = useState<'timeline' | 'incidents' | 'baseline' | 'forecast'>('incidents');
   const [timelineData, setTimelineData] = useState<any>(null);
   const [incidentData, setIncidentData] = useState<any>(null);

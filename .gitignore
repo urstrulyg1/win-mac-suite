@@ -33,3 +33,4 @@ WinSuite/
 *.db
 *.db-wal
 *.db-shm
+scratch/

@@ -2,14 +2,14 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { tabTransition } from '../motion';
 import {
-  Wifi, Radio, RefreshCw, CheckCircle2, AlertTriangle,
-  Bluetooth, Share2, Globe, Shield, ArrowRight, Zap, Check
+  Wifi, RefreshCw,
+  Bluetooth, Share2, Globe, Zap, Check
 } from 'lucide-react';
 import { usePlatform } from '../platform';
 import InspectorModal, { type InspectorData } from './InspectorModal';
 
 export default function NetworkDoctorHub() {
-  const { config, isMac } = usePlatform();
+  const { isMac } = usePlatform();
   const [subTab, setSubTab] = useState<'doctor' | 'wifi' | 'bluetooth'>('doctor');
   const [doctorData, setDoctorData] = useState<any>(null);
   const [btData, setBtData] = useState<any>(null);

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { easeOut, springSoft } from '../motion';
 import {
   CheckCircle2, AlertTriangle, Clock, HardDrive,
-  ArrowUpCircle, Wrench, RotateCcw, ChevronRight, Sparkles, Layers,
+  ArrowUpCircle, Wrench, RotateCcw, ChevronRight, Layers,
   Download, Ban,
 } from 'lucide-react';
 import type { RunSummary } from '../types';

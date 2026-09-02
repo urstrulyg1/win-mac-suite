@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { Activity, Search, RefreshCw, Cpu, MemoryStick, Filter, ShieldAlert, ChevronRight } from 'lucide-react';
+import { Activity, Search, RefreshCw, Cpu, MemoryStick, ShieldAlert } from 'lucide-react';
 import type { SystemProcess } from '../platform/types';
 import InspectorModal, { type InspectorData } from './InspectorModal';
 

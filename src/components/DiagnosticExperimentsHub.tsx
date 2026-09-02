@@ -1,11 +1,9 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { tabTransition } from '../motion';
-import { FlaskConical, Play, CheckCircle2, ArrowRight, Activity, RefreshCw } from 'lucide-react';
-import { usePlatform } from '../platform';
+import { Play } from 'lucide-react';
 
 export default function DiagnosticExperimentsHub() {
-  const { config, isMac } = usePlatform();
   const [runningExp, setRunningExp] = useState(false);
   const [experimentResult, setExperimentResult] = useState<any>(null);
 

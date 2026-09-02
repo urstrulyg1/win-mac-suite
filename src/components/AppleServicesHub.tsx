@@ -3,13 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { tabTransition } from '../motion';
 import {
   Sparkles, Clock, Cloud, ShieldCheck, RefreshCw,
-  HardDrive, AlertTriangle, CheckCircle2, ChevronRight, Laptop, ArrowRight
+  Laptop
 } from 'lucide-react';
-import { usePlatform } from '../platform';
 import InspectorModal, { type InspectorData } from './InspectorModal';
 
 export default function AppleServicesHub() {
-  const { config, isMac } = usePlatform();
   const [subTab, setSubTab] = useState<'update' | 'timemachine' | 'icloud' | 'services'>('update');
   const [updateData, setUpdateData] = useState<any>(null);
   const [tmData, setTmData] = useState<any>(null);
