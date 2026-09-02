@@ -150,9 +150,7 @@ router.get('/dns-diagnostics', async (_req, res) => {
     if (isMac) {
       res.json(await getMacDnsDiagnostics());
     } else {
-      // Windows: covered in detail by /api/windows/v2/network/dns
-      const { default: dns } = await import('dns');
-      const { promisify } = await import('util');
+      // Windows: use the top-level dns import (no re-import needed)
       const resolve = promisify(dns.resolve4);
       const testHosts = ['microsoft.com', 'cloudflare.com', 'google.com'];
       const results = [];

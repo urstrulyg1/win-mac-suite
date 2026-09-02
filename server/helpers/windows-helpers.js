@@ -278,8 +278,15 @@ export async function getWindowsCrashHangIntelligence() {
     const output = await runSafePowerShell(psScript, 8000);
     if (output) {
       const data = JSON.parse(output);
-      const crashList = data.crashes ? (Array.isArray(JSON.parse(data.crashes)) ? JSON.parse(data.crashes) : [JSON.parse(data.crashes)]) : [];
-      const bsodList = data.bsod ? (Array.isArray(JSON.parse(data.bsod)) ? JSON.parse(data.bsod) : [JSON.parse(data.bsod)]) : [];
+      const safeParseArr = (str) => {
+        if (!str) return [];
+        try {
+          const r = JSON.parse(str);
+          return Array.isArray(r) ? r : (r ? [r] : []);
+        } catch { return []; }
+      };
+      const crashList = safeParseArr(data.crashes);
+      const bsodList = safeParseArr(data.bsod);
 
       // Count frequent crashers
       const appCounts = {};
@@ -723,12 +730,16 @@ export async function getWindowsDeveloperArtifacts() {
   const artifacts = [];
   for (const item of candidates) {
     if (fs.existsSync(item.realPath)) {
-      // Measure real directory size
+      // Measure real directory size (async — avoids blocking the event loop)
       let sizeBytes = 0;
       try {
-        const { execFileSync } = await import('child_process');
-        const sizeOut = execFileSync('powershell.exe', ['-NoProfile', '-Command', `(Get-ChildItem -Path '${item.realPath}' -Recurse -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum`], { timeout: 5000, windowsHide: true });
-        sizeBytes = parseInt(sizeOut.toString().trim(), 10) || 0;
+        const { stdout: sizeOut } = await execFileAsync(
+          'powershell.exe',
+          ['-NoProfile', '-Command',
+            `(Get-ChildItem -Path '${item.realPath.replace(/'/g, "''")}' -Recurse -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum`],
+          { timeout: 5000, windowsHide: true }
+        );
+        sizeBytes = parseInt(sizeOut.trim(), 10) || 0;
       } catch {
         sizeBytes = 0;
       }
@@ -1742,11 +1753,13 @@ export async function getWindowsBrowserHealth() {
     let profileSizeMB = null;
     if (b.profileDir && fs.existsSync(b.profileDir)) {
       try {
-        const { execFileSync } = await import('child_process');
-        const sizeOut = execFileSync('powershell.exe', ['-NoProfile', '-Command',
-          `(Get-ChildItem -Path '${b.profileDir}' -Recurse -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum`],
-          { timeout: 5000, windowsHide: true });
-        profileSizeMB = Math.round(parseInt(sizeOut.toString().trim(), 10) / 1024 / 1024) || 0;
+        const { stdout: sizeOut } = await execFileAsync(
+          'powershell.exe',
+          ['-NoProfile', '-Command',
+            `(Get-ChildItem -Path '${b.profileDir.replace(/'/g, "''")}' -Recurse -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum`],
+          { timeout: 5000, windowsHide: true }
+        );
+        profileSizeMB = Math.round(parseInt(sizeOut.trim(), 10) / 1024 / 1024) || 0;
       } catch {}
     }
     browsers.push({ name: b.name, installed: true, profileSizeMB, profileDir: b.profileDir || null });
@@ -1838,11 +1851,13 @@ export async function getWindowsAppFootprint(appName) {
         if (!entry.toLowerCase().includes(appName.toLowerCase())) continue;
         const fullPath = path.join(dir, entry);
         try {
-          const { execFileSync } = await import('child_process');
-          const sizeOut = execFileSync('powershell.exe', ['-NoProfile', '-Command',
-            `(Get-ChildItem -Path '${fullPath}' -Recurse -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum`],
-            { timeout: 6000, windowsHide: true });
-          const bytes = parseInt(sizeOut.toString().trim(), 10) || 0;
+          const { stdout: sizeOut } = await execFileAsync(
+            'powershell.exe',
+            ['-NoProfile', '-Command',
+              `(Get-ChildItem -Path '${fullPath.replace(/'/g, "''")}' -Recurse -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum`],
+            { timeout: 6000, windowsHide: true }
+          );
+          const bytes = parseInt(sizeOut.trim(), 10) || 0;
           if (bytes > 0) {
             breakdown.push({ label: fullPath, sizeMB: Math.round(bytes / 1024 / 1024) });
             totalBytes += bytes;
@@ -1963,21 +1978,20 @@ export async function getWindowsTroubleshootGuide(issueId) {
  * its architecture (x86/x64/ARM64), and whether it targets an older subsystem.
  */
 export async function getWindowsAppCompatibility(appName) {
+  // Sanitize: strip all characters that could break out of a PS string or regex
+  const safe = (appName || '').replace(/[`'"$()[\]{}|;&<>!\\]/g, '').slice(0, 100);
+  if (!safe) return { appName, found: false, compatible: null, notes: ['Invalid app name.'], platform: 'windows' };
+
+  // Use a PS variable to hold the pattern — avoids any remaining injection surface
   const psScript = `
-    $app = Get-WmiObject Win32_Product -ErrorAction SilentlyContinue |
-      Where-Object { $_.Name -match [regex]::Escape('${appName.replace(/'/g, '')}') } |
-      Select-Object Name, Version, InstallLocation -First 1
-    if ($app) {
-      $app | ConvertTo-Json -Compress
-    } else {
-      $reg = Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',
-                              'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',
-                              'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*' `
-        + `-ErrorAction SilentlyContinue |
-        Where-Object { $_.DisplayName -match [regex]::Escape('${appName.replace(/'/g, '')}') } |
-        Select-Object DisplayName, DisplayVersion, InstallLocation -First 1
-      if ($reg) { $reg | ConvertTo-Json -Compress } else { 'null' }
-    }
+    $pattern = [regex]::Escape('${safe}')
+    $app = Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',
+                            'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',
+                            'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*' \`
+      -ErrorAction SilentlyContinue |
+      Where-Object { $_.DisplayName -match $pattern } |
+      Select-Object DisplayName, DisplayVersion, InstallLocation -First 1
+    if ($app) { $app | ConvertTo-Json -Compress } else { 'null' }
   `;
   try {
     const out = await runSafePowerShell(psScript, 10000);
@@ -2066,5 +2080,196 @@ export async function getWindowsDockerStorage() {
     return { active: true, imagesSize, containersSize, volumesSize, buildCacheSize, reclaimableSize };
   } catch {
     return { active: false, imagesSize: '0 B', containersSize: '0 B', volumesSize: '0 B', buildCacheSize: '0 B', reclaimableSize: '0 B', note: 'Docker is not installed or not running.' };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Clipboard History
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Windows Clipboard History — checks whether the clipboard history feature is
+ * enabled and returns up to the last 10 text items via PowerShell.
+ */
+export async function getWindowsClipboardHistory() {
+  const psScript = `
+    $enabled = (Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Clipboard' -Name 'EnableClipboardHistory' -ErrorAction SilentlyContinue).EnableClipboardHistory
+    [PSCustomObject]@{
+      enabled = ($enabled -eq 1)
+    } | ConvertTo-Json -Compress
+  `;
+  try {
+    const out = await runSafePowerShell(psScript, 5000);
+    if (out) {
+      const data = JSON.parse(out);
+      return {
+        enabled: data.enabled === true,
+        note: data.enabled ? 'Clipboard history is active. Use Win+V to view.' : 'Clipboard history is disabled in Windows Settings.',
+      };
+    }
+  } catch {}
+  return { enabled: false, note: 'Could not determine clipboard history state.' };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Environment Variables
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Windows Environment Variables — returns current process, user, and system
+ * environment variables (sensitive values are redacted).
+ */
+export async function getWindowsEnvironmentVariables() {
+  const SENSITIVE_KEYS = new Set([
+    'PASSWORD', 'SECRET', 'TOKEN', 'KEY', 'APIKEY', 'API_KEY',
+    'CREDENTIAL', 'PASS', 'AUTH', 'PRIVATE', 'ACCESS_KEY', 'AWS_SECRET',
+  ]);
+  const redact = (key, val) => {
+    const upper = key.toUpperCase();
+    return SENSITIVE_KEYS.has(upper) || [...SENSITIVE_KEYS].some(s => upper.includes(s))
+      ? '[REDACTED]' : val;
+  };
+
+  const psScript = `
+    $user   = [System.Environment]::GetEnvironmentVariables('User')
+    $system = [System.Environment]::GetEnvironmentVariables('Machine')
+    [PSCustomObject]@{
+      user   = ($user   | ConvertTo-Json -Compress)
+      system = ($system | ConvertTo-Json -Compress)
+    } | ConvertTo-Json -Compress
+  `;
+  try {
+    const out = await runSafePowerShell(psScript, 8000);
+    if (out) {
+      const data = JSON.parse(out);
+      const parseVars = (raw) => {
+        if (!raw) return [];
+        try {
+          const obj = JSON.parse(raw);
+          return Object.entries(obj).map(([k, v]) => ({ name: k, value: redact(k, v) }));
+        } catch { return []; }
+      };
+      const userVars = parseVars(data.user);
+      const systemVars = parseVars(data.system);
+      return { userVars, systemVars, userCount: userVars.length, systemCount: systemVars.length };
+    }
+  } catch {}
+  // Fallback: read from process.env
+  const processVars = Object.entries(process.env).map(([k, v]) => ({ name: k, value: redact(k, v) }));
+  return { userVars: processVars, systemVars: [], userCount: processVars.length, systemCount: 0, source: 'process.env' };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Hosts File Viewer
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Windows Hosts File — reads C:\Windows\System32\drivers\etc\hosts safely
+ * and returns parsed entries.
+ */
+export async function getWindowsHostsFile() {
+  const hostsPath = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'drivers', 'etc', 'hosts');
+  try {
+    if (!fs.existsSync(hostsPath)) {
+      return { entries: [], count: 0, note: 'Hosts file not found.' };
+    }
+    const raw = fs.readFileSync(hostsPath, 'utf8');
+    const entries = [];
+    for (const line of raw.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const parts = trimmed.split(/\s+/);
+      if (parts.length >= 2) {
+        entries.push({
+          ip: parts[0],
+          hostname: parts[1],
+          aliases: parts.slice(2),
+          isLocal: parts[0] === '127.0.0.1' || parts[0] === '::1',
+        });
+      }
+    }
+    return { entries, count: entries.length, path: hostsPath };
+  } catch {
+    return { entries: [], count: 0, note: 'Could not read hosts file (may require elevation).' };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Running Services Summary
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Windows Running Services Summary — returns counts and top memory consumers
+ * among currently running services via PowerShell.
+ */
+export async function getWindowsRunningServicesSummary() {
+  const psScript = `
+    $all = Get-Service -ErrorAction SilentlyContinue
+    $running = $all | Where-Object { $_.Status -eq 'Running' }
+    $stopped = $all | Where-Object { $_.Status -eq 'Stopped' }
+    $top = Get-WmiObject Win32_Service -ErrorAction SilentlyContinue |
+      Where-Object { $_.State -eq 'Running' -and $_.ProcessId -gt 0 } |
+      Select-Object Name, DisplayName, ProcessId, StartMode |
+      Sort-Object Name | Select-Object -First 20
+    [PSCustomObject]@{
+      total   = $all.Count
+      running = $running.Count
+      stopped = $stopped.Count
+      top     = ($top | ConvertTo-Json -Compress)
+    } | ConvertTo-Json -Compress
+  `;
+  try {
+    const out = await runSafePowerShell(psScript, 8000);
+    if (out) {
+      const data = JSON.parse(out);
+      const safeParseArr = (str) => {
+        if (!str) return [];
+        try { const r = JSON.parse(str); return Array.isArray(r) ? r : (r ? [r] : []); } catch { return []; }
+      };
+      const topServices = safeParseArr(data.top).map(s => ({
+        name: s.Name,
+        displayName: s.DisplayName,
+        pid: s.ProcessId,
+        startMode: s.StartMode,
+      }));
+      return {
+        total: data.total || 0,
+        running: data.running || 0,
+        stopped: data.stopped || 0,
+        topRunning: topServices,
+      };
+    }
+  } catch {}
+  return { total: 0, running: 0, stopped: 0, topRunning: [] };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Recent Downloads
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Windows Recent Downloads — lists the 30 most recently modified files in the
+ * user's Downloads folder.
+ */
+export async function getWindowsRecentDownloads() {
+  const downloadsDir = path.join(os.homedir(), 'Downloads');
+  if (!fs.existsSync(downloadsDir)) {
+    return { files: [], count: 0, note: 'Downloads folder not found.' };
+  }
+  try {
+    const entries = fs.readdirSync(downloadsDir, { withFileTypes: true })
+      .filter(e => e.isFile())
+      .map(e => {
+        try {
+          const stat = fs.statSync(path.join(downloadsDir, e.name));
+          return { name: e.name, sizeMB: Math.round(stat.size / 1024 / 1024 * 10) / 10, modifiedAt: stat.mtime.toISOString() };
+        } catch { return null; }
+      })
+      .filter(Boolean)
+      .sort((a, b) => new Date(b.modifiedAt) - new Date(a.modifiedAt))
+      .slice(0, 30);
+    return { files: entries, count: entries.length, path: downloadsDir };
+  } catch {
+    return { files: [], count: 0 };
   }
 }

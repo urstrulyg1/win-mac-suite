@@ -69,6 +69,13 @@ import {
   getInstalledApplications, getAppUpdates, getEventLogAnalysis,
   getLargeFiles, getNetworkAdapters,
 } from '../helpers/windows-advanced.js';
+import {
+  getWindowsClipboardHistory,
+  getWindowsEnvironmentVariables,
+  getWindowsHostsFile,
+  getWindowsRunningServicesSummary,
+  getWindowsRecentDownloads,
+} from '../helpers/windows-helpers.js';
 import { assertMutatingAllowed } from '../security/safe-mode.js';
 import { logAuditEntry } from '../audit/audit-logger.js';
 
@@ -300,6 +307,38 @@ router.get('/services/deps', async (_req, res) => {
 // Scheduled Task Analysis
 router.get('/tasks/analysis', async (_req, res) => {
   try { res.json(await getScheduledTaskAnalysis()); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── ENHANCEMENT ROUTES ─────────────────────────────────────────────────────
+
+// GET /clipboard — Clipboard history state
+router.get('/clipboard', async (_req, res) => {
+  try { res.json(await getWindowsClipboardHistory()); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /env-vars — Environment variables (user + system, redacted)
+router.get('/env-vars', async (_req, res) => {
+  try { res.json(await getWindowsEnvironmentVariables()); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /hosts — Hosts file entries
+router.get('/hosts', async (_req, res) => {
+  try { res.json(await getWindowsHostsFile()); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /services/summary — Running services count + top list
+router.get('/services/summary', async (_req, res) => {
+  try { res.json(await getWindowsRunningServicesSummary()); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /downloads — Recent downloads (last 30 files)
+router.get('/downloads', async (_req, res) => {
+  try { res.json(await getWindowsRecentDownloads()); }
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 

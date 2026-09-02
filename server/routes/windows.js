@@ -222,6 +222,9 @@ router.get('/startup', async (_req, res) => {
  */
 router.get('/scheduled-tasks', async (_req, res) => {
   try {
+    if (!isWindows) {
+      return res.json({ tasks: [], count: 0, measurement: 'unavailable', note: 'Scheduled tasks requires Windows.' });
+    }
     res.json(await getScheduledTasks());
   } catch (err) {
     res.status(500).json({ error: err.message });

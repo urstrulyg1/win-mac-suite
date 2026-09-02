@@ -9,6 +9,7 @@
 import express from 'express';
 import os from 'os';
 import fs from 'fs';
+import path from 'path';
 import si from 'systeminformation';
 import {
   getMacListeningPorts,
@@ -400,6 +401,91 @@ router.get('/services/deps', async (_req, res) => {
     } else {
       res.json({ services: [], count: 0 });
     }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/health-score ────────────────────────────────────────────────────
+// Cross-platform aggregated health score (0-100) computed from live telemetry.
+router.get('/health-score', async (_req, res) => {
+  try {
+    const [mem, load, fsData] = await Promise.all([
+      si.mem().catch(() => null),
+      si.currentLoad().catch(() => null),
+      si.fsSize().catch(() => []),
+    ]);
+
+    const scores = [];
+
+    // CPU score
+    if (load) {
+      const cpu = Math.round(load.currentLoad || 0);
+      scores.push({ name: 'CPU', value: Math.max(0, 100 - cpu), detail: `${cpu}% load` });
+    }
+
+    // Memory score
+    if (mem) {
+      const usedPct = Math.round((mem.active / mem.total) * 100);
+      scores.push({ name: 'Memory', value: Math.max(0, 100 - usedPct), detail: `${usedPct}% in use` });
+    }
+
+    // Disk score (primary volume)
+    if (Array.isArray(fsData) && fsData.length > 0) {
+      const primary = fsData.find(f => f.mount === '/' || f.mount === '/System/Volumes/Data' || /^C:/i.test(f.mount)) || fsData[0];
+      if (primary && primary.size > 0) {
+        const usedPct = Math.round((primary.used / primary.size) * 100);
+        scores.push({ name: 'Disk', value: Math.max(0, 100 - usedPct), detail: `${usedPct}% full` });
+      }
+    }
+
+    const overall = scores.length > 0
+      ? Math.round(scores.reduce((s, c) => s + c.value, 0) / scores.length)
+      : null;
+
+    const grade = overall === null ? 'N/A'
+      : overall >= 80 ? 'Excellent'
+      : overall >= 60 ? 'Good'
+      : overall >= 40 ? 'Fair'
+      : 'Poor';
+
+    res.json({
+      score: overall,
+      grade,
+      components: scores,
+      platform: detectedPlatform,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/recent-downloads ────────────────────────────────────────────────
+// Cross-platform: lists last 30 files from the user's Downloads folder.
+router.get('/recent-downloads', async (_req, res) => {
+  try {
+    const downloadsDir = path.join(os.homedir(), 'Downloads');
+    if (!fs.existsSync(downloadsDir)) {
+      return res.json({ files: [], count: 0, note: 'Downloads folder not found.' });
+    }
+    const entries = fs.readdirSync(downloadsDir, { withFileTypes: true })
+      .filter(e => e.isFile())
+      .map(e => {
+        try {
+          const stat = fs.statSync(path.join(downloadsDir, e.name));
+          return {
+            name: e.name,
+            sizeMB: Math.round(stat.size / 1024 / 1024 * 10) / 10,
+            modifiedAt: stat.mtime.toISOString(),
+            ext: path.extname(e.name).toLowerCase(),
+          };
+        } catch { return null; }
+      })
+      .filter(Boolean)
+      .sort((a, b) => new Date(b.modifiedAt) - new Date(a.modifiedAt))
+      .slice(0, 30);
+    res.json({ files: entries, count: entries.length, path: downloadsDir, platform: detectedPlatform });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

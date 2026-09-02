@@ -667,10 +667,18 @@ export async function getMacBaselineDiff() {
  */
 export async function getMacDuplicateFiles(scanPath, maxResults = 50) {
   const { default: osModule } = await import('os');
-  const target = scanPath || osModule.homedir();
-  const script = `find '${target}' -type f -size +1m 2>/dev/null | xargs md5 -r 2>/dev/null | sort`;
+  const rawTarget = scanPath || osModule.homedir();
+  // Resolve and restrict to home directory to prevent path traversal
+  const { default: pathModule } = await import('path');
+  const home = osModule.homedir();
+  const target = pathModule.resolve(rawTarget);
+  if (!target.startsWith(home)) {
+    return { duplicates: [], count: 0, note: 'Scan path must be within the home directory.' };
+  }
+  // Pass path as a separate shell argument to avoid injection
+  const script = 'find "$1" -type f -size +1m 2>/dev/null | xargs md5 -r 2>/dev/null | sort';
   try {
-    const out = await runSafe('/bin/bash', ['-c', script], 20000);
+    const out = await runSafe('/bin/bash', ['-c', script, '--', target], 20000);
     if (!out) return { duplicates: [], count: 0, note: 'No duplicates found or scan timed out.' };
 
     const lines = out.trim().split('\n').filter(Boolean);
@@ -831,9 +839,10 @@ export async function getMacFailedUpdates() {
  */
 export async function getMacServiceDependencies() {
   try {
+    // System daemons (root-level) and user agents (current user) use different commands
     const [systemList, userList] = await Promise.all([
       runSafe('/bin/launchctl', ['list'], 6000),
-      runSafe('/bin/launchctl', ['list'], 6000),
+      runSafe('/bin/launchctl', ['print-disabled', 'user/' + process.getuid()], 6000).catch(() => ''),
     ]);
 
     const parse = (out) => (out || '').trim().split('\n').slice(1).map(line => {
@@ -842,12 +851,21 @@ export async function getMacServiceDependencies() {
       return {
         pid: parts[0] === '-' ? null : parseInt(parts[0], 10) || null,
         exitCode: parts[1] === '-' ? null : parseInt(parts[1], 10),
-        label: parts[2],
+        label: parts[2].trim(),
         running: parts[0] !== '-',
+        scope: 'system',
       };
     }).filter(Boolean);
 
     const services = parse(systemList);
+    // Annotate user-disabled services when print-disabled output is available
+    const disabledLabels = new Set(
+      (userList || '').split('\n')
+        .filter(l => /"true"/.test(l))
+        .map(l => { const m = l.match(/"([^"]+)"/); return m ? m[1] : null; })
+        .filter(Boolean)
+    );
+    services.forEach(s => { if (disabledLabels.has(s.label)) s.disabled = true; });
 
     return {
       services: services.slice(0, 100),

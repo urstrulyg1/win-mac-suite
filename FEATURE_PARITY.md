@@ -1,8 +1,16 @@
 # Win-Mac Suite — Feature Parity & Gap Analysis
 
-> **Version:** 10.1.0  
-> **Audited:** all helpers, routes, and frontend tabs  
+> **Version:** 10.2.0
+> **Last audited:** all helpers, routes, and frontend tabs
 > Sources examined: `server/helpers/`, `server/routes/`, `src/components/`, `src/App.tsx`
+>
+> **Changelog since v10.1.0**
+> - Fixed 6 bugs: shell injection in duplicate-file scanner, launchctl duplicate call, dns module shadowing, 3× blocking `execFileSync`, nested `JSON.parse` on crash data, missing scheduled-tasks platform guard
+> - Fixed 2 security issues: path-traversal on `/api/storage/duplicates`, input injection in `getWindowsAppCompatibility`
+> - Added 5 new Windows helpers: clipboard history, environment variables, hosts file, running-services summary, recent downloads
+> - Added 2 cross-platform routes: `/api/health-score`, `/api/recent-downloads`
+> - Added 5 new Windows v2 routes: `/clipboard`, `/env-vars`, `/hosts`, `/services/summary`, `/downloads`
+> - Removed all remaining stub returns for audio, camera/mic, display, peripherals, SSH, power assertions, browser health, system timeline, baseline diff, troubleshoot guide, app compatibility, Explorer health, external drives, Docker storage, app footprint
 
 ---
 

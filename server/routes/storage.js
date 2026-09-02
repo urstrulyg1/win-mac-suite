@@ -14,6 +14,8 @@
 
 import express from 'express';
 import si from 'systeminformation';
+import os from 'os';
+import path from 'path';
 import {
   getMacDeveloperArtifacts,
   getMacLargeFiles,
@@ -212,8 +214,18 @@ router.get('/snapshots', async (_req, res) => {
 router.get('/storage/duplicates', async (req, res) => {
   try {
     if (isMac) {
-      const scanPath = req.query.path || null;
-      const maxResults = Math.min(parseInt(req.query.max || '50', 10), 200);
+      // Validate path param — must be an absolute path within home to prevent traversal
+      const rawPath = req.query.path || null;
+      let scanPath = null;
+      if (rawPath) {
+        const resolvedPath = path.resolve(rawPath);
+        const home = os.homedir();
+        if (!resolvedPath.startsWith(home)) {
+          return res.status(400).json({ error: 'Scan path must be within the home directory.' });
+        }
+        scanPath = resolvedPath;
+      }
+      const maxResults = Math.min(Math.max(1, parseInt(req.query.max || '50', 10)), 200);
       res.json(await getMacDuplicateFiles(scanPath, maxResults));
     } else {
       // Windows: covered by /api/windows/v2/storage/duplicates
