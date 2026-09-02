@@ -103,7 +103,7 @@ export default function CrashHangDoctor() {
                     "WHY DID THIS APP CRASH?" CORRELATION ENGINE
                   </span>
                   <h3 className="text-base font-extrabold" style={{ color: 'var(--color-ink)' }}>
-                    {crashData?.whyDidAppCrashVerdict || 'Chrome experienced crashes triggered by elevated unified memory pressure.'}
+                    {crashData?.whyDidAppCrashVerdict || 'No application crashes or kernel panics detected. System stability is nominal.'}
                   </h3>
                 </div>
               </div>

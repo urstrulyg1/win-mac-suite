@@ -4,6 +4,7 @@
  * Handles timeouts, process cleanup, sensitive output redaction, and SSE streaming.
  */
 
+import fs from 'fs';
 import { spawn } from 'child_process';
 import os from 'os';
 import path from 'path';
@@ -92,8 +93,16 @@ export function resolveBinaryPath(bin, platform) {
         return '/usr/sbin/spctl';
       case 'dscacheutil':
         return '/usr/bin/dscacheutil';
+      case 'system_profiler':
+        return '/usr/sbin/system_profiler';
+      case 'launchctl':
+        return '/bin/launchctl';
       case 'brew':
-        return '/opt/homebrew/bin/brew';
+        return fs.existsSync('/opt/homebrew/bin/brew')
+          ? '/opt/homebrew/bin/brew'
+          : fs.existsSync('/usr/local/bin/brew')
+          ? '/usr/local/bin/brew'
+          : 'brew';
       default:
         return bin;
     }

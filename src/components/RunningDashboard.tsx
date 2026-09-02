@@ -209,11 +209,11 @@ export default function RunningDashboard({
                       <div className="flex items-center gap-2 mb-0.5">
                         <span className="text-xs font-bold text-blue-400">Previous Run Completed</span>
                         <span className="pill text-[10px] bg-emerald-500/10 text-emerald-500 border-emerald-500/25">
-                          {summary.passedSections} of {summary.totalSections} Phases Passed
+                          {summary.passedSections ?? (summary as any).passedPhases ?? 0} of {summary.totalSections ?? (summary as any).totalPhases ?? 0} Phases Passed
                         </span>
                       </div>
                       <p className="text-xs text-slate-400">
-                        Reclaimed {summary.spaceReclaimed >= 1024 ? `${(summary.spaceReclaimed / 1024).toFixed(1)} GB` : `${summary.spaceReclaimed} MB`} · Updated {summary.totalUpdated} pkgs · Phase outcomes retained below until you launch a new run.
+                        Reclaimed {(summary.spaceReclaimed ?? 0) >= 1024 ? `${((summary.spaceReclaimed ?? 0) / 1024).toFixed(1)} GB` : `${summary.spaceReclaimed ?? 0} MB`} · Updated {summary.totalUpdated ?? (summary as any).packagesUpdated ?? 0} pkgs · Phase outcomes retained below until you launch a new run.
                       </p>
                     </div>
                   </div>

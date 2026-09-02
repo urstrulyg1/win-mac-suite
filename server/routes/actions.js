@@ -48,6 +48,8 @@ import {
   runSafeCommand,
   killPortProcess,
   getMacListeningPorts,
+  resolveMacAppPath,
+  toggleMacStartupItem,
 } from '../helpers/macos-helpers.js';
 
 const router = express.Router();
@@ -358,7 +360,7 @@ router.post('/undo-cleanup', (req, res) => {
 // ── POST /api/actions/remove-quarantine ─────────────────────────────────────
 router.post('/remove-quarantine', async (req, res) => {
   const { appPath, appName } = req.body;
-  const target = appPath || (appName ? `/Applications/${appName}.app` : null);
+  const target = appPath || resolveMacAppPath(appName) || (appName ? `/Applications/${appName}.app` : null);
 
   if (!target) return res.status(400).json({ error: 'Application path or name required.' });
 
@@ -748,17 +750,22 @@ router.post('/toggle-startup', async (req, res) => {
   const commandId = isMacOs ? 'mac.startup.toggle' : 'win.startup.toggle';
 
   try {
+    let result = { success: true };
+    if (isMacOs) {
+      result = await toggleMacStartupItem(itemName, enable);
+    }
+
     const audit = logAuditEntry({
       operation: `${enable ? 'Enable' : 'Disable'} Startup Application (${itemName})`,
       commandId,
       risk: 'moderate',
       permissionLevel: 'Standard User',
-      result: 'success',
+      result: result.success !== false ? 'success' : 'failed',
       durationSeconds: 0.4,
       changesMade: [`Startup item '${itemName}' configured to enabled: ${enable}`],
     });
 
-    res.json({ success: true, itemName, enabled: enable, audit });
+    res.json({ success: result.success !== false, itemName, enabled: enable, audit, detail: result });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

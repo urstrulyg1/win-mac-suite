@@ -133,30 +133,43 @@ export default function NetworkDoctorHub() {
                 </h3>
                 <p className="text-xs text-slate-400">Verifying each link in the connectivity chain from physical interface to internet gateway.</p>
               </div>
-              <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-xs font-bold">
-                All 6 Checks Passing
+              <span className={`pill text-xs font-bold ${
+                doctorData?.workflow && doctorData.workflow.some((w: any) => w.passed === false)
+                  ? 'bg-amber-500/10 text-amber-500 border-amber-500/25'
+                  : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/25'
+              }`}>
+                {doctorData?.workflow
+                  ? `${doctorData.workflow.filter((w: any) => w.passed !== false).length} of ${doctorData.workflow.length} Checks Passing`
+                  : 'Checking Pipeline...'}
               </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {(doctorData?.workflow || []).map((wf: any) => (
-                <div
-                  key={wf.step}
-                  className="p-4 rounded-xl border space-y-2 flex items-start gap-3"
-                  style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
-                >
-                  <div className="w-7 h-7 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0 mt-0.5 border border-emerald-500/25">
-                    <Check size={14} />
+              {(doctorData?.workflow || []).map((wf: any) => {
+                const passed = wf.passed !== false;
+                return (
+                  <div
+                    key={wf.step}
+                    className="p-4 rounded-xl border space-y-2 flex items-start gap-3"
+                    style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+                  >
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 border ${
+                      passed
+                        ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/25'
+                        : 'bg-amber-500/10 text-amber-500 border-amber-500/25'
+                    }`}>
+                      {passed ? <Check size={14} /> : <AlertTriangle size={14} />}
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-mono text-slate-400 uppercase">Step {wf.step}</span>
+                      <h4 className="text-xs font-bold" style={{ color: 'var(--color-ink)' }}>
+                        {wf.title}
+                      </h4>
+                      <p className="text-[11px] text-slate-400 mt-0.5 font-mono">{wf.detail}</p>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-[10px] font-mono text-slate-400 uppercase">Step {wf.step}</span>
-                    <h4 className="text-xs font-bold" style={{ color: 'var(--color-ink)' }}>
-                      {wf.title}
-                    </h4>
-                    <p className="text-[11px] text-slate-400 mt-0.5 font-mono">{wf.detail}</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">

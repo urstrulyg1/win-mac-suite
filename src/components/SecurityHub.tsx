@@ -114,12 +114,12 @@ export default function SecurityHub() {
             <div className="card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-l-4 border-l-emerald-500">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/25 flex items-center justify-center text-xl font-extrabold font-mono">
-                  {postureData?.securityScore || 96}
+                  {postureData?.securityScore ?? 96}
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400">Security Posture Score</span>
                   <h3 className="text-base font-extrabold" style={{ color: 'var(--color-ink)' }}>
-                    Hardened &amp; Cryptographically Enforced (96 / 100)
+                    Hardened &amp; Cryptographically Enforced ({postureData?.securityScore ?? 96} / 100)
                   </h3>
                   <p className="text-xs text-slate-400 mt-0.5">All fundamental macOS rootless kernel and storage encryption protections are operational.</p>
                 </div>

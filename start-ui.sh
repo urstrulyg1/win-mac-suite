@@ -11,7 +11,7 @@ fi
 
 echo ""
 echo "  ========================================================"
-echo "    ${OS_NAME} v5.0"
+echo "    ${OS_NAME} v16.1.0"
 echo "            Cross-Platform System Maintenance"
 echo "  ========================================================"
 echo ""

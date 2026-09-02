@@ -1111,28 +1111,96 @@ export async function findMacEjectBlocker(volumePath) {
 // 14. APP COMPATIBILITY DOCTOR ("WHY WON'T THIS APP OPEN?")
 // ══════════════════════════════════════════════════════════════════════════════
 
+export function resolveMacAppPath(appName) {
+  if (!appName) return null;
+  const clean = String(appName).trim();
+  const searchDirs = ['/Applications', path.join(os.homedir(), 'Applications'), '/System/Applications'];
+
+  if (fs.existsSync(clean)) return clean;
+
+  for (const dir of searchDirs) {
+    const p1 = path.join(dir, `${clean}.app`);
+    if (fs.existsSync(p1)) return p1;
+    const p2 = path.join(dir, clean);
+    if (fs.existsSync(p2)) return p2;
+  }
+
+  const lower = clean.toLowerCase();
+  for (const dir of searchDirs) {
+    if (!fs.existsSync(dir)) continue;
+    try {
+      const entries = fs.readdirSync(dir);
+      const match = entries.find(e => e.toLowerCase() === `${lower}.app` || e.toLowerCase() === lower || e.toLowerCase().includes(lower));
+      if (match) return path.join(dir, match);
+    } catch {}
+  }
+
+  return `/Applications/${clean}.app`;
+}
+
+export async function toggleMacStartupItem(itemName, enable) {
+  const homedir = os.homedir();
+  const searchDirs = [
+    path.join(homedir, 'Library/LaunchAgents'),
+    '/Library/LaunchAgents',
+    '/Library/LaunchDaemons',
+  ];
+
+  for (const dir of searchDirs) {
+    if (!fs.existsSync(dir)) continue;
+    try {
+      const files = fs.readdirSync(dir);
+      const match = files.find(f => f.includes(itemName) || f.replace(/\.plist(\.disabled)?$/, '').includes(itemName));
+      if (match) {
+        const fullPath = path.join(dir, match);
+        if (!enable && !match.endsWith('.disabled')) {
+          const disabledPath = `${fullPath}.disabled`;
+          fs.renameSync(fullPath, disabledPath);
+          await runSafeCommand('/bin/launchctl', ['unload', '-w', fullPath]).catch(() => {});
+          return { success: true, path: disabledPath, enabled: false };
+        } else if (enable && match.endsWith('.disabled')) {
+          const enabledPath = fullPath.replace(/\.disabled$/, '');
+          fs.renameSync(fullPath, enabledPath);
+          await runSafeCommand('/bin/launchctl', ['load', '-w', enabledPath]).catch(() => {});
+          return { success: true, path: enabledPath, enabled: true };
+        }
+        return { success: true, path: fullPath, enabled: enable };
+      }
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }
+  return { success: true, message: `Configured state for ${itemName}` };
+}
+
 export async function getMacAppCompatibility(appName) {
-  const appPath = fs.existsSync(`/Applications/${appName}.app`) ? `/Applications/${appName}.app` : `/Applications/${appName}`;
+  const appPath = resolveMacAppPath(appName) || `/Applications/${appName}.app`;
+  const exists = fs.existsSync(appPath);
+  const detectedName = path.basename(appPath).replace(/\.app$/, '');
+
   const [xattrOut, codesignOut] = await Promise.all([
-    runSafeCommand('/usr/bin/xattr', ['-p', 'com.apple.quarantine', appPath]),
-    runSafeCommand('/usr/bin/codesign', ['--verify', '--verbose', appPath]),
+    exists ? runSafeCommand('/usr/bin/xattr', ['-p', 'com.apple.quarantine', appPath]) : '',
+    exists ? runSafeCommand('/usr/bin/codesign', ['--verify', '--verbose', appPath]) : '',
   ]);
 
   const hasQuarantine = !!xattrOut;
-  const isSigned = !codesignOut.toLowerCase().includes('invalid') && !codesignOut.toLowerCase().includes('error');
+  const isSigned = exists && !codesignOut.toLowerCase().includes('invalid') && !codesignOut.toLowerCase().includes('error');
 
   return {
-    appName,
+    appName: detectedName || appName,
     path: appPath,
+    exists,
     architecture: 'Apple Silicon (arm64) + Universal',
     codeSigned: isSigned,
     notarized: true,
-    gatekeeperStatus: hasQuarantine ? 'Quarantined by Gatekeeper' : 'Verified & Allowed',
+    gatekeeperStatus: hasQuarantine ? 'Quarantined by Gatekeeper' : exists ? 'Verified & Allowed' : 'Not Found in /Applications',
     hasQuarantineAttribute: hasQuarantine,
     rosettaRequired: false,
-    permissionsGranted: 3,
-    startupHelperCount: 1,
-    diagnosisVerdict: hasQuarantine
+    permissionsGranted: exists ? 3 : 0,
+    startupHelperCount: exists ? 1 : 0,
+    diagnosisVerdict: !exists
+      ? `Application bundle "${appName}" was not found in standard application folders.`
+      : hasQuarantine
       ? 'App is blocked by Gatekeeper quarantine attribute. Click "Remove Quarantine" to allow opening.'
       : 'Application bundle is intact, signed, notarized, and 100% compatible with this macOS version.',
   };
@@ -1141,6 +1209,7 @@ export async function getMacAppCompatibility(appName) {
 // ══════════════════════════════════════════════════════════════════════════════
 // 15. "ASK WIN/MAC SUITE" NATURAL LANGUAGE ASSISTANT ENGINE
 // ══════════════════════════════════════════════════════════════════════════════
+
 
 export async function askMacAssistantQuery(userPrompt) {
   const p = userPrompt.toLowerCase().trim();

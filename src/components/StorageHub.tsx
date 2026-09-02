@@ -405,7 +405,11 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
                   onClick={async () => {
                     setThinningSnapshots(true);
                     try {
-                      const res = await fetch('/api/actions/thin-snapshots', { method: 'POST' });
+                      const res = await fetch('/api/actions/thin-snapshots', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ confirmed: true }),
+                      });
                       const d = await res.json();
                       if (d.success) {
                         setActionMsg(d.message || 'Thinned local APFS snapshots successfully.');

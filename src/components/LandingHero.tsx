@@ -227,7 +227,7 @@ export default function LandingHero({ onStart, systemInfo, summary, lastRunTimes
               <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                 <span className="text-xs font-bold text-blue-400">Previous Run Results</span>
                 <span className="pill text-[10px] bg-emerald-500/10 text-emerald-500 border-emerald-500/25">
-                  {summary.passedSections} of {summary.totalSections} Phases Passed
+                  {summary.passedSections ?? (summary as any).passedPhases ?? 0} of {summary.totalSections ?? (summary as any).totalPhases ?? 0} Phases Passed
                 </span>
                 {lastRunTimestamp && (
                   <span className="text-[11px] text-slate-400">
@@ -236,7 +236,7 @@ export default function LandingHero({ onStart, systemInfo, summary, lastRunTimes
                 )}
               </div>
               <p className="text-xs text-slate-300">
-                Reclaimed <span className="font-bold text-emerald-400">{summary.spaceReclaimed >= 1024 ? `${(summary.spaceReclaimed / 1024).toFixed(1)} GB` : `${summary.spaceReclaimed} MB`}</span> · Updated <span className="font-bold text-blue-400">{summary.totalUpdated} packages</span> · {summary.issuesFixed} issues resolved.
+                Reclaimed <span className="font-bold text-emerald-400">{(summary.spaceReclaimed ?? 0) >= 1024 ? `${((summary.spaceReclaimed ?? 0) / 1024).toFixed(1)} GB` : `${summary.spaceReclaimed ?? 0} MB`}</span> · Updated <span className="font-bold text-blue-400">{summary.totalUpdated ?? (summary as any).packagesUpdated ?? 0} packages</span> · {summary.issuesFixed ?? 0} issues resolved.
               </p>
             </div>
           </div>

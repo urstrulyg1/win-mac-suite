@@ -98,9 +98,10 @@ export default function GlobalSearch({ onNavigate: _onNavigate }: GlobalSearchPr
     const lower = q.toLowerCase();
 
     try {
+      const appEndpoint = platform === 'macos' ? '/api/apps/inventory' : '/api/windows/apps';
       // Search in parallel across multiple real data sources
       const [appsRes, procsRes, svcsRes, startupRes, devsRes] = await Promise.allSettled([
-        fetch('/api/windows/apps').then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch(appEndpoint).then(r => r.ok ? r.json() : null).catch(() => null),
         fetch('/api/processes').then(r => r.ok ? r.json() : null).catch(() => null),
         fetch('/api/windows/services').then(r => r.ok ? r.json() : null).catch(() => null),
         fetch('/api/startup-items').then(r => r.ok ? r.json() : null).catch(() => null),
@@ -108,14 +109,15 @@ export default function GlobalSearch({ onNavigate: _onNavigate }: GlobalSearchPr
       ]);
 
       // Applications
-      if (appsRes.status === 'fulfilled' && appsRes.value?.applications) {
-        for (const app of appsRes.value.applications.slice(0, 200)) {
-          if ((app.name || '').toLowerCase().includes(lower) || (app.publisher || '').toLowerCase().includes(lower)) {
+      if (appsRes.status === 'fulfilled' && (appsRes.value?.applications || appsRes.value?.apps)) {
+        const appList = appsRes.value?.applications || appsRes.value?.apps || [];
+        for (const app of appList.slice(0, 200)) {
+          if ((app.name || '').toLowerCase().includes(lower) || (app.publisher || app.category || '').toLowerCase().includes(lower)) {
             found.push({
               id: `app-${app.name}`,
               category: 'Applications',
               title: app.name,
-              subtitle: `${app.version || 'Unknown version'} · ${app.publisher || 'Unknown publisher'}`,
+              subtitle: `${app.version || 'Version verified'} · ${app.publisher || app.category || 'Installed Application'}`,
               icon: <Package size={14} />,
             });
             if (found.length >= 5) break;
