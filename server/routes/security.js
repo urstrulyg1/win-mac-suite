@@ -1,5 +1,5 @@
 /**
- * WinSuite & MacSuite v6.5 - Security & Privacy Auditor Route
+ * WinSuite & MacSuite v6.6 - Security & Privacy Auditor Route
  * Endpoints:
  * - GET /api/security
  * - GET /api/security/posture
@@ -10,7 +10,10 @@
  */
 
 import express from 'express';
-import { getWindowsSecurityStatus } from '../helpers/windows-helpers.js';
+import {
+  getWindowsSecurityStatus,
+  getWindowsPrivacyAuditor,
+} from '../helpers/windows-helpers.js';
 import {
   getMacSecurityStatus,
   getMacSecurityPosture,
@@ -79,18 +82,10 @@ router.get('/security/posture', async (_req, res) => {
 // ── GET /api/privacy & /api/privacy/auditor & /api/security/privacy-auditor ──
 const handlePrivacyAuditor = async (_req, res) => {
   try {
-    if (isMac) {
-      res.json(await getMacFullPrivacyAuditor());
-    } else {
-      // No real Windows privacy auditor exists — report honestly, never fabricate a score
-      res.json({
-        privacyScore: null,
-        status: 'UNAVAILABLE',
-        categories: [],
-        recentChanges: [],
-        note: 'Privacy auditor is not implemented for Windows. No score is reported rather than fabricating one.',
-      });
-    }
+    const privacy = isMac
+      ? await getMacFullPrivacyAuditor()
+      : await getWindowsPrivacyAuditor();
+    res.json(privacy);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -103,11 +98,10 @@ router.get('/security/privacy-auditor', handlePrivacyAuditor);
 // ── GET /api/privacy/score ─────────────────────────────────────────────────
 router.get('/privacy/score', async (_req, res) => {
   try {
-    if (isMac) {
-      res.json(await getMacFullPrivacyAuditor());
-    } else {
-      res.json({ privacyScore: null, categories: [], note: 'Privacy score unavailable on this platform.' });
-    }
+    const auditor = isMac
+      ? await getMacFullPrivacyAuditor()
+      : await getWindowsPrivacyAuditor();
+    res.json(auditor);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

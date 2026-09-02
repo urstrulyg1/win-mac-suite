@@ -1,5 +1,5 @@
 /**
- * WinSuite & MacSuite v8.0 - Comprehensive Diagnostics, Health & Diagnostic Doctors Route
+ * WinSuite & MacSuite v8.1 - Comprehensive Diagnostics, Health & Diagnostic Doctors Route
  */
 
 import express from 'express';
@@ -50,8 +50,15 @@ import { DiagnosticExperimentEngine } from '../engine/experiment-engine.js';
 import {
   getWindowsEventLogs,
   getWindowsBatteryStatus,
+  getWindowsBatteryIntelligence,
   getWindowsPackageStatus,
   getWindowsHardwareStatus,
+  getWindowsPerformanceDiagnosis,
+  getWindowsCrashHangIntelligence,
+  getWindowsSystemStability,
+  getWindowsDiskHealth,
+  getWindowsUpdateDoctor,
+  getWindowsShadowCopies,
 } from '../helpers/windows-helpers.js';
 
 const router = express.Router();
@@ -203,7 +210,9 @@ router.get('/health-check', async (_req, res) => {
 
 router.get('/performance/diagnosis', async (_req, res) => {
   try {
-    const diag = isMac ? await getMacPerformanceDiagnosis() : { verdict: 'Windows nominal.', subsystems: [], recommendations: [] };
+    const diag = isMac
+      ? await getMacPerformanceDiagnosis()
+      : await getWindowsPerformanceDiagnosis();
     res.json(diag);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -217,52 +226,34 @@ router.get('/thermal/deep', async (_req, res) => {
 
 router.get('/battery/intelligence', async (_req, res) => {
   try {
-    const bIntel = isMac ? await getMacBatteryIntelligence() : { hasBattery: false, percent: 100, drainTimeline: [] };
+    const bIntel = isMac
+      ? await getMacBatteryIntelligence()
+      : await getWindowsBatteryIntelligence();
     res.json(bIntel);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/update-doctor', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacUpdateDoctor() : { hasUpdateAvailable: false });
+    res.json(isMac ? await getMacUpdateDoctor() : await getWindowsUpdateDoctor());
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/disk-health', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacDiskHealth() : { filesystem: 'NTFS' });
+    res.json(isMac ? await getMacDiskHealth() : await getWindowsDiskHealth());
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/crashes-hangs', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacCrashHangIntelligence() : { totalReportsCount: 0, frequentCrashers: [] });
+    res.json(isMac ? await getMacCrashHangIntelligence() : await getWindowsCrashHangIntelligence());
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/system-stability', async (_req, res) => {
   try {
-    if (isMac) {
-      return res.json(await getMacSystemStability());
-    }
-    // Real stability indicators for non-macOS
-    const os = await import('os');
-    const uptimeHours = os.uptime() / 3600;
-    const loadAvg = os.loadavg();
-    const cpus = os.cpus().length;
-    const loadRatio = loadAvg[0] / Math.max(cpus, 1);
-    // Stability based on uptime and load — real signals
-    const stabilityScore = Math.min(100, Math.max(0, Math.round(
-      (uptimeHours > 24 ? 40 : uptimeHours > 1 ? 30 : 20) +
-      (loadRatio < 0.5 ? 40 : loadRatio < 1 ? 30 : 15) +
-      (loadAvg[4] < loadAvg[0] ? 20 : 10)
-    )));
-    res.json({
-      stabilityScore,
-      uptimeHours: Math.round(uptimeHours * 10) / 10,
-      loadAverage: loadAvg.map(l => Math.round(l * 100) / 100),
-      source: 'os.uptime() + os.loadavg()',
-    });
+    res.json(isMac ? await getMacSystemStability() : await getWindowsSystemStability());
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

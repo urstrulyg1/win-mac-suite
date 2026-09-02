@@ -1,5 +1,5 @@
 /**
- * WinSuite & MacSuite v6.5 - Storage & Intelligence Route
+ * WinSuite & MacSuite v6.6 - Storage & Intelligence Route
  * Endpoints:
  * - GET /api/storage
  * - GET /api/storage/system-data
@@ -27,6 +27,8 @@ import {
 } from '../helpers/macos-helpers.js';
 import {
   getWindowsDeveloperArtifacts,
+  getWindowsOrphanedLeftovers,
+  getWindowsShadowCopies,
 } from '../helpers/windows-helpers.js';
 
 const router = express.Router();
@@ -135,7 +137,9 @@ router.get('/storage/ios-backups', async (_req, res) => {
 // ── GET /api/storage/orphaned-leftovers ────────────────────────────────────
 router.get('/storage/orphaned-leftovers', async (_req, res) => {
   try {
-    const leftovers = isMac ? await getMacOrphanedLeftovers() : [];
+    const leftovers = isMac
+      ? await getMacOrphanedLeftovers()
+      : await getWindowsOrphanedLeftovers();
     res.json({ count: leftovers.length, leftovers });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -187,13 +191,11 @@ router.get('/snapshots', async (_req, res) => {
         measurement: snapshots.length > 0 ? 'observed' : 'none-found',
       });
     } else {
-      // Windows system restore points require WMI/CIM queries — report honestly
+      const snapshots = await getWindowsShadowCopies();
       res.json({
-        platform: process.platform,
-        count: null,
-        snapshots: [],
-        measurement: 'unavailable',
-        note: 'Windows System Restore point enumeration requires WMI/CIM queries (vssadmin list shadows). Not yet implemented for this platform.',
+        platform: 'windows',
+        count: snapshots.length,
+        snapshots,
       });
     }
   } catch (err) {

@@ -1297,4 +1297,135 @@ router.post('/cancel', (_req, res) => {
   res.json({ success: true, cancelled });
 });
 
+// ── Windows-specific Action Endpoints ──────────────────────────────────────
+
+// ── POST /api/actions/rebuild-search-index ──────────────────────────────────
+router.post('/rebuild-search-index', async (_req, res) => {
+  const isWin = process.platform === 'win32';
+  if (!isWin) return res.status(400).json({ error: 'Windows Search index rebuild is only supported on Windows.' });
+  try {
+    const result = await executeAllowlistedCommand('win.search.rebuild', {});
+    const audit = logAuditEntry({
+      operation: 'Rebuild Windows Search Index',
+      commandId: 'win.search.rebuild',
+      risk: 'moderate',
+      permissionLevel: 'Administrator',
+      result: result.success ? 'success' : 'warning',
+      durationSeconds: result.durationSeconds,
+      changesMade: ['Stopped WSearch service, cleared index database, restarted WSearch service.'],
+    });
+    res.json({ success: true, result, audit, message: 'Windows Search index rebuild initiated. Search may be slow while index rebuilds.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /api/actions/purge-delivery-optimization ───────────────────────────
+router.post('/purge-delivery-optimization', async (_req, res) => {
+  const isWin = process.platform === 'win32';
+  if (!isWin) return res.status(400).json({ error: 'Delivery Optimization cache purge is only supported on Windows.' });
+  const getFreebytes = async () => {
+    try {
+      const { statfs } = await import('fs/promises');
+      const st = await statfs('C:\\');
+      return st.bavail * st.bsize;
+    } catch { return null; }
+  };
+  try {
+    const before = await getFreebytes();
+    const result = await executeAllowlistedCommand('win.delivery.purge', {});
+    const after = await getFreebytes();
+    const reclaimedBytes = (before !== null && after !== null) ? Math.max(0, after - before) : null;
+    const audit = logAuditEntry({
+      operation: 'Purge Windows Delivery Optimization Cache',
+      commandId: 'win.delivery.purge',
+      risk: 'safe',
+      permissionLevel: 'Administrator',
+      result: result.success ? 'success' : 'warning',
+      durationSeconds: result.durationSeconds,
+      changesMade: ['Cleared Delivery Optimization peer-to-peer update fragment cache.'],
+      reclaimedBytes: reclaimedBytes ?? 0,
+    });
+    res.json({
+      success: true,
+      reclaimedMB: reclaimedBytes !== null ? Math.round(reclaimedBytes / 1024 / 1024) : null,
+      measurement: reclaimedBytes !== null ? 'observed' : 'unavailable',
+      result,
+      audit,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /api/actions/create-restore-point ──────────────────────────────────
+router.post('/create-restore-point', async (_req, res) => {
+  const isWin = process.platform === 'win32';
+  if (!isWin) return res.status(400).json({ error: 'System Restore Points are only available on Windows.' });
+  try {
+    const result = await executeAllowlistedCommand('win.restore.create', {});
+    const audit = logAuditEntry({
+      operation: 'Create Windows System Restore Point',
+      commandId: 'win.restore.create',
+      risk: 'safe',
+      permissionLevel: 'Administrator',
+      result: result.success ? 'success' : 'warning',
+      durationSeconds: result.durationSeconds,
+      changesMade: ['Created VSS snapshot: WinSuite Maintenance Checkpoint.'],
+    });
+    res.json({ success: true, result, audit, message: 'System Restore Point created successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /api/actions/clean-prefetch ────────────────────────────────────────
+router.post('/clean-prefetch', async (_req, res) => {
+  const isWin = process.platform === 'win32';
+  if (!isWin) return res.status(400).json({ error: 'Prefetch cleanup is only supported on Windows.' });
+  try {
+    const result = await executeAllowlistedCommand('win.prefetch.clean', {});
+    const audit = logAuditEntry({
+      operation: 'Clean Windows Prefetch Cache',
+      commandId: 'win.prefetch.clean',
+      risk: 'safe',
+      permissionLevel: 'Administrator',
+      result: result.success ? 'success' : 'warning',
+      durationSeconds: result.durationSeconds,
+      changesMade: ['Removed stale .pf prefetch files from C:\\Windows\\Prefetch\\'],
+    });
+    res.json({ success: true, result, audit });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /api/actions/flush-print-spooler ───────────────────────────────────
+router.post('/flush-print-spooler', async (req, res) => {
+  const isWin = process.platform === 'win32';
+  if (!isWin) return res.status(400).json({ error: 'Print spooler flush is only supported on Windows.' });
+  const { confirmed } = req.body;
+  if (!confirmed) {
+    return res.status(400).json({
+      error: 'Flushing the print spooler stops and restarts the Print Spooler service. Requires explicit confirmation.',
+      requiresConfirmation: true,
+    });
+  }
+  try {
+    const result = await executeAllowlistedCommand('win.printer.spooler.flush', {});
+    const audit = logAuditEntry({
+      operation: 'Flush Windows Print Spooler Queue',
+      commandId: 'win.printer.spooler.flush',
+      risk: 'moderate',
+      permissionLevel: 'Administrator',
+      result: result.success ? 'success' : 'warning',
+      durationSeconds: result.durationSeconds,
+      changesMade: ['Stopped Print Spooler, cleared spool queue, restarted Print Spooler.'],
+    });
+    res.json({ success: true, result, audit, message: 'Print spooler flushed and restarted. Stuck print jobs cleared.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

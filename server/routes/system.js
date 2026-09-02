@@ -1,5 +1,5 @@
 /**
- * WinSuite & MacSuite v10.1 - System & Capabilities Route
+ * WinSuite & MacSuite v10.2 - System & Capabilities Route
  * Read-only endpoints: /api/sysinfo, /api/capabilities, /api/permissions
  *
  * v10 change (P0 #2): /api/permissions no longer claims blanket elevation. It probes
@@ -17,6 +17,15 @@ import {
   getMacAppFootprint,
   getMacDeveloperEnvironmentHealth,
 } from '../helpers/macos-helpers.js';
+import {
+  getWindowsListeningPorts,
+  getWindowsInstalledApps,
+  getWindowsDeveloperEnvironmentHealth,
+  getWindowsThermalState,
+  getWindowsWslHealth,
+  getWindowsPrinterQueueDoctor,
+  probeWindowsElevation,
+} from '../helpers/windows-helpers.js';
 import {
   PERMISSION,
   createPermissionState,
@@ -193,14 +202,27 @@ async function probeRealPermissionState() {
   const granted = {};
   const evidence = [];
 
-  // Effective UID is a real, cheap, reliable elevation signal.
-  const uid = typeof process.getuid === 'function' ? process.getuid() : null;
-  granted[PERMISSION.ADMIN] = uid === 0;
+  // Elevation probe: POSIX uid=0 on macOS/Linux; WHOAMI /GROUPS SID check on Windows.
+  let isAdmin = false;
+  let adminProbe = '';
+  let adminObserved = '';
+  if (isWin) {
+    const winElevation = await probeWindowsElevation();
+    isAdmin = winElevation.isAdmin;
+    adminProbe = winElevation.method;
+    adminObserved = isAdmin ? 'Administrators group (S-1-5-32-544) enabled' : 'Not in Administrators group or not enabled';
+  } else {
+    const uid = typeof process.getuid === 'function' ? process.getuid() : null;
+    isAdmin = uid === 0;
+    adminProbe = 'process.getuid()';
+    adminObserved = uid === null ? 'unavailable on this platform' : `uid=${uid}`;
+  }
+  granted[PERMISSION.ADMIN] = isAdmin;
   evidence.push({
     permission: PERMISSION.ADMIN,
-    probe: 'process.getuid()',
-    observed: uid === null ? 'unavailable on this platform' : `uid=${uid}`,
-    granted: uid === 0,
+    probe: adminProbe,
+    observed: adminObserved,
+    granted: isAdmin,
   });
 
   // Full Disk Access: readability of a TCC-protected path is the canonical check.
@@ -244,7 +266,9 @@ async function probeRealPermissionState() {
 // ── GET /api/network/listening-ports ────────────────────────────────────────
 router.get('/network/listening-ports', async (_req, res) => {
   try {
-    const ports = isMac ? await getMacListeningPorts() : [];
+    const ports = isMac
+      ? await getMacListeningPorts()
+      : await getWindowsListeningPorts();
     res.json({
       platform: detectedPlatform,
       count: ports.length,
@@ -258,7 +282,9 @@ router.get('/network/listening-ports', async (_req, res) => {
 // ── GET /api/apps/inventory ────────────────────────────────────────────────
 router.get('/apps/inventory', async (_req, res) => {
   try {
-    const apps = isMac ? await getMacInstalledApplicationsInventory() : [];
+    const apps = isMac
+      ? await getMacInstalledApplicationsInventory()
+      : await getWindowsInstalledApps();
     res.json({
       platform: detectedPlatform,
       count: apps.length,
@@ -290,45 +316,9 @@ router.get('/apps/footprint/:appName', async (req, res) => {
 // ── GET /api/developer/health ──────────────────────────────────────────────
 router.get('/developer/health', async (_req, res) => {
   try {
-    const devHealth = isMac ? await getMacDeveloperEnvironmentHealth() : await (async () => {
-      // Real tool detection for non-macOS platforms
-      const { execFile } = await import('child_process');
-      const { promisify } = await import('util');
-      const execAsync = promisify(execFile);
-      const tools = [];
-      // Node.js
-      try {
-        const { stdout } = await execAsync('node', ['--version'], { timeout: 3000 });
-        tools.push({ name: 'Node.js', status: 'Installed', version: stdout.trim(), healthy: true });
-      } catch { tools.push({ name: 'Node.js', status: 'Not Found', version: null, healthy: false }); }
-      // Python 3
-      try {
-        const { stdout } = await execAsync('python3', ['--version'], { timeout: 3000 });
-        tools.push({ name: 'Python 3', status: 'Installed', version: stdout.trim().replace('Python ', ''), healthy: true });
-      } catch {
-        try {
-          const { stdout } = await execAsync('python', ['--version'], { timeout: 3000 });
-          tools.push({ name: 'Python', status: 'Installed', version: stdout.trim().replace('Python ', ''), healthy: true });
-        } catch { tools.push({ name: 'Python 3', status: 'Not Found', version: null, healthy: false }); }
-      }
-      // npm
-      try {
-        const { stdout } = await execAsync('npm', ['--version'], { timeout: 3000 });
-        tools.push({ name: 'npm', status: 'Installed', version: stdout.trim(), healthy: true });
-      } catch { /* optional */ }
-      // Docker
-      try {
-        const { stdout } = await execAsync('docker', ['--version'], { timeout: 3000 });
-        const verMatch = /(\d+\.\d+\.\d+)/.exec(stdout);
-        tools.push({ name: 'Docker', status: 'Installed', version: verMatch?.[1] || stdout.trim(), healthy: true });
-      } catch { tools.push({ name: 'Docker', status: 'Not Found', version: null, healthy: false }); }
-      return {
-        platform: process.platform,
-        tools,
-        totalInstalled: tools.filter(t => t.healthy).length,
-        source: 'Real command probes (node, python, npm, docker --version)',
-      };
-    })();
+    const devHealth = isMac
+      ? await getMacDeveloperEnvironmentHealth()
+      : await getWindowsDeveloperEnvironmentHealth();
     res.json(devHealth);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -338,8 +328,30 @@ router.get('/developer/health', async (_req, res) => {
 // ── GET /api/thermal ────────────────────────────────────────────────────────
 router.get('/thermal', async (_req, res) => {
   try {
-    const thermal = isMac ? await getMacThermalState() : { state: 'Nominal', pressureLevel: 'Normal', detail: 'Hardware temperatures nominal.' };
+    const thermal = isMac
+      ? await getMacThermalState()
+      : await getWindowsThermalState();
     res.json(thermal);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/windows/wsl ────────────────────────────────────────────────────
+router.get('/windows/wsl', async (_req, res) => {
+  try {
+    const wsl = isWin ? await getWindowsWslHealth() : { available: false, distros: [], note: 'Not a Windows host.' };
+    res.json(wsl);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/windows/printer-queue ──────────────────────────────────────────
+router.get('/windows/printer-queue', async (_req, res) => {
+  try {
+    const printers = isWin ? await getWindowsPrinterQueueDoctor() : { printers: [], stuckJobs: [], hasStuckJobs: false };
+    res.json(printers);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
