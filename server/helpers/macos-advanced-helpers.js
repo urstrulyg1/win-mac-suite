@@ -658,3 +658,203 @@ export async function getMacBaselineDiff() {
     ],
   };
 }
+
+// ── 21. Duplicate Files Scanner ─────────────────────────────────────────────
+
+/**
+ * macOS Duplicate Files — finds duplicate files (same size + same MD5) in the
+ * user's home directory. Limits to files ≥ 1 MB to avoid OS noise.
+ */
+export async function getMacDuplicateFiles(scanPath, maxResults = 50) {
+  const { default: osModule } = await import('os');
+  const target = scanPath || osModule.homedir();
+  const script = `find '${target}' -type f -size +1m 2>/dev/null | xargs md5 -r 2>/dev/null | sort`;
+  try {
+    const out = await runSafe('/bin/bash', ['-c', script], 20000);
+    if (!out) return { duplicates: [], count: 0, note: 'No duplicates found or scan timed out.' };
+
+    const lines = out.trim().split('\n').filter(Boolean);
+    const byHash = {};
+    for (const line of lines) {
+      const parts = line.split(/\s+/);
+      if (parts.length < 2) continue;
+      const hash = parts[0];
+      const filePath = parts.slice(1).join(' ');
+      if (!byHash[hash]) byHash[hash] = [];
+      byHash[hash].push(filePath);
+    }
+
+    const duplicates = Object.entries(byHash)
+      .filter(([, files]) => files.length > 1)
+      .map(([hash, files]) => ({ hash, files, count: files.length }))
+      .slice(0, maxResults);
+
+    return { duplicates, count: duplicates.length };
+  } catch {
+    return { duplicates: [], count: 0 };
+  }
+}
+
+// ── 22. DNS Diagnostics ─────────────────────────────────────────────────────
+
+/**
+ * macOS DNS Diagnostics — checks configured DNS servers, resolves test
+ * hostnames, and measures latency.
+ */
+export async function getMacDnsDiagnostics() {
+  const { promisify } = await import('util');
+  const { Resolver } = await import('dns');
+
+  // Read configured DNS from scutil
+  let servers = [];
+  try {
+    const scutil = await runSafe('/usr/sbin/scutil', ['--dns'], 5000);
+    const matches = [...(scutil || '').matchAll(/nameserver\[.*\]\s*:\s*([\d.]+)/g)];
+    servers = [...new Set(matches.map(m => m[1]))].slice(0, 4);
+  } catch {}
+
+  // Resolve test hostnames
+  const testHosts = ['apple.com', 'cloudflare.com', 'google.com'];
+  const results = [];
+  for (const host of testHosts) {
+    const resolver = new Resolver();
+    if (servers.length > 0) resolver.setServers(servers);
+    try {
+      const start = performance.now();
+      await promisify(resolver.resolve4.bind(resolver))(host);
+      results.push({ host, resolved: true, latencyMs: Math.round(performance.now() - start) });
+    } catch {
+      results.push({ host, resolved: false, latencyMs: null });
+    }
+  }
+
+  const avgLatency = results.filter(r => r.latencyMs !== null).reduce((s, r, _, a) => s + r.latencyMs / a.length, 0);
+
+  return {
+    configuredServers: servers,
+    testResults: results,
+    avgLatencyMs: results.some(r => r.latencyMs !== null) ? Math.round(avgLatency) : null,
+    allResolved: results.every(r => r.resolved),
+  };
+}
+
+// ── 23. Firewall Rules ───────────────────────────────────────────────────────
+
+/**
+ * macOS Firewall Rules — reads Application Firewall state via socketfilterfw
+ * and returns the list of allowed/blocked applications.
+ */
+export async function getMacFirewallRules() {
+  try {
+    const [stateOut, listOut] = await Promise.all([
+      runSafe('/usr/libexec/ApplicationFirewall/socketfilterfw', ['--getglobalstate'], 5000),
+      runSafe('/usr/libexec/ApplicationFirewall/socketfilterfw', ['--listapps'], 5000),
+    ]);
+
+    const enabled = /enabled/i.test(stateOut || '');
+
+    const rules = [];
+    if (listOut) {
+      const lines = listOut.split('\n');
+      for (const line of lines) {
+        const m = line.match(/^(.+?)\s+(ALLOW|BLOCK|Allow|Block)/i);
+        if (m) {
+          rules.push({ app: m[1].trim(), action: m[2].toUpperCase() });
+        }
+      }
+    }
+
+    return { enabled, rules, count: rules.length };
+  } catch {
+    return { enabled: false, rules: [], count: 0 };
+  }
+}
+
+// ── 24. Update History ───────────────────────────────────────────────────────
+
+/**
+ * macOS Update History — parses /Library/Receipts/InstallHistory.plist for
+ * recent software update records.
+ */
+export async function getMacUpdateHistory() {
+  const historyFile = '/Library/Receipts/InstallHistory.plist';
+  try {
+    const raw = await runSafe('/usr/bin/plutil', ['-convert', 'json', '-o', '-', historyFile], 6000);
+    if (!raw) return { history: [], count: 0 };
+
+    const data = JSON.parse(raw);
+    const entries = Array.isArray(data) ? data : [];
+    const history = entries
+      .slice(-50)
+      .reverse()
+      .map((e, i) => ({
+        id: `upd-${i}`,
+        displayName: e.displayName || e.packageIdentifiers?.[0] || 'Unknown',
+        displayVersion: e.displayVersion || null,
+        date: e.date || null,
+        processName: e.processName || null,
+      }));
+
+    return { history, count: history.length };
+  } catch {
+    return { history: [], count: 0, note: 'Install history unavailable or requires elevated access.' };
+  }
+}
+
+// ── 25. Failed Updates ───────────────────────────────────────────────────────
+
+/**
+ * macOS Failed Updates — checks for any recent softwareupdate errors in
+ * system logs.
+ */
+export async function getMacFailedUpdates() {
+  try {
+    const logOut = await runSafe('/usr/bin/log', [
+      'show', '--predicate', 'subsystem == "com.apple.SoftwareUpdate"',
+      '--style', 'syslog', '--last', '7d', '--info',
+    ], 12000);
+
+    const lines = (logOut || '').split('\n').filter(l => /error|fail|unable/i.test(l));
+    const failed = lines.slice(0, 20).map((l, i) => ({ id: `fail-${i}`, message: l.trim().slice(0, 300) }));
+
+    return { failedUpdates: failed, count: failed.length };
+  } catch {
+    return { failedUpdates: [], count: 0 };
+  }
+}
+
+// ── 26. Service Dependencies ─────────────────────────────────────────────────
+
+/**
+ * macOS Service Dependencies — lists LaunchDaemons and LaunchAgents with their
+ * program paths and run state from launchctl.
+ */
+export async function getMacServiceDependencies() {
+  try {
+    const [systemList, userList] = await Promise.all([
+      runSafe('/bin/launchctl', ['list'], 6000),
+      runSafe('/bin/launchctl', ['list'], 6000),
+    ]);
+
+    const parse = (out) => (out || '').trim().split('\n').slice(1).map(line => {
+      const parts = line.split(/\t/);
+      if (parts.length < 3) return null;
+      return {
+        pid: parts[0] === '-' ? null : parseInt(parts[0], 10) || null,
+        exitCode: parts[1] === '-' ? null : parseInt(parts[1], 10),
+        label: parts[2],
+        running: parts[0] !== '-',
+      };
+    }).filter(Boolean);
+
+    const services = parse(systemList);
+
+    return {
+      services: services.slice(0, 100),
+      count: services.length,
+      running: services.filter(s => s.running).length,
+    };
+  } catch {
+    return { services: [], count: 0, running: 0 };
+  }
+}

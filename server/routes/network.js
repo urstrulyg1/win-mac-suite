@@ -19,6 +19,10 @@ import {
   getMacListeningPorts,
 } from '../helpers/macos-helpers.js';
 import {
+  getMacDnsDiagnostics,
+  getMacFirewallRules,
+} from '../helpers/macos-advanced-helpers.js';
+import {
   getWindowsNetworkDoctor,
   getWindowsWifiIntelligence,
   getWindowsBluetoothDoctor,
@@ -135,6 +139,54 @@ router.get('/listening-ports', async (_req, res) => {
       count: ports.length,
       ports,
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/network/dns-diagnostics ────────────────────────────────────────
+router.get('/dns-diagnostics', async (_req, res) => {
+  try {
+    if (isMac) {
+      res.json(await getMacDnsDiagnostics());
+    } else {
+      // Windows: covered in detail by /api/windows/v2/network/dns
+      const { default: dns } = await import('dns');
+      const { promisify } = await import('util');
+      const resolve = promisify(dns.resolve4);
+      const testHosts = ['microsoft.com', 'cloudflare.com', 'google.com'];
+      const results = [];
+      for (const host of testHosts) {
+        try {
+          const start = performance.now();
+          await resolve(host);
+          results.push({ host, resolved: true, latencyMs: Math.round(performance.now() - start) });
+        } catch {
+          results.push({ host, resolved: false, latencyMs: null });
+        }
+      }
+      const servers = dns.getServers();
+      res.json({
+        configuredServers: servers,
+        testResults: results,
+        allResolved: results.every(r => r.resolved),
+        avgLatencyMs: Math.round(results.filter(r => r.latencyMs !== null).reduce((s, r, _, a) => s + r.latencyMs / a.length, 0)) || null,
+      });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/network/firewall-rules ──────────────────────────────────────────
+router.get('/firewall-rules', async (_req, res) => {
+  try {
+    if (isMac) {
+      res.json(await getMacFirewallRules());
+    } else {
+      // Windows: covered by /api/windows/v2/network/firewall
+      res.json({ note: 'Use /api/windows/v2/network/firewall for Windows firewall rules.', enabled: null, rules: [] });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

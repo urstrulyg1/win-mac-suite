@@ -59,6 +59,18 @@ import {
   getWindowsDiskHealth,
   getWindowsUpdateDoctor,
   getWindowsShadowCopies,
+  getWindowsAudioDoctor,
+  getWindowsCameraMicDoctor,
+  getWindowsDisplayDoctor,
+  getWindowsPeripheralDoctor,
+  getWindowsSshDoctor,
+  getWindowsPowerAssertions,
+  getWindowsSystemEventsTimeline,
+  getWindowsBaselineDiff,
+  getWindowsBrowserHealth,
+  getWindowsTroubleshootGuide,
+  getWindowsAppCompatibility,
+  getWindowsExplorerDoctor,
 } from '../helpers/windows-helpers.js';
 
 const router = express.Router();
@@ -259,73 +271,75 @@ router.get('/diagnostics/system-stability', async (_req, res) => {
 
 router.get('/diagnostics/spotlight-doctor', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacSpotlightDoctor() : { indexingEnabled: true });
+    res.json(isMac ? await getMacSpotlightDoctor() : { indexingEnabled: true, note: 'Windows Search indexing status available via /api/windows/update.' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/time-machine', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacTimeMachineDoctor() : { status: 'N/A' });
+    // macOS: Time Machine; Windows: shadow copies covered by /api/snapshots
+    res.json(isMac ? await getMacTimeMachineDoctor() : { status: 'N/A', note: 'Use /api/snapshots for Windows VSS shadow copies.' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/icloud', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacICloudDiagnostics() : { accountConfigured: false });
+    res.json(isMac ? await getMacICloudDiagnostics() : { accountConfigured: false, note: 'iCloud diagnostics are macOS-exclusive.' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/apple-services', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacAppleServicesHealth() : { services: [] });
+    res.json(isMac ? await getMacAppleServicesHealth() : { services: [], note: 'Apple Services health is macOS-exclusive.' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/audio', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacAudioDoctor() : { defaultOutputDevice: 'Speakers' });
+    res.json(isMac ? await getMacAudioDoctor() : await getWindowsAudioDoctor());
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/camera-mic', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacCameraMicDoctor() : { cameras: [] });
+    res.json(isMac ? await getMacCameraMicDoctor() : await getWindowsCameraMicDoctor());
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/displays', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacDisplayDoctor() : { connectedDisplaysCount: 1 });
+    res.json(isMac ? await getMacDisplayDoctor() : await getWindowsDisplayDoctor());
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/peripherals', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacPeripheralDoctor() : { peripherals: [] });
+    res.json(isMac ? await getMacPeripheralDoctor() : await getWindowsPeripheralDoctor());
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/finder-clipboard', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacFinderClipboardDoctor() : { finderStatus: 'Responsive' });
+    res.json(isMac ? await getMacFinderClipboardDoctor() : await getWindowsExplorerDoctor());
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/ssh-doctor', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacSshDoctor() : { sshConfigFound: false });
+    res.json(isMac ? await getMacSshDoctor() : await getWindowsSshDoctor());
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/virtualization', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacVirtualizationDoctor() : { hypervisorsDetected: [] });
+    // Windows: WSL is covered by /api/windows/wsl; surface a minimal cross-link here
+    res.json(isMac ? await getMacVirtualizationDoctor() : { hypervisorsDetected: [], note: 'WSL and Docker status available via /api/windows/wsl and /api/windows/v2/docker.' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/browser-health', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacBrowserHealth() : { browsers: [] });
+    res.json(isMac ? await getMacBrowserHealth() : await getWindowsBrowserHealth());
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -357,13 +371,13 @@ router.get('/diagnostics/app-resource', async (req, res) => {
 
 router.get('/diagnostics/system-timeline', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacSystemEventsTimeline() : { events: [] });
+    res.json(isMac ? await getMacSystemEventsTimeline() : await getWindowsSystemEventsTimeline());
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/baseline-diff', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacBaselineDiff() : { metrics: [] });
+    res.json(isMac ? await getMacBaselineDiff() : await getWindowsBaselineDiff());
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -417,19 +431,19 @@ router.get('/spotlight', async (_req, res) => {
 
 router.get('/power-assertions', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacPowerAssertions() : { sleepPrevented: false, activeBlockers: [] });
+    res.json(isMac ? await getMacPowerAssertions() : await getWindowsPowerAssertions());
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/diagnostics/app-compatibility/:appName', async (req, res) => {
   try {
-    res.json(isMac ? await getMacAppCompatibility(req.params.appName) : { appName: req.params.appName });
+    res.json(isMac ? await getMacAppCompatibility(req.params.appName) : await getWindowsAppCompatibility(req.params.appName));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/troubleshoot/:issueId', async (req, res) => {
   try {
-    res.json(isMac ? await getMacTroubleshootGuide(req.params.issueId) : { title: 'Troubleshoot' });
+    res.json(isMac ? await getMacTroubleshootGuide(req.params.issueId) : await getWindowsTroubleshootGuide(req.params.issueId));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

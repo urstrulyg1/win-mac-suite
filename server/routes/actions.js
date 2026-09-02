@@ -387,16 +387,38 @@ router.post('/eject-drive', async (req, res) => {
   const { volumePath, force } = req.body;
   if (!volumePath) return res.status(400).json({ error: 'volumePath is required.' });
 
+  const isMacOs = process.platform === 'darwin';
+  const isWin = process.platform === 'win32';
+
   try {
-    if (force) {
-      await runSafeCommand('/usr/sbin/diskutil', ['unmount', 'force', volumePath], 5000);
+    if (isMacOs) {
+      if (force) {
+        await runSafeCommand('/usr/sbin/diskutil', ['unmount', 'force', volumePath], 5000);
+      } else {
+        await runSafeCommand('/usr/sbin/diskutil', ['eject', volumePath], 5000);
+      }
+    } else if (isWin) {
+      // Windows: use mountvol to dismount by drive letter (e.g. "E:\")
+      const { execFile } = await import('child_process');
+      const { promisify } = await import('util');
+      const execAsync = promisify(execFile);
+      const sysRoot = process.env.SystemRoot || 'C:\\Windows';
+      const driveLetter = volumePath.match(/^[A-Za-z]:/)?.[0];
+      if (!driveLetter) {
+        return res.status(400).json({ error: 'On Windows, volumePath must be a drive letter (e.g. "E:\\").' });
+      }
+      await execAsync(
+        path.join(sysRoot, 'System32', 'mountvol.exe'),
+        [`${driveLetter}\\`, '/p'],
+        { timeout: 8000, windowsHide: true }
+      );
     } else {
-      await runSafeCommand('/usr/sbin/diskutil', ['eject', volumePath], 5000);
+      return res.status(400).json({ error: 'Eject is only supported on macOS and Windows.' });
     }
 
     logAuditEntry({
       operation: `Eject External Volume (${volumePath})`,
-      commandId: 'mac.diskutil.eject',
+      commandId: isMacOs ? 'mac.diskutil.eject' : 'win.mountvol.eject',
       risk: 'safe',
       permissionLevel: 'Standard User',
       result: 'success',
@@ -835,53 +857,70 @@ router.post('/run-integrity-check', async (_req, res) => {
 // ── POST /api/actions/thin-snapshots ────────────────────────────────────────
 router.post('/thin-snapshots', async (req, res) => {
   const isMacOs = process.platform === 'darwin';
-  if (!isMacOs) {
-    return res.status(400).json({ error: 'Time Machine snapshot thinning is only supported on macOS.' });
-  }
+  const isWin = process.platform === 'win32';
 
   const { confirmed } = req.body;
   if (!confirmed) {
     return res.status(400).json({
-      error: 'Thinning local Time Machine snapshots is an advanced operation and requires explicit confirmation.',
+      error: isMacOs
+        ? 'Thinning local Time Machine snapshots is an advanced operation and requires explicit confirmation.'
+        : 'Deleting VSS shadow copies is an advanced operation and requires explicit confirmation.',
       requiresConfirmation: true,
     });
   }
 
-  const getFreebytes = async () => {
+  if (isMacOs) {
+    const getFreebytes = async () => {
+      try {
+        const { statfs } = await import('fs/promises');
+        const st = await statfs('/');
+        return st.bavail * st.bsize;
+      } catch { return null; }
+    };
     try {
-      const { statfs } = await import('fs/promises');
-      const st = await statfs('/');
-      return st.bavail * st.bsize;
-    } catch { return null; }
-  };
-
-  try {
-    const before = await getFreebytes();
-    const result = await executeAllowlistedCommand('mac.tmutil.thin', {});
-    const after = await getFreebytes();
-    const reclaimedBytes = (before !== null && after !== null) ? Math.max(0, after - before) : null;
-    const measurable = reclaimedBytes !== null;
-
-    const audit = logAuditEntry({
-      operation: 'Time Machine Local Snapshot Thinning',
-      commandId: 'mac.tmutil.thin',
-      risk: 'advanced',
-      permissionLevel: 'Administrator',
-      result: result.success ? 'success' : 'warning',
-      durationSeconds: result.durationSeconds,
-      changesMade: ['Thinned local Time Machine snapshots to reclaim APFS purgeable space.'],
-      reclaimedBytes: reclaimedBytes ?? 0,
-    });
-
-    res.json({
-      success: true,
-      reclaimedMB: measurable ? Math.round(reclaimedBytes / 1024 / 1024) : null,
-      measurement: measurable ? 'observed' : 'unavailable',
-      result,
-      audit,
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+      const before = await getFreebytes();
+      const result = await executeAllowlistedCommand('mac.tmutil.thin', {});
+      const after = await getFreebytes();
+      const reclaimedBytes = (before !== null && after !== null) ? Math.max(0, after - before) : null;
+      const audit = logAuditEntry({
+        operation: 'Time Machine Local Snapshot Thinning',
+        commandId: 'mac.tmutil.thin',
+        risk: 'advanced',
+        permissionLevel: 'Administrator',
+        result: result.success ? 'success' : 'warning',
+        durationSeconds: result.durationSeconds,
+        changesMade: ['Thinned local Time Machine snapshots to reclaim APFS purgeable space.'],
+        reclaimedBytes: reclaimedBytes ?? 0,
+      });
+      res.json({
+        success: true,
+        reclaimedMB: reclaimedBytes !== null ? Math.round(reclaimedBytes / 1024 / 1024) : null,
+        measurement: reclaimedBytes !== null ? 'observed' : 'unavailable',
+        result,
+        audit,
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  } else if (isWin) {
+    // Windows: delete oldest shadow copy using vssadmin
+    try {
+      const result = await executeAllowlistedCommand('win.vss.delete-oldest', {});
+      const audit = logAuditEntry({
+        operation: 'Delete Oldest VSS Shadow Copy',
+        commandId: 'win.vss.delete-oldest',
+        risk: 'advanced',
+        permissionLevel: 'Administrator',
+        result: result.success ? 'success' : 'warning',
+        durationSeconds: result.durationSeconds || 2,
+        changesMade: ['Deleted oldest VSS shadow copy to reclaim disk space.'],
+      });
+      res.json({ success: true, result, audit, message: 'Oldest VSS shadow copy deleted.' });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  } else {
+    res.status(400).json({ error: 'Snapshot thinning is only supported on macOS and Windows.' });
   }
 });
 
@@ -979,19 +1018,35 @@ router.post('/flush-dns', async (_req, res) => {
 // ── POST /api/actions/restart-audio ─────────────────────────────────────────
 router.post('/restart-audio', async (_req, res) => {
   const isMacOs = process.platform === 'darwin';
-  if (!isMacOs) return res.status(400).json({ error: 'CoreAudio reset is only supported on macOS.' });
+  const isWin = process.platform === 'win32';
   try {
-    const result = await executeAllowlistedCommand('mac.coreaudio.reset', {});
-    const audit = logAuditEntry({
-      operation: 'Restart macOS CoreAudio Engine',
-      commandId: 'mac.coreaudio.reset',
-      risk: 'safe',
-      permissionLevel: 'Standard User',
-      result: result.success ? 'success' : 'warning',
-      durationSeconds: result.durationSeconds,
-      changesMade: ['Restarted coreaudiod daemon to resolve audio latency and device glitching.'],
-    });
-    res.json({ success: true, result, audit });
+    if (isMacOs) {
+      const result = await executeAllowlistedCommand('mac.coreaudio.reset', {});
+      const audit = logAuditEntry({
+        operation: 'Restart macOS CoreAudio Engine',
+        commandId: 'mac.coreaudio.reset',
+        risk: 'safe',
+        permissionLevel: 'Standard User',
+        result: result.success ? 'success' : 'warning',
+        durationSeconds: result.durationSeconds,
+        changesMade: ['Restarted coreaudiod daemon to resolve audio latency and device glitching.'],
+      });
+      return res.json({ success: true, result, audit });
+    } else if (isWin) {
+      const result = await executeAllowlistedCommand('win.audio.restart', {});
+      const audit = logAuditEntry({
+        operation: 'Restart Windows Audio Service',
+        commandId: 'win.audio.restart',
+        risk: 'safe',
+        permissionLevel: 'Administrator',
+        result: result.success ? 'success' : 'warning',
+        durationSeconds: result.durationSeconds || 2,
+        changesMade: ['Restarted Windows Audio (Audiosrv) service to resolve audio issues.'],
+      });
+      return res.json({ success: true, result, audit });
+    } else {
+      return res.status(400).json({ error: 'Audio restart is only supported on macOS and Windows.' });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1000,19 +1055,35 @@ router.post('/restart-audio', async (_req, res) => {
 // ── POST /api/actions/rebuild-icon-cache ────────────────────────────────────
 router.post('/rebuild-icon-cache', async (_req, res) => {
   const isMacOs = process.platform === 'darwin';
-  if (!isMacOs) return res.status(400).json({ error: 'QuickLook cache rebuild is only supported on macOS.' });
+  const isWin = process.platform === 'win32';
   try {
-    const result = await executeAllowlistedCommand('mac.qlmanage.rebuild', {});
-    const audit = logAuditEntry({
-      operation: 'Rebuild QuickLook & Finder Thumbnail Cache',
-      commandId: 'mac.qlmanage.rebuild',
-      risk: 'safe',
-      permissionLevel: 'Standard User',
-      result: result.success ? 'success' : 'warning',
-      durationSeconds: result.durationSeconds,
-      changesMade: ['Reset QuickLook thumbnail daemon and flushed corrupt desktop icon caches.'],
-    });
-    res.json({ success: true, result, audit });
+    if (isMacOs) {
+      const result = await executeAllowlistedCommand('mac.qlmanage.rebuild', {});
+      const audit = logAuditEntry({
+        operation: 'Rebuild QuickLook & Finder Thumbnail Cache',
+        commandId: 'mac.qlmanage.rebuild',
+        risk: 'safe',
+        permissionLevel: 'Standard User',
+        result: result.success ? 'success' : 'warning',
+        durationSeconds: result.durationSeconds,
+        changesMade: ['Reset QuickLook thumbnail daemon and flushed corrupt desktop icon caches.'],
+      });
+      return res.json({ success: true, result, audit });
+    } else if (isWin) {
+      const result = await executeAllowlistedCommand('win.thumbnail.clear', {});
+      const audit = logAuditEntry({
+        operation: 'Clear Windows Thumbnail Cache',
+        commandId: 'win.thumbnail.clear',
+        risk: 'safe',
+        permissionLevel: 'Standard User',
+        result: result.success ? 'success' : 'warning',
+        durationSeconds: result.durationSeconds || 2,
+        changesMade: ['Cleared thumbcache_*.db files from %LOCALAPPDATA%\\Microsoft\\Windows\\Explorer.'],
+      });
+      return res.json({ success: true, result, audit });
+    } else {
+      return res.status(400).json({ error: 'Icon/thumbnail cache rebuild is only supported on macOS and Windows.' });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -26,9 +26,14 @@ import {
   runSafeCommand,
 } from '../helpers/macos-helpers.js';
 import {
+  getMacDuplicateFiles,
+} from '../helpers/macos-advanced-helpers.js';
+import {
   getWindowsDeveloperArtifacts,
   getWindowsOrphanedLeftovers,
   getWindowsShadowCopies,
+  getWindowsExternalDrives,
+  getWindowsDockerStorage,
 } from '../helpers/windows-helpers.js';
 
 const router = express.Router();
@@ -107,7 +112,7 @@ router.get('/storage/system-data', async (_req, res) => {
 // ── GET /api/storage/docker ────────────────────────────────────────────────
 router.get('/storage/docker', async (_req, res) => {
   try {
-    const dockerInfo = isMac ? await getMacDockerStorage() : { active: false, imagesSize: '0 GB', containersSize: '0 GB', volumesSize: '0 GB', buildCacheSize: '0 GB', reclaimableSize: '0 GB' };
+    const dockerInfo = isMac ? await getMacDockerStorage() : await getWindowsDockerStorage();
     res.json(dockerInfo);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -149,7 +154,7 @@ router.get('/storage/orphaned-leftovers', async (_req, res) => {
 // ── GET /api/storage/external-drives ───────────────────────────────────────
 router.get('/storage/external-drives', async (_req, res) => {
   try {
-    const drives = isMac ? await getMacExternalDrives() : [];
+    const drives = isMac ? await getMacExternalDrives() : (await getWindowsExternalDrives()).drives;
     res.json({ count: drives.length, drives });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -197,6 +202,22 @@ router.get('/snapshots', async (_req, res) => {
         count: snapshots.length,
         snapshots,
       });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/storage/duplicates ────────────────────────────────────────────
+router.get('/storage/duplicates', async (req, res) => {
+  try {
+    if (isMac) {
+      const scanPath = req.query.path || null;
+      const maxResults = Math.min(parseInt(req.query.max || '50', 10), 200);
+      res.json(await getMacDuplicateFiles(scanPath, maxResults));
+    } else {
+      // Windows: covered by /api/windows/v2/storage/duplicates
+      res.json({ duplicates: [], count: 0, note: 'Use /api/windows/v2/storage/duplicates for Windows.' });
     }
   } catch (err) {
     res.status(500).json({ error: err.message });

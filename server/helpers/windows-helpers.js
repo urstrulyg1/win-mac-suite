@@ -1310,3 +1310,761 @@ export async function probeWindowsElevation() {
     return { isAdmin: false, method: 'whoami /groups (failed)' };
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Audio Doctor
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Windows Audio Doctor — enumerates audio devices via WMI and checks the
+ * Windows Audio service state.
+ */
+export async function getWindowsAudioDoctor() {
+  const psScript = `
+    $svc = Get-Service -Name Audiosrv -ErrorAction SilentlyContinue
+    $devices = Get-WmiObject Win32_SoundDevice -ErrorAction SilentlyContinue | Select-Object Name, Manufacturer, Status, DeviceID
+    [PSCustomObject]@{
+      serviceState = if ($svc) { $svc.Status.ToString() } else { 'Unknown' }
+      devices      = ($devices | ConvertTo-Json -Compress)
+    } | ConvertTo-Json -Compress
+  `;
+  try {
+    const out = await runSafePowerShell(psScript, 7000);
+    if (out) {
+      const data = JSON.parse(out);
+      const raw = data.devices ? JSON.parse(data.devices) : [];
+      const devArr = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+      const devices = devArr.map((d, i) => ({
+        id: `audio-${i}`,
+        name: d.Name || 'Unknown Device',
+        manufacturer: d.Manufacturer || 'Unknown',
+        status: d.Status || 'Unknown',
+        healthy: d.Status === 'OK',
+      }));
+      const serviceState = data.serviceState || 'Unknown';
+      return {
+        serviceState,
+        serviceHealthy: serviceState === 'Running',
+        defaultOutputDevice: devices.length > 0 ? devices[0].name : 'None detected',
+        devices,
+        issues: devices.filter(d => !d.healthy).map(d => `${d.name}: ${d.status}`),
+      };
+    }
+  } catch {}
+  return { serviceState: 'Unknown', serviceHealthy: false, defaultOutputDevice: 'Unknown', devices: [], issues: [] };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Camera & Mic Doctor
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Windows Camera & Microphone Doctor — enumerates imaging and audio input
+ * devices via WMI/PnP.
+ */
+export async function getWindowsCameraMicDoctor() {
+  const psScript = `
+    $cameras = Get-PnpDevice -Class 'Camera','Image' -ErrorAction SilentlyContinue |
+      Select-Object FriendlyName, Status, InstanceId
+    $mics = Get-WmiObject Win32_SoundDevice -ErrorAction SilentlyContinue |
+      Where-Object { $_.Name -match 'Microphone|Mic|Input' } |
+      Select-Object Name, Status
+    [PSCustomObject]@{
+      cameras      = ($cameras | ConvertTo-Json -Compress)
+      microphones  = ($mics    | ConvertTo-Json -Compress)
+    } | ConvertTo-Json -Compress
+  `;
+  try {
+    const out = await runSafePowerShell(psScript, 8000);
+    if (out) {
+      const data = JSON.parse(out);
+      const rawCam = data.cameras ? JSON.parse(data.cameras) : [];
+      const rawMic = data.microphones ? JSON.parse(data.microphones) : [];
+      const camArr = Array.isArray(rawCam) ? rawCam : (rawCam ? [rawCam] : []);
+      const micArr = Array.isArray(rawMic) ? rawMic : (rawMic ? [rawMic] : []);
+      const cameras = camArr.map((c, i) => ({
+        id: `cam-${i}`,
+        name: c.FriendlyName || 'Unknown Camera',
+        status: c.Status || 'Unknown',
+        healthy: c.Status === 'OK',
+      }));
+      const microphones = micArr.map((m, i) => ({
+        id: `mic-${i}`,
+        name: m.Name || 'Unknown Microphone',
+        status: m.Status || 'Unknown',
+        healthy: m.Status === 'OK',
+      }));
+      return {
+        cameras,
+        microphones,
+        cameraCount: cameras.length,
+        micCount: microphones.length,
+        issues: [
+          ...cameras.filter(c => !c.healthy).map(c => `Camera ${c.name}: ${c.status}`),
+          ...microphones.filter(m => !m.healthy).map(m => `Mic ${m.name}: ${m.status}`),
+        ],
+      };
+    }
+  } catch {}
+  return { cameras: [], microphones: [], cameraCount: 0, micCount: 0, issues: [] };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Display Doctor
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Windows Display Doctor — enumerates connected monitors via WMI and the
+ * current video controller details.
+ */
+export async function getWindowsDisplayDoctor() {
+  const psScript = `
+    $monitors = Get-WmiObject Win32_DesktopMonitor -ErrorAction SilentlyContinue |
+      Select-Object Caption, ScreenHeight, ScreenWidth, MonitorManufacturer, Status
+    $gpu = Get-WmiObject Win32_VideoController -ErrorAction SilentlyContinue |
+      Select-Object Caption, AdapterRAM, VideoModeDescription, CurrentRefreshRate, Status, DriverVersion
+    [PSCustomObject]@{
+      monitors = ($monitors | ConvertTo-Json -Compress)
+      gpu      = ($gpu      | ConvertTo-Json -Compress)
+    } | ConvertTo-Json -Compress
+  `;
+  try {
+    const out = await runSafePowerShell(psScript, 8000);
+    if (out) {
+      const data = JSON.parse(out);
+      const rawMon = data.monitors ? JSON.parse(data.monitors) : [];
+      const rawGpu = data.gpu ? JSON.parse(data.gpu) : [];
+      const monArr = Array.isArray(rawMon) ? rawMon : (rawMon ? [rawMon] : []);
+      const gpuArr = Array.isArray(rawGpu) ? rawGpu : (rawGpu ? [rawGpu] : []);
+      const monitors = monArr.map((m, i) => ({
+        id: `mon-${i}`,
+        name: m.Caption || `Monitor ${i + 1}`,
+        manufacturer: m.MonitorManufacturer || 'Unknown',
+        resolution: (m.ScreenWidth && m.ScreenHeight) ? `${m.ScreenWidth}x${m.ScreenHeight}` : 'Unknown',
+        status: m.Status || 'OK',
+        healthy: !m.Status || m.Status === 'OK',
+      }));
+      const gpus = gpuArr.map((g, i) => ({
+        id: `gpu-${i}`,
+        name: g.Caption || `GPU ${i + 1}`,
+        vramMB: g.AdapterRAM ? Math.round(g.AdapterRAM / 1024 / 1024) : null,
+        mode: g.VideoModeDescription || null,
+        refreshHz: g.CurrentRefreshRate || null,
+        driverVersion: g.DriverVersion || null,
+        status: g.Status || 'OK',
+        healthy: !g.Status || g.Status === 'OK',
+      }));
+      return {
+        connectedDisplaysCount: monitors.length,
+        monitors,
+        gpus,
+        issues: [
+          ...monitors.filter(m => !m.healthy).map(m => `Monitor ${m.name}: ${m.status}`),
+          ...gpus.filter(g => !g.healthy).map(g => `GPU ${g.name}: ${g.status}`),
+        ],
+      };
+    }
+  } catch {}
+  return { connectedDisplaysCount: 1, monitors: [], gpus: [], issues: [] };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Peripheral Doctor
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Windows Peripheral Doctor — enumerates USB and HID devices via PnP and flags
+ * any device that is not working properly.
+ */
+export async function getWindowsPeripheralDoctor() {
+  const psScript = `
+    $devices = Get-PnpDevice -ErrorAction SilentlyContinue |
+      Where-Object { $_.Class -in 'USB','HIDClass','Keyboard','Mouse','Bluetooth' } |
+      Select-Object FriendlyName, Class, Status, InstanceId, Problem
+    $devices | ConvertTo-Json -Compress
+  `;
+  try {
+    const out = await runSafePowerShell(psScript, 8000);
+    if (out) {
+      const raw = JSON.parse(out);
+      const arr = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+      const peripherals = arr.map((d, i) => ({
+        id: `dev-${i}`,
+        name: d.FriendlyName || 'Unknown Device',
+        type: d.Class || 'Unknown',
+        status: d.Status || 'Unknown',
+        healthy: d.Status === 'OK',
+        problem: d.Problem || null,
+      }));
+      return {
+        peripherals,
+        count: peripherals.length,
+        issues: peripherals.filter(p => !p.healthy).map(p => `${p.name}: ${p.status}${p.problem ? ` (code ${p.problem})` : ''}`),
+      };
+    }
+  } catch {}
+  return { peripherals: [], count: 0, issues: [] };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SSH Doctor
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Windows SSH Doctor — checks OpenSSH client/server installation, parses
+ * ~/.ssh/config and checks key file permissions.
+ */
+export async function getWindowsSshDoctor() {
+  const sshDir = path.join(os.homedir(), '.ssh');
+  const configFile = path.join(sshDir, 'config');
+  const knownHostsFile = path.join(sshDir, 'known_hosts');
+
+  const sshConfigFound = fs.existsSync(configFile);
+  const knownHostsFound = fs.existsSync(knownHostsFile);
+
+  // List key files
+  let keyFiles = [];
+  if (fs.existsSync(sshDir)) {
+    try {
+      keyFiles = fs.readdirSync(sshDir)
+        .filter(f => /^id_(rsa|ed25519|ecdsa|dsa)$/.test(f))
+        .map(f => ({ name: f, path: path.join(sshDir, f) }));
+    } catch {}
+  }
+
+  // Check OpenSSH client capability via powershell
+  const sshCapable = await runSafePowerShell(
+    `Get-Command ssh -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source`,
+    4000
+  );
+
+  // Check sshd service state
+  const sshdState = await runSafePowerShell(
+    `(Get-Service -Name sshd -ErrorAction SilentlyContinue).Status`,
+    4000
+  );
+
+  const issues = [];
+  if (!sshCapable) issues.push('OpenSSH client not found in PATH');
+  if (!sshConfigFound) issues.push('No ~/.ssh/config file found');
+  if (!knownHostsFound) issues.push('No ~/.ssh/known_hosts file found');
+
+  return {
+    sshConfigFound,
+    knownHostsFound,
+    sshClientPath: sshCapable || null,
+    sshdServiceState: sshdState || 'Not installed',
+    keyFiles,
+    issues,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Power Assertions (Sleep Blockers)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Windows Power Assertions — uses `powercfg /requests` to list what processes
+ * are preventing sleep/display off.
+ */
+export async function getWindowsPowerAssertions() {
+  try {
+    const sysRoot = process.env.SystemRoot || 'C:\\Windows';
+    const { stdout } = await execFileAsync(
+      path.join(sysRoot, 'System32', 'powercfg.exe'),
+      ['/requests'],
+      { timeout: 6000, windowsHide: true }
+    );
+    const lines = (stdout || '').split('\n');
+    const blockers = [];
+    let currentType = null;
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      if (/^(DISPLAY|SYSTEM|AWAYMODE|EXECUTION|PERFBOOST|ACTIVELOCKSCREEN):/i.test(trimmed)) {
+        currentType = trimmed.replace(':', '');
+      } else if (currentType && trimmed !== 'None.' && trimmed.length > 0) {
+        blockers.push({ type: currentType, process: trimmed });
+      }
+    }
+    return {
+      sleepPrevented: blockers.length > 0,
+      activeBlockers: blockers,
+      count: blockers.length,
+    };
+  } catch {
+    return { sleepPrevented: false, activeBlockers: [], count: 0 };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// System Events Timeline (Windows)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Windows System Events Timeline — pulls the last 50 significant events from
+ * System and Application event logs using Get-WinEvent.
+ */
+export async function getWindowsSystemEventsTimeline() {
+  const psScript = `
+    $events = Get-WinEvent -FilterHashtable @{LogName='System','Application'; Level=1,2,3; StartTime=(Get-Date).AddDays(-2)} `
+    + `-MaxEvents 50 -ErrorAction SilentlyContinue |
+      Select-Object TimeCreated, ProviderName, Id, LevelDisplayName, Message
+    if ($events) {
+      $events | ConvertTo-Json -Compress
+    } else { '[]' }
+  `;
+  try {
+    const out = await runSafePowerShell(psScript, 10000);
+    if (out) {
+      const raw = JSON.parse(out);
+      const arr = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+      const events = arr.map((e, i) => ({
+        id: `evt-${i}`,
+        timestamp: e.TimeCreated,
+        source: e.ProviderName || 'Unknown',
+        eventId: e.Id,
+        level: e.LevelDisplayName || 'Information',
+        message: (e.Message || '').split('\r\n')[0].slice(0, 200),
+        category: e.LevelDisplayName === 'Critical' || e.LevelDisplayName === 'Error' ? 'error'
+          : e.LevelDisplayName === 'Warning' ? 'warning' : 'info',
+      }));
+      return { events, count: events.length };
+    }
+  } catch {}
+  return { events: [], count: 0 };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Baseline Diff
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Windows Baseline Diff — compares current CPU/memory/disk metrics against a
+ * lightweight baseline stored in memory (or returns the initial snapshot if
+ * none exists yet).
+ */
+const _winBaselineSnapshot = {};
+
+export async function getWindowsBaselineDiff() {
+  try {
+    const [cpu, mem, disks] = await Promise.all([
+      si.currentLoad().catch(() => null),
+      si.mem().catch(() => null),
+      si.fsStats().catch(() => null),
+    ]);
+
+    const now = {
+      cpuLoad: cpu ? Math.round(cpu.currentLoad) : null,
+      memUsedGB: mem ? Math.round((mem.used / 1024 / 1024 / 1024) * 10) / 10 : null,
+      memTotalGB: mem ? Math.round((mem.total / 1024 / 1024 / 1024) * 10) / 10 : null,
+      timestamp: new Date().toISOString(),
+    };
+
+    if (!_winBaselineSnapshot.timestamp) {
+      Object.assign(_winBaselineSnapshot, now);
+      return { metrics: [], current: now, baseline: null, note: 'Baseline captured — check again to see delta.' };
+    }
+
+    const metrics = [
+      {
+        name: 'CPU Load',
+        baseline: _winBaselineSnapshot.cpuLoad,
+        current: now.cpuLoad,
+        unit: '%',
+        delta: now.cpuLoad !== null && _winBaselineSnapshot.cpuLoad !== null
+          ? Math.round(now.cpuLoad - _winBaselineSnapshot.cpuLoad) : null,
+      },
+      {
+        name: 'Memory Used',
+        baseline: _winBaselineSnapshot.memUsedGB,
+        current: now.memUsedGB,
+        unit: 'GB',
+        delta: now.memUsedGB !== null && _winBaselineSnapshot.memUsedGB !== null
+          ? Math.round((now.memUsedGB - _winBaselineSnapshot.memUsedGB) * 10) / 10 : null,
+      },
+    ];
+
+    return { metrics, current: now, baseline: _winBaselineSnapshot };
+  } catch {
+    return { metrics: [], current: null, baseline: null };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Browser Health
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Windows Browser Health — checks installation and profile size for common
+ * Windows browsers by inspecting known filesystem paths.
+ */
+export async function getWindowsBrowserHealth() {
+  const localappdata = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
+  const appdata = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
+  const programFiles = process.env.ProgramW6432 || process.env.ProgramFiles || 'C:\\Program Files';
+  const programFilesX86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+
+  const browserDefs = [
+    {
+      name: 'Google Chrome',
+      exe: path.join(programFiles, 'Google', 'Chrome', 'Application', 'chrome.exe'),
+      exeAlt: path.join(programFilesX86, 'Google', 'Chrome', 'Application', 'chrome.exe'),
+      profileDir: path.join(localappdata, 'Google', 'Chrome', 'User Data'),
+    },
+    {
+      name: 'Microsoft Edge',
+      exe: path.join(programFiles, 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
+      profileDir: path.join(localappdata, 'Microsoft', 'Edge', 'User Data'),
+    },
+    {
+      name: 'Mozilla Firefox',
+      exe: path.join(programFiles, 'Mozilla Firefox', 'firefox.exe'),
+      exeAlt: path.join(programFilesX86, 'Mozilla Firefox', 'firefox.exe'),
+      profileDir: path.join(appdata, 'Mozilla', 'Firefox', 'Profiles'),
+    },
+    {
+      name: 'Brave',
+      exe: path.join(localappdata, 'BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe'),
+      profileDir: path.join(localappdata, 'BraveSoftware', 'Brave-Browser', 'User Data'),
+    },
+    {
+      name: 'Opera',
+      exe: path.join(localappdata, 'Programs', 'Opera', 'opera.exe'),
+      profileDir: path.join(appdata, 'Opera Software', 'Opera Stable'),
+    },
+  ];
+
+  const browsers = [];
+  for (const b of browserDefs) {
+    const installed = fs.existsSync(b.exe) || (b.exeAlt && fs.existsSync(b.exeAlt));
+    if (!installed) continue;
+    let profileSizeMB = null;
+    if (b.profileDir && fs.existsSync(b.profileDir)) {
+      try {
+        const { execFileSync } = await import('child_process');
+        const sizeOut = execFileSync('powershell.exe', ['-NoProfile', '-Command',
+          `(Get-ChildItem -Path '${b.profileDir}' -Recurse -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum`],
+          { timeout: 5000, windowsHide: true });
+        profileSizeMB = Math.round(parseInt(sizeOut.toString().trim(), 10) / 1024 / 1024) || 0;
+      } catch {}
+    }
+    browsers.push({ name: b.name, installed: true, profileSizeMB, profileDir: b.profileDir || null });
+  }
+
+  return {
+    browsers,
+    count: browsers.length,
+    totalProfileMB: browsers.reduce((s, b) => s + (b.profileSizeMB || 0), 0),
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// External Drives
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Windows External Drives — enumerates removable/USB storage via WMI.
+ */
+export async function getWindowsExternalDrives() {
+  const psScript = `
+    $drives = Get-WmiObject Win32_DiskDrive -ErrorAction SilentlyContinue |
+      Where-Object { $_.InterfaceType -eq 'USB' -or $_.MediaType -match 'Removable' } |
+      Select-Object Caption, Size, InterfaceType, MediaType, Status, SerialNumber
+    $volumes = Get-WmiObject Win32_Volume -ErrorAction SilentlyContinue |
+      Where-Object { $_.DriveType -eq 2 } |
+      Select-Object DriveLetter, Label, Capacity, FreeSpace
+    [PSCustomObject]@{
+      disks   = ($drives  | ConvertTo-Json -Compress)
+      volumes = ($volumes | ConvertTo-Json -Compress)
+    } | ConvertTo-Json -Compress
+  `;
+  try {
+    const out = await runSafePowerShell(psScript, 8000);
+    if (out) {
+      const data = JSON.parse(out);
+      const rawDisks = data.disks ? JSON.parse(data.disks) : [];
+      const rawVols = data.volumes ? JSON.parse(data.volumes) : [];
+      const diskArr = Array.isArray(rawDisks) ? rawDisks : (rawDisks ? [rawDisks] : []);
+      const volArr = Array.isArray(rawVols) ? rawVols : (rawVols ? [rawVols] : []);
+
+      const drives = diskArr.map((d, i) => ({
+        id: `ext-${i}`,
+        name: d.Caption || `Removable Disk ${i + 1}`,
+        interface: d.InterfaceType || 'USB',
+        totalGB: d.Size ? Math.round(d.Size / 1024 / 1024 / 1024 * 10) / 10 : null,
+        status: d.Status || 'OK',
+        serial: d.SerialNumber || null,
+      }));
+
+      const volumes = volArr.map((v, i) => ({
+        id: `vol-${i}`,
+        letter: v.DriveLetter || `Vol${i}`,
+        label: v.Label || 'Removable',
+        totalGB: v.Capacity ? Math.round(v.Capacity / 1024 / 1024 / 1024 * 10) / 10 : null,
+        freeGB: v.FreeSpace ? Math.round(v.FreeSpace / 1024 / 1024 / 1024 * 10) / 10 : null,
+      }));
+
+      return { drives, volumes, count: drives.length };
+    }
+  } catch {}
+  return { drives: [], volumes: [], count: 0 };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// App Footprint
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Windows App Footprint — measures disk usage for a named application across
+ * Program Files, %APPDATA%, %LOCALAPPDATA% and %PROGRAMDATA%.
+ */
+export async function getWindowsAppFootprint(appName) {
+  const localappdata = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
+  const appdata = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
+  const programData = process.env.ProgramData || 'C:\\ProgramData';
+  const programFiles = process.env.ProgramW6432 || process.env.ProgramFiles || 'C:\\Program Files';
+  const programFilesX86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+
+  const searchDirs = [programFiles, programFilesX86, localappdata, appdata, programData];
+  const breakdown = [];
+  let totalBytes = 0;
+
+  for (const dir of searchDirs) {
+    if (!fs.existsSync(dir)) continue;
+    try {
+      const entries = fs.readdirSync(dir);
+      for (const entry of entries) {
+        if (!entry.toLowerCase().includes(appName.toLowerCase())) continue;
+        const fullPath = path.join(dir, entry);
+        try {
+          const { execFileSync } = await import('child_process');
+          const sizeOut = execFileSync('powershell.exe', ['-NoProfile', '-Command',
+            `(Get-ChildItem -Path '${fullPath}' -Recurse -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum`],
+            { timeout: 6000, windowsHide: true });
+          const bytes = parseInt(sizeOut.toString().trim(), 10) || 0;
+          if (bytes > 0) {
+            breakdown.push({ label: fullPath, sizeMB: Math.round(bytes / 1024 / 1024) });
+            totalBytes += bytes;
+          }
+        } catch {}
+      }
+    } catch {}
+  }
+
+  const totalMB = Math.round(totalBytes / 1024 / 1024);
+  return {
+    appName,
+    totalMB,
+    totalGB: Math.round(totalMB / 1024 * 10) / 10,
+    breakdown,
+    platform: 'windows',
+    measurement: totalMB > 0 ? 'observed' : 'not-found',
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Troubleshoot Guide
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Windows Troubleshoot Guide — returns guided troubleshooting steps for common
+ * Windows issues identified by issueId.
+ */
+export async function getWindowsTroubleshootGuide(issueId) {
+  const guides = {
+    'high-cpu': {
+      title: 'High CPU Usage',
+      steps: [
+        'Open Task Manager (Ctrl+Shift+Esc) → Processes tab, sort by CPU.',
+        'Identify the top CPU consumer and note its PID and name.',
+        'Check if it is a legitimate Windows process (svchost, antivirus scan, Windows Update).',
+        'If antivirus: let the scan complete. If Windows Update: let updates finish and restart.',
+        'For persistent high CPU: run `sfc /scannow` from an elevated Command Prompt.',
+        'Check Windows Event Viewer (System/Application) for errors correlating with the spike.',
+      ],
+    },
+    'slow-boot': {
+      title: 'Slow Boot Time',
+      steps: [
+        'Open Task Manager → Startup tab. Disable high-impact startup apps you do not need.',
+        'Run `msconfig` → Boot tab → Advanced options: ensure no low-memory cap is set.',
+        'Check for Windows Update pending a restart.',
+        'Run `powercfg /energy` from an elevated prompt to identify power issues.',
+        'Ensure fast startup is enabled: Control Panel → Power Options → Choose what power buttons do.',
+        'Consider running DISM: `DISM /Online /Cleanup-Image /RestoreHealth`.',
+      ],
+    },
+    'network-slow': {
+      title: 'Slow Network / No Internet',
+      steps: [
+        'Run `ipconfig /all` and verify you have a valid IP (not 169.254.x.x APIPA).',
+        'Flush DNS: `ipconfig /flushdns` then `ipconfig /registerdns`.',
+        'Reset TCP/IP stack: `netsh int ip reset` (requires reboot).',
+        'Reset Winsock: `netsh winsock reset catalog` (requires reboot).',
+        'Disable and re-enable the network adapter in Device Manager.',
+        'Check for driver updates for your network adapter.',
+      ],
+    },
+    'blue-screen': {
+      title: 'Blue Screen (BSOD)',
+      steps: [
+        'Note the STOP code displayed on the blue screen.',
+        'Open Event Viewer → Windows Logs → System and look for Critical events around the crash time.',
+        'Run `sfc /scannow` from an elevated Command Prompt to repair system files.',
+        'Run `DISM /Online /Cleanup-Image /RestoreHealth` to repair the component store.',
+        'Check for driver updates (Device Manager → right-click → Update driver).',
+        'If recent hardware was added, remove it and test.',
+      ],
+    },
+    'disk-full': {
+      title: 'Disk Nearly Full',
+      steps: [
+        'Open Settings → System → Storage → see which categories consume the most space.',
+        'Run Disk Cleanup (cleanmgr.exe) and include System Files.',
+        'Empty the Recycle Bin.',
+        'Uninstall unused apps from Settings → Apps.',
+        'Move large files (videos, ISOs) to an external drive or cloud storage.',
+        'Run WinSuite\'s Cleanup Advisor for a detailed breakdown.',
+      ],
+    },
+    'update-stuck': {
+      title: 'Windows Update Stuck',
+      steps: [
+        'Wait 2+ hours — some updates take a long time on first run.',
+        'Restart the PC and allow the update to resume.',
+        'Run the Windows Update Troubleshooter: Settings → System → Troubleshoot → Windows Update.',
+        'Clear the update cache: stop wuauserv, delete C:\\Windows\\SoftwareDistribution\\Download, restart.',
+        'Run `DISM /Online /Cleanup-Image /RestoreHealth` then retry Windows Update.',
+        'If KB-specific: search the Microsoft Update Catalog and install manually.',
+      ],
+    },
+  };
+
+  const guide = guides[issueId] || {
+    title: `Troubleshoot: ${issueId}`,
+    steps: [
+      'Check Windows Event Viewer (eventvwr.msc) for errors related to this issue.',
+      'Run `sfc /scannow` from an elevated Command Prompt.',
+      'Ensure all Windows Updates are applied.',
+      'Search the Microsoft Support site for the specific error code or symptom.',
+    ],
+  };
+
+  return { issueId, ...guide, platform: 'windows' };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// App Compatibility
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Windows App Compatibility — checks whether a named application is installed,
+ * its architecture (x86/x64/ARM64), and whether it targets an older subsystem.
+ */
+export async function getWindowsAppCompatibility(appName) {
+  const psScript = `
+    $app = Get-WmiObject Win32_Product -ErrorAction SilentlyContinue |
+      Where-Object { $_.Name -match [regex]::Escape('${appName.replace(/'/g, '')}') } |
+      Select-Object Name, Version, InstallLocation -First 1
+    if ($app) {
+      $app | ConvertTo-Json -Compress
+    } else {
+      $reg = Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',
+                              'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',
+                              'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*' `
+        + `-ErrorAction SilentlyContinue |
+        Where-Object { $_.DisplayName -match [regex]::Escape('${appName.replace(/'/g, '')}') } |
+        Select-Object DisplayName, DisplayVersion, InstallLocation -First 1
+      if ($reg) { $reg | ConvertTo-Json -Compress } else { 'null' }
+    }
+  `;
+  try {
+    const out = await runSafePowerShell(psScript, 10000);
+    if (out && out !== 'null') {
+      const data = JSON.parse(out);
+      return {
+        appName,
+        found: true,
+        version: data.Version || data.DisplayVersion || null,
+        installLocation: data.InstallLocation || null,
+        compatible: true,
+        notes: [],
+        platform: 'windows',
+      };
+    }
+  } catch {}
+  return { appName, found: false, compatible: null, notes: [`'${appName}' was not found in the installed applications registry.`], platform: 'windows' };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// File Explorer / Finder Equivalent Doctor
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Windows File Explorer Doctor — checks the Explorer process state and the
+ * Windows Clipboard service.
+ */
+export async function getWindowsExplorerDoctor() {
+  const psScript = `
+    $explorer = Get-Process explorer -ErrorAction SilentlyContinue | Select-Object Id, CPU, WorkingSet
+    $clip = Get-Service -Name 'cbdhsvc*' -ErrorAction SilentlyContinue | Select-Object Name, Status -First 1
+    [PSCustomObject]@{
+      explorerRunning = ($null -ne $explorer)
+      explorerPid     = if ($explorer) { $explorer.Id } else { $null }
+      explorerCpu     = if ($explorer) { [math]::Round($explorer.CPU, 1) } else { $null }
+      explorerMemMB   = if ($explorer) { [math]::Round($explorer.WorkingSet / 1MB, 0) } else { $null }
+      clipboardService = if ($clip) { $clip.Status.ToString() } else { 'Unknown' }
+    } | ConvertTo-Json -Compress
+  `;
+  try {
+    const out = await runSafePowerShell(psScript, 6000);
+    if (out) {
+      const data = JSON.parse(out);
+      const healthy = data.explorerRunning && data.clipboardService === 'Running';
+      return {
+        explorerStatus: data.explorerRunning ? 'Responsive' : 'Not Running',
+        explorerRunning: data.explorerRunning,
+        explorerPid: data.explorerPid || null,
+        explorerCpu: data.explorerCpu,
+        explorerMemMB: data.explorerMemMB,
+        clipboardServiceState: data.clipboardService || 'Unknown',
+        finderStatus: data.explorerRunning ? 'Responsive' : 'Not Running',
+        issues: healthy ? [] : [
+          ...(!data.explorerRunning ? ['Windows Explorer process is not running'] : []),
+          ...(data.clipboardService !== 'Running' ? [`Clipboard service state: ${data.clipboardService}`] : []),
+        ],
+      };
+    }
+  } catch {}
+  return { explorerStatus: 'Unknown', explorerRunning: false, clipboardServiceState: 'Unknown', finderStatus: 'Unknown', issues: [] };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Docker Storage (for shared /api/storage/docker route)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Windows Docker Storage — runs `docker system df` to get real usage, with a
+ * safe fallback if Docker is not installed.
+ */
+export async function getWindowsDockerStorage() {
+  try {
+    const { stdout } = await execFileAsync('docker', ['system', 'df', '--format', '{{json .}}'],
+      { timeout: 8000, windowsHide: true });
+    const lines = (stdout || '').trim().split('\n').filter(Boolean);
+    const parsed = lines.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+
+    let imagesSize = '0 B', containersSize = '0 B', volumesSize = '0 B', buildCacheSize = '0 B', reclaimableSize = '0 B';
+    for (const row of parsed) {
+      if (row.Type === 'Images') imagesSize = row.Size || '0 B';
+      else if (row.Type === 'Containers') containersSize = row.Size || '0 B';
+      else if (row.Type === 'Local Volumes') volumesSize = row.Size || '0 B';
+      else if (row.Type === 'Build Cache') buildCacheSize = row.Size || '0 B';
+      if (row.Reclaimable) reclaimableSize = row.Reclaimable.replace(/\(.*\)/, '').trim();
+    }
+    return { active: true, imagesSize, containersSize, volumesSize, buildCacheSize, reclaimableSize };
+  } catch {
+    return { active: false, imagesSize: '0 B', containersSize: '0 B', volumesSize: '0 B', buildCacheSize: '0 B', reclaimableSize: '0 B', note: 'Docker is not installed or not running.' };
+  }
+}

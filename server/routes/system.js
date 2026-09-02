@@ -18,6 +18,11 @@ import {
   getMacDeveloperEnvironmentHealth,
 } from '../helpers/macos-helpers.js';
 import {
+  getMacUpdateHistory,
+  getMacFailedUpdates,
+  getMacServiceDependencies,
+} from '../helpers/macos-advanced-helpers.js';
+import {
   getWindowsListeningPorts,
   getWindowsInstalledApps,
   getWindowsDeveloperEnvironmentHealth,
@@ -25,6 +30,7 @@ import {
   getWindowsWslHealth,
   getWindowsPrinterQueueDoctor,
   probeWindowsElevation,
+  getWindowsAppFootprint,
 } from '../helpers/windows-helpers.js';
 import {
   PERMISSION,
@@ -298,15 +304,9 @@ router.get('/apps/inventory', async (_req, res) => {
 // ── GET /api/apps/footprint/:appName ───────────────────────────────────────
 router.get('/apps/footprint/:appName', async (req, res) => {
   try {
-    const footprint = isMac ? await getMacAppFootprint(req.params.appName) : {
-      appName: req.params.appName,
-      totalMB: null,
-      totalGB: null,
-      breakdown: [],
-      platform: process.platform,
-      note: `App footprint scanning for '${req.params.appName}' requires platform-specific directory measurement. Use macOS or Windows for detailed results.`,
-      measurement: 'unavailable',
-    };
+    const footprint = isMac
+      ? await getMacAppFootprint(req.params.appName)
+      : await getWindowsAppFootprint(req.params.appName);
     res.json(footprint);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -352,6 +352,54 @@ router.get('/windows/printer-queue', async (_req, res) => {
   try {
     const printers = isWin ? await getWindowsPrinterQueueDoctor() : { printers: [], stuckJobs: [], hasStuckJobs: false };
     res.json(printers);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/update/history ──────────────────────────────────────────────────
+router.get('/update/history', async (_req, res) => {
+  try {
+    if (isMac) {
+      res.json(await getMacUpdateHistory());
+    } else if (isWin) {
+      // Windows: covered by /api/windows/v2/update/history
+      res.json({ history: [], count: 0, note: 'Use /api/windows/v2/update/history for Windows.' });
+    } else {
+      res.json({ history: [], count: 0 });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/update/failed ───────────────────────────────────────────────────
+router.get('/update/failed', async (_req, res) => {
+  try {
+    if (isMac) {
+      res.json(await getMacFailedUpdates());
+    } else if (isWin) {
+      // Windows: covered by /api/windows/v2/update/failed
+      res.json({ failedUpdates: [], count: 0, note: 'Use /api/windows/v2/update/failed for Windows.' });
+    } else {
+      res.json({ failedUpdates: [], count: 0 });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/services/deps ────────────────────────────────────────────────────
+router.get('/services/deps', async (_req, res) => {
+  try {
+    if (isMac) {
+      res.json(await getMacServiceDependencies());
+    } else if (isWin) {
+      // Windows: covered by /api/windows/v2/services/deps
+      res.json({ services: [], count: 0, note: 'Use /api/windows/v2/services/deps for Windows.' });
+    } else {
+      res.json({ services: [], count: 0 });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
