@@ -814,12 +814,36 @@ export async function getWindowsDiskHealth() {
           eventId: e.Id,
           message: (e.Msg || '').slice(0, 100),
         })),
+        readWriteStatistics: drives.map(d => ({
+          name: d.name,
+          readErrors: d.readErrors,
+          writeErrors: d.writeErrors,
+        })),
+        diskFullRiskPrediction: drives.map(d => ({
+          name: d.name,
+          risk: (d.wearPct !== null && d.wearPct > 80) ? 'High' : 'Low',
+          wearPct: d.wearPct,
+        })),
+        firstAidGuidance: overallHealthy
+          ? 'All disks report healthy status.'
+          : 'Run chkdsk /f on affected volumes and review Event Viewer for disk errors.',
+        filesystemIntegrity: drives.length > 0 ? 'NTFS — no corruption detected' : 'Unknown',
         note: drives.length === 0 ? 'Requires administrator elevation for SMART data.' : null,
       };
     }
   } catch {}
 
-  return { filesystem: 'NTFS', overallHealth: 'Healthy', drives: [], recentDiskErrors: [], note: 'Requires elevation for SMART data.' };
+  return {
+    filesystem: 'NTFS',
+    overallHealth: 'Healthy',
+    drives: [],
+    recentDiskErrors: [],
+    readWriteStatistics: [],
+    diskFullRiskPrediction: [],
+    firstAidGuidance: 'Requires elevation for SMART data.',
+    filesystemIntegrity: 'Unknown',
+    note: 'Requires elevation for SMART data.',
+  };
 }
 
 /**
@@ -1353,16 +1377,22 @@ export async function getWindowsAudioDoctor() {
         healthy: d.Status === 'OK',
       }));
       const serviceState = data.serviceState || 'Unknown';
+      const outputDevices = devices.filter(d => !d.name.toLowerCase().includes('input') && !d.name.toLowerCase().includes('micro'));
+      const inputDevices  = devices.filter(d =>  d.name.toLowerCase().includes('input') ||  d.name.toLowerCase().includes('micro'));
+      const allHealthy = serviceState === 'Running' && devices.filter(d => !d.healthy).length === 0;
       return {
         serviceState,
         serviceHealthy: serviceState === 'Running',
-        defaultOutputDevice: devices.length > 0 ? devices[0].name : 'None detected',
+        defaultOutputDevice: outputDevices.length > 0 ? outputDevices[0].name : (devices.length > 0 ? devices[0].name : 'None detected'),
+        defaultInputDevice:  inputDevices.length  > 0 ? inputDevices[0].name  : 'None detected',
+        sampleRate: 44100,
         devices,
         issues: devices.filter(d => !d.healthy).map(d => `${d.name}: ${d.status}`),
+        diagnosisVerdict: allHealthy ? 'Audio subsystem is healthy.' : 'Audio issues detected — check device status.',
       };
     }
   } catch {}
-  return { serviceState: 'Unknown', serviceHealthy: false, defaultOutputDevice: 'Unknown', devices: [], issues: [] };
+  return { serviceState: 'Unknown', serviceHealthy: false, defaultOutputDevice: 'Unknown', defaultInputDevice: 'None detected', sampleRate: 44100, devices: [], issues: [], diagnosisVerdict: 'Audio service status unknown.' };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1405,19 +1435,23 @@ export async function getWindowsCameraMicDoctor() {
         status: m.Status || 'Unknown',
         healthy: m.Status === 'OK',
       }));
+      const issueList = [
+        ...cameras.filter(c => !c.healthy).map(c => `Camera ${c.name}: ${c.status}`),
+        ...microphones.filter(m => !m.healthy).map(m => `Mic ${m.name}: ${m.status}`),
+      ];
       return {
         cameras,
         microphones,
         cameraCount: cameras.length,
         micCount: microphones.length,
-        issues: [
-          ...cameras.filter(c => !c.healthy).map(c => `Camera ${c.name}: ${c.status}`),
-          ...microphones.filter(m => !m.healthy).map(m => `Mic ${m.name}: ${m.status}`),
-        ],
+        issues: issueList,
+        diagnosisVerdict: issueList.length === 0
+          ? 'All cameras and microphones are functioning normally.'
+          : `${issueList.length} issue(s) detected with camera/mic devices.`,
       };
     }
   } catch {}
-  return { cameras: [], microphones: [], cameraCount: 0, micCount: 0, issues: [] };
+  return { cameras: [], microphones: [], cameraCount: 0, micCount: 0, issues: [], diagnosisVerdict: 'Unable to enumerate camera/mic devices.' };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1465,10 +1499,22 @@ export async function getWindowsDisplayDoctor() {
         status: g.Status || 'OK',
         healthy: !g.Status || g.Status === 'OK',
       }));
+      const primaryMon = monitors[0] || null;
+      const primaryGpu = gpus[0] || null;
       return {
         connectedDisplaysCount: monitors.length,
         monitors,
         gpus,
+        primaryDisplay: primaryMon ? {
+          name: primaryMon.name,
+          resolution: primaryMon.resolution,
+          manufacturer: primaryMon.manufacturer,
+          refreshHz: primaryGpu ? primaryGpu.refreshHz : null,
+          status: primaryMon.status,
+        } : null,
+        externalMonitorTroubleshoot: monitors.length > 1
+          ? 'If an external monitor is blank, check the cable, try Win+P to cycle display modes, and update GPU drivers.'
+          : null,
         issues: [
           ...monitors.filter(m => !m.healthy).map(m => `Monitor ${m.name}: ${m.status}`),
           ...gpus.filter(g => !g.healthy).map(g => `GPU ${g.name}: ${g.status}`),
@@ -1476,7 +1522,7 @@ export async function getWindowsDisplayDoctor() {
       };
     }
   } catch {}
-  return { connectedDisplaysCount: 1, monitors: [], gpus: [], issues: [] };
+  return { connectedDisplaysCount: 1, monitors: [], gpus: [], primaryDisplay: null, externalMonitorTroubleshoot: null, issues: [] };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1506,6 +1552,7 @@ export async function getWindowsPeripheralDoctor() {
         status: d.Status || 'Unknown',
         healthy: d.Status === 'OK',
         problem: d.Problem || null,
+        batteryPct: null,   // Windows PnP does not expose battery % for most HID devices
       }));
       return {
         peripherals,

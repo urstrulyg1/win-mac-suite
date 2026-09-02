@@ -597,7 +597,8 @@ export async function getMacBatteryIntelligence() {
       wakeReasons.push({
         time: wakeMatch[1],
         reason,
-        sleepDuration: null,
+        sleepDuration: 'Unknown',
+        batteryLost: null,  // individual drain per wake not derivable from pmset log alone
         batteryAtWake: null,
       });
       if (wakeReasons.length >= 5) break;

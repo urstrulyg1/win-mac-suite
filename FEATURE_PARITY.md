@@ -1,8 +1,23 @@
 # Win-Mac Suite — Feature Parity & Gap Analysis
 
-> **Version:** 10.2.0
+> **Version:** 10.3.0
 > **Last audited:** all helpers, routes, and frontend tabs
 > Sources examined: `server/helpers/`, `server/routes/`, `src/components/`, `src/App.tsx`
+>
+> **Changelog since v10.2.0**
+> - Resolved all frontend ↔ server field-name mismatches for `HardwarePeripheralsHub.tsx`
+> - **macOS fixes** (`macos-advanced-helpers.js`, `macos-helpers.js`):
+>   - `getMacDiskHealth`: added `readWriteStatistics`, `diskFullRiskPrediction`
+>   - `getMacAudioDoctor`: added `defaultOutputDevice`, `defaultInputDevice`, `sampleRate`
+>   - `getMacCameraMicDoctor`: added `cameras[]` array via `system_profiler SPCameraDataType`
+>   - `getMacPeripheralDoctor`: added `batteryPct` to each peripheral entry
+>   - `getMacBatteryIntelligence` wakeReasons: added `batteryLost`, `sleepDuration` fields
+> - **Windows fixes** (`windows-helpers.js`):
+>   - `getWindowsDiskHealth`: added `readWriteStatistics`, `diskFullRiskPrediction`, `firstAidGuidance`, `filesystemIntegrity`
+>   - `getWindowsAudioDoctor`: added `defaultInputDevice`, `sampleRate`, `diagnosisVerdict`; improved output/input device separation
+>   - `getWindowsCameraMicDoctor`: added `diagnosisVerdict` field
+>   - `getWindowsDisplayDoctor`: added `primaryDisplay{}` object, `externalMonitorTroubleshoot`
+>   - `getWindowsPeripheralDoctor`: added `batteryPct: null` to each peripheral entry
 >
 > **Changelog since v10.1.0**
 > - Fixed 6 bugs: shell injection in duplicate-file scanner, launchctl duplicate call, dns module shadowing, 3× blocking `execFileSync`, nested `JSON.parse` on crash data, missing scheduled-tasks platform guard
