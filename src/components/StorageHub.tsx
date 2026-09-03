@@ -72,7 +72,7 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
         fetch('/api/storage/system-data').then((r) => r.ok ? r.json() : null).catch(() => null),
         fetch('/api/apps/inventory').then((r) => r.ok ? r.json() : null).catch(() => null),
         fetch('/api/storage/orphaned-leftovers').then((r) => r.ok ? r.json() : null).catch(() => null),
-        fetch('/api/storage/ios-backups').then((r) => r.ok ? r.json() : null).catch(() => null),
+        isMac ? fetch('/api/storage/ios-backups').then((r) => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null),
         fetch('/api/snapshots').then((r) => r.ok ? r.json() : null).catch(() => null),
         fetch('/api/storage/external-drives').then((r) => r.ok ? r.json() : null).catch(() => null),
         isMac ? storageApi.getDuplicates() : Promise.resolve(null),
@@ -142,14 +142,16 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
               <HardDrive size={12} /> Pillar 1: Storage &amp; Cleanup Engine
             </span>
             <span className="pill" style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-3)', borderColor: 'var(--color-line)' }}>
-              Storage Intelligence 2.0 &amp; Relationship Mapper Active
+              {isMac ? 'Storage Intelligence 2.0 & Relationship Mapper Active' : 'Windows Storage Sense & Disk Analyzer Active'}
             </span>
           </div>
           <h1 className="text-hero font-extrabold tracking-tight" style={{ color: 'var(--color-ink)' }}>
             Storage Intelligence &amp; Safe Cleanup
           </h1>
           <p className="mt-1 text-[14px]" style={{ color: 'var(--color-ink-3)' }}>
-            De-mystify macOS System Data, trace 30-day storage growth, map multi-directory app relationships, purge orphaned leftovers, and manage iOS backups &amp; external drives.
+            {isMac
+              ? 'De-mystify macOS System Data, trace 30-day storage growth, map multi-directory app relationships, purge orphaned leftovers, and manage iOS backups & external drives.'
+              : 'Analyze Windows disk allocation, map application footprints, purge orphaned leftovers, and manage storage drives safely.'}
           </p>
         </div>
 
@@ -179,10 +181,10 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
       <div className="flex items-center gap-1.5 p-1 rounded-2xl border overflow-x-auto" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
         {[
           { id: 'analyzer' as const,   label: 'Storage Overview',             icon: HardDrive, color: '#f97316' },
-          { id: 'systemData' as const, label: 'System Data 2.0 & Timeline',   icon: Sparkles,  color: '#a78bfa' },
+          { id: 'systemData' as const, label: isMac ? 'System Data 2.0 & Timeline' : 'System Storage Breakdown',   icon: Sparkles,  color: '#a78bfa' },
           { id: 'apps' as const,       label: 'Smart App Uninstaller',         icon: Layers,    color: '#22d3ee' },
           { id: 'leftovers' as const,  label: 'Orphaned Leftovers',            icon: Trash2,    color: '#f43f5e' },
-          { id: 'backups' as const,    label: 'iPhone / iPad Backups',         icon: Smartphone, color: '#34d399' },
+          ...(isMac ? [{ id: 'backups' as const, label: 'iPhone / iPad Backups', icon: Smartphone, color: '#34d399' }] : []),
           { id: 'snapshots' as const,  label: isMac ? 'APFS Snapshots' : 'System Snapshots', icon: Camera, color: '#ec4899' },
           { id: 'drives' as const,     label: 'External Drive Doctor',         icon: Disc,      color: '#60a5fa' },
           ...(isMac ? [
@@ -395,7 +397,7 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
           </motion.div>
         )}
 
-        {subTab === 'backups' && (
+        {isMac && subTab === 'backups' && (
           <motion.div key="backups" {...tabTransition} className="card p-6 space-y-4">
             <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
               <div>

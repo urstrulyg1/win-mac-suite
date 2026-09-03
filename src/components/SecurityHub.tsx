@@ -5,9 +5,11 @@ import {
   Shield, ShieldCheck, RefreshCw,
   Eye, FileCode, Zap
 } from 'lucide-react';
+import { usePlatform } from '../platform';
 import InspectorModal, { type InspectorData } from './InspectorModal';
 
 export default function SecurityHub() {
+  const { isMac } = usePlatform();
   const [subTab, setSubTab] = useState<'posture' | 'privacy' | 'compat'>('posture');
   const [postureData, setPostureData] = useState<any>(null);
   const [privacyAuditor, setPrivacyAuditor] = useState<any>(null);
@@ -63,14 +65,16 @@ export default function SecurityHub() {
               <Shield size={12} /> Security Posture &amp; Privacy Auditor
             </span>
             <span className="pill" style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-3)', borderColor: 'var(--color-line)' }}>
-              13 TCC Categories &amp; App Compatibility Active
+              {isMac ? '13 TCC Categories & App Compatibility Active' : 'Defender, BitLocker & Privacy Active'}
             </span>
           </div>
           <h1 className="text-hero font-extrabold tracking-tight" style={{ color: 'var(--color-ink)' }}>
             Security Posture &amp; Privacy Center
           </h1>
           <p className="mt-1 text-[14px]" style={{ color: 'var(--color-ink-3)' }}>
-            Audit Gatekeeper, FileVault, SIP, Firewall, 13 TCC privacy categories, permission change tracking, and resolve "App Won’t Open / Damaged" Gatekeeper quarantine issues.
+            {isMac
+              ? 'Audit Gatekeeper, FileVault, SIP, Firewall, 13 TCC privacy categories, permission change tracking, and resolve "App Won’t Open / Damaged" Gatekeeper quarantine issues.'
+              : 'Audit Microsoft Defender, BitLocker encryption, Windows Firewall, telemetry privacy permissions, and application compatibility.'}
           </p>
         </div>
 
@@ -84,8 +88,8 @@ export default function SecurityHub() {
       <div className="flex items-center gap-1.5 p-1 rounded-2xl border overflow-x-auto" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
         {[
           { id: 'posture' as const, label: 'Security Score & Posture',       icon: ShieldCheck, color: '#34d399' },
-          { id: 'privacy' as const, label: 'Full Privacy Auditor (13 TCC)',  icon: Eye,         color: '#22d3ee' },
-          { id: 'compat' as const,  label: 'App Compatibility & Quarantine', icon: FileCode,    color: '#f97316' },
+          { id: 'privacy' as const, label: isMac ? 'Full Privacy Auditor (13 TCC)' : 'Windows Privacy Auditor',  icon: Eye,         color: '#22d3ee' },
+          { id: 'compat' as const,  label: isMac ? 'App Compatibility & Quarantine' : 'App Compatibility & Trust', icon: FileCode,    color: '#f97316' },
         ].map((t) => {
           const isSel = subTab === t.id;
           return (
@@ -121,7 +125,11 @@ export default function SecurityHub() {
                   <h3 className="text-base font-extrabold" style={{ color: 'var(--color-ink)' }}>
                     Hardened &amp; Cryptographically Enforced ({postureData?.securityScore ?? 96} / 100)
                   </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">All fundamental macOS rootless kernel and storage encryption protections are operational.</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {isMac
+                      ? 'All fundamental macOS rootless kernel and storage encryption protections are operational.'
+                      : 'Windows Defender real-time protection, BitLocker encryption, and Firewall status verified.'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -166,7 +174,7 @@ export default function SecurityHub() {
             <div className="card p-6 space-y-4">
               <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
-                  13 TCC System Permission Categories
+                  {isMac ? '13 TCC System Permission Categories' : 'Windows System Permission Categories'}
                 </h3>
                 <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-xs font-bold">
                   Privacy Score: {privacyAuditor?.privacyScore || 92}/100
@@ -201,9 +209,13 @@ export default function SecurityHub() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4" style={{ borderColor: 'var(--color-line)' }}>
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
-                  App Compatibility &amp; Quarantine Doctor ("Why Won't This App Open?")
+                  {isMac ? 'App Compatibility & Quarantine Doctor ("Why Won\'t This App Open?")' : 'App Compatibility & Signature Doctor'}
                 </h3>
-                <p className="text-xs text-slate-400">Diagnose Gatekeeper com.apple.quarantine attribute, code signatures, and architecture.</p>
+                <p className="text-xs text-slate-400">
+                  {isMac
+                    ? 'Diagnose Gatekeeper com.apple.quarantine attribute, code signatures, and architecture.'
+                    : 'Diagnose application architecture, Authenticode signature, and SmartScreen trust.'}
+                </p>
               </div>
 
               <div className="flex items-center gap-2">
@@ -248,7 +260,7 @@ export default function SecurityHub() {
                   </div>
                 </div>
 
-                {appCompat?.hasQuarantineAttribute && (
+                {isMac && appCompat?.hasQuarantineAttribute && (
                   <div className="pt-2">
                     <button
                       onClick={handleRemoveQuarantine}

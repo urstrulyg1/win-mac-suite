@@ -74,7 +74,7 @@ export default function DiagnosticsHub({ systemInfo: _systemInfo, onStartAction:
 
   const subTabs: { id: DiagTab; label: string; icon: any; color: string }[] = [
     { id: 'matrix',    label: 'Health Matrix',                        icon: Activity,  color: '#34d399' },
-    { id: 'battery',   label: 'Battery Intelligence & Sleep Timeline', icon: Battery,   color: '#facc15' },
+    { id: 'battery',   label: isMac ? 'Battery Intelligence & Sleep Timeline' : 'Power & Battery Diagnostics', icon: Battery, color: '#facc15' },
     { id: 'processes', label: 'Active Processes & Threads',            icon: Cpu,       color: '#a78bfa' },
     { id: 'events',    label: 'System Event Logs',                     icon: FileText,  color: '#60a5fa' },
     ...(isMac ? [{ id: 'spotlight' as DiagTab, label: 'Spotlight Indexer', icon: Search, color: '#fb923c' }] : []),
@@ -92,14 +92,16 @@ export default function DiagnosticsHub({ systemInfo: _systemInfo, onStartAction:
               <Activity size={12} /> Diagnostics &amp; Health Center
             </span>
             <span className="pill" style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-3)', borderColor: 'var(--color-line)' }}>
-              Native macOS Probes &amp; Sleep Guardian Active
+              {isMac ? 'Native macOS Probes & Sleep Guardian Active' : 'Native Windows Diagnostics & System Health'}
             </span>
           </div>
           <h1 className="text-hero font-extrabold tracking-tight" style={{ color: 'var(--color-ink)' }}>
-            System Diagnostics &amp; Sleep Guardian
+            {isMac ? 'System Diagnostics & Sleep Guardian' : 'System Diagnostics & Health Center'}
           </h1>
           <p className="mt-1 text-[14px]" style={{ color: 'var(--color-ink-3)' }}>
-            Live read-only system telemetry, hourly battery drain timeline, overnight sleep drain diagnostics, and power assertion blockers.
+            {isMac
+              ? 'Live read-only system telemetry, hourly battery drain timeline, overnight sleep drain diagnostics, and power assertion blockers.'
+              : 'Live read-only system telemetry, battery and power states, active processes, and Windows event log analysis.'}
           </p>
         </div>
 
@@ -225,7 +227,9 @@ export default function DiagnosticsHub({ systemInfo: _systemInfo, onStartAction:
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-slate-400">Zero rogue sleep blockers. Mac will enter deep sleep on idle.</p>
+                <p className="text-xs text-slate-400">
+                  {isMac ? 'Zero rogue sleep blockers. Mac will enter deep sleep on idle.' : 'Zero rogue sleep blockers. System will enter low-power sleep on idle.'}
+                </p>
               )}
             </div>
           </motion.div>
@@ -256,7 +260,7 @@ export default function DiagnosticsHub({ systemInfo: _systemInfo, onStartAction:
           </motion.div>
         )}
 
-        {activeSubTab === 'spotlight' && (
+        {isMac && activeSubTab === 'spotlight' && (
           <motion.div key="spotlight" {...tabTransition} className="card p-6 space-y-4">
             <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
               Spotlight Metadata Indexing Engine

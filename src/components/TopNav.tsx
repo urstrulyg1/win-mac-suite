@@ -26,38 +26,11 @@ interface Props {
   systemInfo: SystemInfo;
 }
 
-// Primary Hubs
-const primaryNavTabs = [
-  { id: 'overview',     label: 'Overview',       icon: Monitor,           color: '#60a5fa' }, // blue
-  { id: 'storage',      label: 'Clean',          icon: HardDrive,         color: '#f97316' }, // orange
-  { id: 'performance',  label: 'Performance',    icon: Cpu,               color: '#a78bfa' }, // violet
-  { id: 'diagnostics',  label: 'Health',         icon: Activity,          color: '#34d399' }, // emerald
-  { id: 'security',     label: 'Security',       icon: Lock,              color: '#f43f5e' }, // rose
-  { id: 'developer',    label: 'Developer',      icon: Code,              color: '#facc15' }, // yellow
-  { id: 'network',      label: 'Network',        icon: Wifi,              color: '#22d3ee' }, // cyan
-  { id: 'apple',        label: 'macOS & Sync',   icon: Laptop,            color: '#e879f9' }, // fuchsia
-  { id: 'ask',          label: 'Ask Suite',      icon: MessageSquareCode, color: '#fb923c' }, // amber-orange
-  { id: 'reports',      label: 'Reports',        icon: FileText,          color: '#4ade80' }, // green
-];
-
-// Specialist Diagnostics Tools in Dropdown
-const specialistNavTabs = [
-  { id: 'graph',        label: 'Graph Topology',       icon: Radio,        color: '#22d3ee', desc: 'Interactive visual subsystem topology graph' },
-  { id: 'whynot',       label: 'Why NOT? (Causes)',    icon: Brain,        color: '#a78bfa', desc: 'Diagnostic hypothesis disqualification engine' },
-  { id: 'incidents',    label: 'Incident Center',      icon: Siren,        color: '#f43f5e', desc: 'Correlated system issues & anomalies' },
-  { id: 'experiments',  label: 'Experiments',          icon: FlaskConical, color: '#34d399', desc: 'Safe hypothesis verification & probes' },
-  { id: 'timeline',     label: 'System Timeline',      icon: Clock,        color: '#60a5fa', desc: 'Kernel events, reboots & log history' },
-  { id: 'crashes',      label: 'Crashes & Stability',  icon: Flame,        color: '#f97316', desc: 'Crash log parser & panic diagnostics' },
-  { id: 'hardware',     label: 'Hardware & Displays',  icon: Monitor,      color: '#facc15', desc: 'Peripherals, display config & audio' },
-  { id: 'startup',      label: 'Startup Manager',      icon: Sparkles,     color: '#e879f9', desc: 'LaunchAgents & Login item control' },
-  { id: 'windows',      label: 'Windows Center',       icon: Settings,     color: '#60a5fa', desc: 'Apps, Drivers, Services & System Tools' },
-];
-
 export default function TopNav({
   phase: _phase, activeTab, isRunning, dark, diagnosticOnly = true, onToggleDiagnosticOnly,
   onToggleDark, onHome, onReset: _onReset, onBack: _onBack, onNavTab, summary: _summary, systemInfo: _systemInfo,
 }: Props) {
-  const { config } = usePlatform();
+  const { config, isMac } = usePlatform();
   const active = activeTab;
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -65,6 +38,35 @@ export default function TopNav({
   const brandName = config.productName;
   const brandPrefix = brandName.slice(0, 3);
   const brandSuffix = brandName.slice(3);
+
+  // Primary Hubs (platform-adaptive)
+  const primaryNavTabs = [
+    { id: 'overview',     label: 'Overview',       icon: Monitor,           color: '#60a5fa' }, // blue
+    { id: 'storage',      label: 'Clean',          icon: HardDrive,         color: '#f97316' }, // orange
+    { id: 'performance',  label: 'Performance',    icon: Cpu,               color: '#a78bfa' }, // violet
+    { id: 'diagnostics',  label: 'Health',         icon: Activity,          color: '#34d399' }, // emerald
+    { id: 'security',     label: 'Security',       icon: Lock,              color: '#f43f5e' }, // rose
+    { id: 'developer',    label: 'Developer',      icon: Code,              color: '#facc15' }, // yellow
+    { id: 'network',      label: 'Network',        icon: Wifi,              color: '#22d3ee' }, // cyan
+    ...(isMac
+      ? [{ id: 'apple',   label: 'macOS & Sync',   icon: Laptop,            color: '#e879f9' }]
+      : [{ id: 'windows', label: 'Windows Center', icon: Settings,          color: '#60a5fa' }]),
+    { id: 'ask',          label: 'Ask Suite',      icon: MessageSquareCode, color: '#fb923c' }, // amber-orange
+    { id: 'reports',      label: 'Reports',        icon: FileText,          color: '#4ade80' }, // green
+  ];
+
+  // Specialist Diagnostics Tools in Dropdown
+  const specialistNavTabs = [
+    { id: 'graph',        label: 'Graph Topology',       icon: Radio,        color: '#22d3ee', desc: 'Interactive visual subsystem topology graph' },
+    { id: 'whynot',       label: 'Why NOT? (Causes)',    icon: Brain,        color: '#a78bfa', desc: 'Diagnostic hypothesis disqualification engine' },
+    { id: 'incidents',    label: 'Incident Center',      icon: Siren,        color: '#f43f5e', desc: 'Correlated system issues & anomalies' },
+    { id: 'experiments',  label: 'Experiments',          icon: FlaskConical, color: '#34d399', desc: 'Safe hypothesis verification & probes' },
+    { id: 'timeline',     label: 'System Timeline',      icon: Clock,        color: '#60a5fa', desc: 'Kernel events, reboots & log history' },
+    { id: 'crashes',      label: 'Crashes & Stability',  icon: Flame,        color: '#f97316', desc: 'Crash log parser & panic diagnostics' },
+    { id: 'hardware',     label: 'Hardware & Displays',  icon: Monitor,      color: '#facc15', desc: 'Peripherals, display config & audio' },
+    { id: 'startup',      label: 'Startup Manager',      icon: Sparkles,     color: '#e879f9', desc: isMac ? 'LaunchAgents & Login item control' : 'Startup applications & background services' },
+    ...(isMac ? [{ id: 'windows', label: 'Windows Center', icon: Settings, color: '#60a5fa', desc: 'Apps, Drivers, Services & System Tools' }] : []),
+  ];
 
   const activeSpecialist = specialistNavTabs.find((t) => t.id === active);
 

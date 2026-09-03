@@ -6,9 +6,11 @@ import {
   Radio, HardDrive, RefreshCw, XCircle,
   Key, Globe, Box
 } from 'lucide-react';
+import { usePlatform } from '../platform';
 import InspectorModal, { type InspectorData } from './InspectorModal';
 
 export default function DeveloperDoctorHub() {
+  const { isMac } = usePlatform();
   const [subTab, setSubTab] = useState<'env' | 'docker' | 'xcode' | 'ssh' | 'vm' | 'browser' | 'ports'>('env');
   const [envData, setEnvData] = useState<any>(null);
   const [dockerData, setDockerData] = useState<any>(null);
@@ -28,7 +30,7 @@ export default function DeveloperDoctorHub() {
       const [eRes, dRes, xRes, sRes, vRes, bRes, pRes] = await Promise.all([
         fetch('/api/developer/health').catch(() => null),
         fetch('/api/storage/docker').catch(() => null),
-        fetch('/api/storage/xcode').catch(() => null),
+        isMac ? fetch('/api/storage/xcode').catch(() => null) : Promise.resolve(null),
         fetch('/api/diagnostics/ssh-doctor').catch(() => null),
         fetch('/api/diagnostics/virtualization').catch(() => null),
         fetch('/api/diagnostics/browser-health').catch(() => null),
@@ -142,7 +144,7 @@ export default function DeveloperDoctorHub() {
         {[
           { id: 'env' as const,     label: 'Environment & PATH',    icon: Terminal,  color: '#facc15' },
           { id: 'docker' as const,  label: 'Docker Storage',        icon: Layers,    color: '#22d3ee' },
-          { id: 'xcode' as const,   label: 'Xcode Doctor',          icon: HardDrive, color: '#f97316' },
+          ...(isMac ? [{ id: 'xcode' as const, label: 'Xcode Doctor', icon: HardDrive, color: '#f97316' }] : []),
           { id: 'ssh' as const,     label: 'SSH & Git Doctor',      icon: Key,       color: '#34d399' },
           { id: 'vm' as const,      label: 'Virtualization & VMs',  icon: Box,       color: '#a78bfa' },
           { id: 'browser' as const, label: 'Browser Health',        icon: Globe,     color: '#60a5fa' },
@@ -332,7 +334,7 @@ export default function DeveloperDoctorHub() {
           </motion.div>
         )}
 
-        {subTab === 'xcode' && (
+        {isMac && subTab === 'xcode' && (
           <motion.div key="xcode" {...tabTransition} className="card p-6 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4" style={{ borderColor: 'var(--color-line)' }}>
               <div>

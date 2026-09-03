@@ -151,6 +151,8 @@ export const diagnosticsApi = {
 export const securityApi = {
   getStatus: () => apiGet('/security'),
   getPrivacy: () => apiGet('/privacy'),
+  // macOS extended security
+  getPrivacyRisk: () => apiGet('/security/privacy-risk', 20000),
 };
 
 export const storageApi = {
@@ -164,10 +166,6 @@ export const storageApi = {
   getLargeFiles: () => apiGet('/storage/large-files', 15000),
   getFilePermissions: (targetPath?: string) =>
     apiGet(`/storage/file-permissions${targetPath ? `?path=${encodeURIComponent(targetPath)}` : ''}`, 10000),
-};
-
-export const securityApi = {
-  getPrivacyRisk: () => apiGet('/security/privacy-risk', 20000),
 };
 
 export const networkApi = {

@@ -3,9 +3,11 @@ import {
   Sparkles, ToggleLeft, ToggleRight, Search, RefreshCw, FileText,
   ChevronRight
 } from 'lucide-react';
+import { usePlatform } from '../platform';
 import InspectorModal, { type InspectorData } from './InspectorModal';
 
 export default function StartupManager() {
+  const { isMac } = usePlatform();
   const [items, setItems] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
@@ -70,14 +72,16 @@ export default function StartupManager() {
               <Sparkles size={12} /> Startup &amp; Background Items Manager
             </span>
             <span className="pill" style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-3)', borderColor: 'var(--color-line)' }}>
-              Startup Impact &amp; "Why is this running?" Active
+              {isMac ? 'Startup Impact & "Why is this running?" Active' : 'Windows Startup & Service Impact Active'}
             </span>
           </div>
           <h1 className="text-hero font-extrabold tracking-tight" style={{ color: 'var(--color-ink)' }}>
             Startup &amp; Background Items Manager
           </h1>
           <p className="mt-1 text-[14px]" style={{ color: 'var(--color-ink-3)' }}>
-            Audit Login Items, LaunchAgents, and LaunchDaemons. Learn exactly why every background service is running and temporarily disable resource hogs without deleting configuration files.
+            {isMac
+              ? 'Audit Login Items, LaunchAgents, and LaunchDaemons. Learn exactly why every background service is running and temporarily disable resource hogs without deleting configuration files.'
+              : 'Audit Windows Startup Applications, Registry Run Keys, and background services. Learn why startup tasks are active and disable resource hogs safely.'}
           </p>
         </div>
 
@@ -109,7 +113,7 @@ export default function StartupManager() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search startup items, helper tools, or LaunchAgents..."
+            placeholder={isMac ? 'Search startup items, helper tools, or LaunchAgents...' : 'Search startup apps, registry entries, or services...'}
             className="field pl-9 py-2 text-xs"
           />
         </div>
@@ -123,7 +127,7 @@ export default function StartupManager() {
             onClick={() =>
               setInspectItem({
                 title: item.name,
-                category: item.type || 'LaunchAgent',
+                category: item.type || (isMac ? 'LaunchAgent' : 'Startup App'),
                 badge: `${item.impact} Boot Impact`,
                 badgeType: item.impact === 'High' ? 'warning' : 'success',
                 subtitle: `Location: ${item.location}`,
