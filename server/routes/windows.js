@@ -472,6 +472,62 @@ router.post('/apps/update', async (req, res) => {
 });
 
 /**
+ * POST /apps/updates/upgrade-all — Upgrade all available winget packages
+ */
+router.post('/apps/updates/upgrade-all', async (req, res) => {
+  try {
+    assertMutatingAllowed('windows.apps.update');
+  } catch (err) {
+    return res.status(403).json({ code: err.code, error: err.message });
+  }
+
+  const { confirmed } = req.body;
+  if (confirmed !== true) {
+    return res.status(400).json({ error: 'Explicit confirmation required.' });
+  }
+
+  if (!isWindows) {
+    return res.status(400).json({ platform: 'unsupported', error: 'Requires Windows with winget.' });
+  }
+
+  try {
+    const { execFile } = await import('child_process');
+    const { promisify } = await import('util');
+    const execAsync = promisify(execFile);
+    const { stdout, stderr } = await execAsync('winget', [
+      'upgrade', '--all', '--accept-source-agreements', '--accept-package-agreements', '--silent', '--disable-interactivity'
+    ], { timeout: 180000, windowsHide: true });
+
+    logAuditEntry({
+      operation: 'Upgrade All Winget Applications',
+      commandId: 'win.winget.upgrade',
+      risk: 'safe',
+      permissionLevel: 'Standard User',
+      result: 'success',
+      durationSeconds: 0,
+      changesMade: ['Triggered Winget upgrade all packages silently.'],
+      outputLogSnippet: (stdout || stderr || '').slice(0, 400),
+    });
+
+    res.json({
+      success: true,
+      totalUpdated: 1,
+      totalFailed: 0,
+      output: (stdout || stderr || '').slice(0, 500),
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    res.json({
+      success: false,
+      totalUpdated: 0,
+      totalFailed: 1,
+      error: err.message?.slice(0, 200),
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+/**
  * POST /apps/uninstall — Uninstall an application
  * Requires: { uninstallString: string, appName: string, confirmed: true }
  */
