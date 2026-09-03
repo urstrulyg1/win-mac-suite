@@ -60,8 +60,21 @@ router.get('/sysinfo', async (_req, res) => {
     const cpuPct = Math.round(currentLoad.currentLoad || 0);
 
     // CPU temperature: use real sensor data or report UNAVAILABLE
-    // NEVER fabricate a temperature from CPU load — that's misleading telemetry
-    const cpuTemp = cpuTempRaw?.main && cpuTempRaw.main > 0 ? Math.round(cpuTempRaw.main) : null;
+    // Queries si.cpuTemperature first, falls back to Windows ACPI ThermalZone CIM counters
+    let cpuTemp = cpuTempRaw?.main && cpuTempRaw.main > 0 ? Math.round(cpuTempRaw.main) : null;
+    if (cpuTemp === null && isWin) {
+      try {
+        const { execSync } = await import('child_process');
+        const out = execSync(
+          'powershell -NoProfile -NonInteractive -Command "(Get-CimInstance -ClassName Win32_PerfFormattedData_Counters_ThermalZoneInformation -ErrorAction SilentlyContinue | Select-Object -First 1).HighPrecisionTemperature"',
+          { encoding: 'utf-8', timeout: 3000, windowsHide: true }
+        );
+        const raw = parseInt(out.trim(), 10);
+        if (!isNaN(raw) && raw > 2730) {
+          cpuTemp = Math.round((raw - 2732) / 10);
+        }
+      } catch { /* thermal zone counter fallback optional */ }
+    }
     const cpuTempFormatted = cpuTemp !== null ? `${cpuTemp}°C` : 'UNAVAILABLE';
 
     const primaryDisk = Array.isArray(fsSize)
@@ -69,6 +82,9 @@ router.get('/sysinfo', async (_req, res) => {
       : null;
     const totalDiskGB = primaryDisk ? Math.round(primaryDisk.size / 1024 / 1024 / 1024) : 256;
     const freeDiskGB = primaryDisk ? +( (primaryDisk.size - primaryDisk.used) / 1024 / 1024 / 1024 ).toFixed(1) : 128;
+
+    const rawModel = os.cpus()[0]?.model?.replace(/\s+/g, ' ').trim();
+    const cleanProcessor = rawModel || `${cpu.manufacturer || ''} ${cpu.brand || 'Processor'}`.trim();
 
     res.json({
       platform: detectedPlatform,
@@ -78,7 +94,7 @@ router.get('/sysinfo', async (_req, res) => {
       os: `${osInfo.distro || (isMac ? 'macOS' : 'Windows')} ${osInfo.release || ''}`.trim(),
       build: osInfo.build || '',
       arch: os.arch(),
-      processor: `${cpu.manufacturer || ''} ${cpu.brand || os.cpus()[0]?.model || 'Processor'}`.trim(),
+      processor: cleanProcessor,
       cores: cpu.cores || os.cpus().length,
       ramGB: Math.round(mem.total / 1024 / 1024 / 1024),
       freeDiskGB,

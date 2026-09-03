@@ -368,12 +368,14 @@ export default function LandingHero({ onStart, systemInfo, summary, lastRunTimes
               dataSource: 'systeminformation (cpu, mem, fsSize)',
               evidenceQuality: 'Observed',
               freshness: 'Live',
-              explanation: 'Measures live CPU kernel load, user thread allocation, and unified memory pressure.',
+              explanation: isMac
+                ? 'Measures live CPU kernel load, user thread allocation, and unified memory pressure.'
+                : 'Measures live CPU kernel load, user thread allocation, and physical RAM utilization.',
               details: [
                 { label: 'CPU Model', value: systemInfo.processor },
                 { label: 'CPU Utilization', value: `${cpuPct}%` },
-                { label: 'CPU Temperature', value: systemInfo.cpuTempFormatted || `${systemInfo.cpuTemp || 44}°C` },
-                { label: 'Unified Memory', value: `${systemInfo.ramGB} GB (${memPct}% used)` },
+                { label: 'CPU Temperature', value: systemInfo.cpuTemp ? `${systemInfo.cpuTemp}°C` : (systemInfo.cpuTempFormatted || 'UNAVAILABLE (Sensor Locked)') },
+                { label: isMac ? 'Unified Memory' : 'System Memory (RAM)', value: `${systemInfo.ramGB} GB (${memPct}% used)` },
                 { label: 'Storage Used', value: `${diskUsedGB} GB / ${systemInfo.totalDiskGB} GB` },
               ],
               command: isMac ? 'top -l 1 | head -n 10' : 'Get-Process | Sort-Object CPU -Descending | Select-Object -First 10',
@@ -395,7 +397,7 @@ export default function LandingHero({ onStart, systemInfo, summary, lastRunTimes
                 <Cpu size={11} style={{ color: '#a78bfa' }} /> CPU
               </span>
               <span className="mb-2 pill text-[12px]" style={{ backgroundColor: 'rgba(245,158,11,0.12)', color: '#f59e0b', borderColor: 'rgba(245,158,11,0.3)' }}>
-                <Thermometer size={11} style={{ color: '#f59e0b' }} /> {systemInfo.cpuTemp ? `${systemInfo.cpuTemp}°C` : '44°C'}
+                <Thermometer size={11} style={{ color: '#f59e0b' }} /> {systemInfo.cpuTemp ? `${systemInfo.cpuTemp}°C` : (systemInfo.cpuTempFormatted || 'N/A')}
               </span>
             </div>
             <p className="text-xs font-medium mb-5 truncate" style={{ color: 'var(--color-ink-4)' }}>
@@ -407,10 +409,10 @@ export default function LandingHero({ onStart, systemInfo, summary, lastRunTimes
             <ProgressRow label="CPU Load"   value={cpuPct}     total={100} display={`${cpuPct}%`}     color="#2563eb" />
             <ProgressRow
               label="CPU Temp"
-              value={systemInfo.cpuTemp || 44}
+              value={systemInfo.cpuTemp || 40}
               total={100}
-              display={systemInfo.cpuTempFormatted || `${systemInfo.cpuTemp || 44}°C`}
-              color={(systemInfo.cpuTemp || 44) > 80 ? '#ef4444' : (systemInfo.cpuTemp || 44) > 60 ? '#f59e0b' : '#10b981'}
+              display={systemInfo.cpuTemp ? `${systemInfo.cpuTemp}°C` : (systemInfo.cpuTempFormatted || 'N/A')}
+              color={(systemInfo.cpuTemp || 40) > 80 ? '#ef4444' : (systemInfo.cpuTemp || 40) > 60 ? '#f59e0b' : '#10b981'}
               delay={0.08}
             />
             <ProgressRow label="Memory"     value={memPct}     total={100} display={`${memPct}%`}     color="#7c3aed" delay={0.16} />
