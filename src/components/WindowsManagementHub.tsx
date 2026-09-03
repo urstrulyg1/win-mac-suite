@@ -346,11 +346,19 @@ function DashboardTab() {
   const { data: features, loading: fLoading } = useData(`${API}/features`);
   const { data: health, loading: hLoading } = useData(`${API}/health-check`);
 
-  if (acLoading || fLoading || hLoading) return <Spinner text="Loading dashboard..." />;
+  const allLoading = acLoading && fLoading && hLoading;
+  if (allLoading) return <Spinner text="Loading dashboard..." />;
 
   return (
     <div className="space-y-6">
-      {features?.os && (
+      {fLoading ? (
+        <Card title="System Information" icon={Monitor}>
+          <div className="py-4 text-center text-xs text-gray-400 flex items-center justify-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+            <span>Loading system information...</span>
+          </div>
+        </Card>
+      ) : features?.os ? (
         <Card title="System Information" icon={Monitor}>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
             <div><span className="text-gray-500">OS:</span> {features.os.caption || 'N/A'}</div>
@@ -363,9 +371,16 @@ function DashboardTab() {
             <div><span className="text-gray-500">Memory:</span> {features.computer?.totalMemoryGB ? `${features.computer.totalMemoryGB} GB` : 'N/A'}</div>
           </div>
         </Card>
-      )}
+      ) : null}
 
-      {ac && ac.items && (
+      {acLoading ? (
+        <Card title="Action Center" icon={Bell}>
+          <div className="py-4 text-center text-xs text-gray-400 flex items-center justify-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+            <span>Scanning system recommendations and events...</span>
+          </div>
+        </Card>
+      ) : ac && ac.items ? (
         <Card title="Action Center" icon={Bell} badge={ac.summary?.critical > 0 ? 'critical' : ac.summary?.high > 0 ? 'needs-attention' : 'healthy'}>
           <div className="flex gap-4 mb-3 text-sm">
             {ac.summary?.critical > 0 && <span className="text-red-600 font-medium">🔴 {ac.summary.critical} Critical</span>}
@@ -389,9 +404,16 @@ function DashboardTab() {
             ))}
           </div>
         </Card>
-      )}
+      ) : null}
 
-      {health?.checks && (
+      {hLoading ? (
+        <Card title="Health Check" icon={Heart}>
+          <div className="py-4 text-center text-xs text-gray-400 flex items-center justify-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+            <span>Verifying Windows security, updates, and driver health...</span>
+          </div>
+        </Card>
+      ) : health?.checks ? (
         <Card title="Health Check" icon={Heart} badge={health.overall}>
           <div className="space-y-2">
             {health.checks.map((c: any, i: number) => (
@@ -405,7 +427,7 @@ function DashboardTab() {
             ))}
           </div>
         </Card>
-      )}
+      ) : null}
 
       {ac?.platform === 'unsupported' && <Unsupported feature="Action Center" />}
     </div>
