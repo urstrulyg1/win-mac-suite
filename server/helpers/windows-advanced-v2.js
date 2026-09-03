@@ -911,20 +911,24 @@ export async function getDNSDiagnostics() {
 export async function getFirewallRules() {
   if (!isWindows) return unsupported('firewall-rules');
   const script = `
-    $rules = Get-NetFirewallRule -ErrorAction SilentlyContinue |
-      Select-Object Name, DisplayName, Direction, Action, Enabled, Profile,
-                    @{N='Program';E={($_ | Get-NetFirewallApplicationFilter -ErrorAction SilentlyContinue).Program}},
-                    @{N='LocalPort';E={($_ | Get-NetFirewallPortFilter -ErrorAction SilentlyContinue).LocalPort}},
-                    @{N='RemotePort';E={($_ | Get-NetFirewallPortFilter -ErrorAction SilentlyContinue).RemotePort}},
-                    @{N='Protocol';E={($_ | Get-NetFirewallPortFilter -ErrorAction SilentlyContinue).Protocol}} |
-      Sort-Object DisplayName |
-      Select-Object -First 200
+    $raw = Get-NetFirewallRule -ErrorAction SilentlyContinue | Select-Object -First 80 Name, DisplayName, Direction, Action, Enabled, Profile
+    $rules = @()
+    foreach ($r in $raw) {
+      $rules += @{
+        Name = $r.Name
+        DisplayName = if ($r.DisplayName) { $r.DisplayName } else { $r.Name }
+        Direction = switch ($r.Direction) { 1 { 'Inbound' } 2 { 'Outbound' } default { [string]$r.Direction } }
+        Action = switch ($r.Action) { 2 { 'Allow' } 4 { 'Block' } default { [string]$r.Action } }
+        Enabled = ($r.Enabled -eq 1 -or $r.Enabled -eq 'True' -or $r.Enabled -eq $true)
+        Profile = [string]$r.Profile
+      }
+    }
     $summary = @{
-      total = ($rules | Measure-Object).Count
+      total = $rules.Count
       inbound = ($rules | Where-Object Direction -eq 'Inbound').Count
       outbound = ($rules | Where-Object Direction -eq 'Outbound').Count
-      enabled = ($rules | Where-Object Enabled -eq 'True').Count
-      disabled = ($rules | Where-Object Enabled -ne 'True').Count
+      enabled = ($rules | Where-Object Enabled -eq $true).Count
+      disabled = ($rules | Where-Object Enabled -eq $false).Count
       allow = ($rules | Where-Object Action -eq 'Allow').Count
       block = ($rules | Where-Object Action -eq 'Block').Count
     }
@@ -934,7 +938,7 @@ export async function getFirewallRules() {
     } | ConvertTo-Json -Compress -Depth 3
   `;
   try {
-    const result = await psJson(script, 30000);
+    const result = await psJson(script, 10000);
     if (!result) return { platform: 'windows', measurement: 'failed' };
     const rules = Array.isArray(result.rules) ? result.rules : result.rules ? [result.rules] : [];
     return {

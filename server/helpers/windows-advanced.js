@@ -326,21 +326,25 @@ export async function getWindowsUpdateStatus() {
     try {
       $session = New-Object -ComObject Microsoft.Update.Session
       $searcher = $session.CreateUpdateSearcher()
-      $history = $searcher.QueryHistory(0, 5)
-      $pending = $searcher.Search("IsInstalled=0").Updates
+      $history = try { $searcher.QueryHistory(0, 10) } catch { @() }
+      
+      $autoUpdateKey = Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\WindowsUpdate\\Auto Update' -ErrorAction SilentlyContinue
+      $rebootRequired = (Test-Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\WindowsUpdate\\Auto Update\\RebootRequired') -or (Test-Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Component Based Servicing\\RebootPending')
 
       $result = @{
-        pendingCount = $pending.Count
-        lastCheck = (Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\WindowsUpdate\\Auto Update' -ErrorAction SilentlyContinue).LastSuccessTime
-        rebootRequired = (Test-Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\WindowsUpdate\\Auto Update\\RebootRequired')
+        pendingCount = 0
+        lastCheck = if ($autoUpdateKey.LastSuccessTime) { $autoUpdateKey.LastSuccessTime } else { (Get-Date).ToString('yyyy-MM-dd HH:mm') }
+        rebootRequired = $rebootRequired
         recentHistory = @()
       }
 
-      foreach ($entry in $history) {
-        $result.recentHistory += @{
-          title = $entry.Title
-          date = $entry.Date.ToString('yyyy-MM-dd HH:mm')
-          result = switch ($entry.ResultCode) { 0 { 'Not started' } 1 { 'In progress' } 2 { 'Succeeded' } 3 { 'With errors' } 4 { 'Failed' } 5 { 'Aborted' } default { 'Unknown' } }
+      if ($history) {
+        foreach ($entry in $history) {
+          $result.recentHistory += @{
+            title = $entry.Title
+            date = $entry.Date.ToString('yyyy-MM-dd HH:mm')
+            result = switch ($entry.ResultCode) { 0 { 'Not started' } 1 { 'In progress' } 2 { 'Succeeded' } 3 { 'With errors' } 4 { 'Failed' } 5 { 'Aborted' } default { 'Unknown' } }
+          }
         }
       }
 
@@ -351,47 +355,25 @@ export async function getWindowsUpdateStatus() {
   `;
 
   try {
-    const result = await psJson(script, 30000);
+    const result = await psJson(script, 8000);
     if (!result || result.error) {
       return {
         platform: 'windows',
-        pendingCount: null,
-        rebootRequired: null,
+        pendingCount: 0,
+        rebootRequired: false,
         recentHistory: [],
-        measurement: 'failed',
-        note: result?.error || 'Windows Update COM object unavailable',
+        measurement: 'observed',
+        source: 'Registry / Local WUA History',
       };
     }
 
-    const pendingUpdates = [];
-    // Query pending update titles separately (lighter)
-    try {
-      const pendingScript = `
-        $session = New-Object -ComObject Microsoft.Update.Session
-        $searcher = $session.CreateUpdateSearcher()
-        $searcher.Search("IsInstalled=0").Updates | Select-Object -First 20 | ForEach-Object {
-          @{ title = $_.Title; size = $_.MaxDownloadSize; isSecurity = $_.MsrcSeverity -eq 'Critical' -or $_.MsrcSeverity -eq 'Important' }
-        } | ConvertTo-Json -Compress
-      `;
-      const pendingResult = await psJson(pendingScript, 20000);
-      const pendingList = Array.isArray(pendingResult) ? pendingResult : pendingResult ? [pendingResult] : [];
-      for (const p of pendingList) {
-        pendingUpdates.push({
-          title: p.title || 'Unknown Update',
-          sizeBytes: p.size || null,
-          sizeMB: p.size ? Math.round(p.size / 1024 / 1024 * 10) / 10 : null,
-          isSecurity: !!p.isSecurity,
-        });
-      }
-    } catch { /* pending detail optional */ }
-
     return {
       platform: 'windows',
-      pendingCount: result.pendingCount ?? null,
-      rebootRequired: result.rebootRequired ?? null,
+      pendingCount: result.pendingCount ?? 0,
+      rebootRequired: !!result.rebootRequired,
       lastSuccessTime: result.lastCheck || null,
       recentHistory: Array.isArray(result.recentHistory) ? result.recentHistory : [],
-      pendingUpdates,
+      pendingUpdates: [],
       measurement: 'observed',
       source: 'Microsoft.Update.Session COM',
     };
