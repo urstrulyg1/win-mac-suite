@@ -1,5 +1,5 @@
 /**
- * WinSuite & MacSuite v6.6 - Storage & Intelligence Route
+ * WinSuite & MacSuite v11.2 - Storage & Intelligence Route
  * Endpoints:
  * - GET /api/storage
  * - GET /api/storage/system-data
@@ -10,6 +10,9 @@
  * - GET /api/storage/external-drives
  * - GET /api/developer-cleanup
  * - GET /api/snapshots
+ * - GET /api/storage/duplicates
+ * - GET /api/storage/large-files
+ * - GET /api/storage/file-permissions
  */
 
 import express from 'express';
@@ -29,6 +32,7 @@ import {
 } from '../helpers/macos-helpers.js';
 import {
   getMacDuplicateFiles,
+  getMacFilePermissionsDoctor,
 } from '../helpers/macos-advanced-helpers.js';
 import {
   getWindowsDeveloperArtifacts,
@@ -230,6 +234,44 @@ router.get('/storage/duplicates', async (req, res) => {
     } else {
       // Windows: covered by /api/windows/v2/storage/duplicates
       res.json({ duplicates: [], count: 0, note: 'Use /api/windows/v2/storage/duplicates for Windows.' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/storage/large-files ──────────────────────────────────────────
+router.get('/storage/large-files', async (_req, res) => {
+  try {
+    if (isMac) {
+      const files = await getMacLargeFiles();
+      res.json({ platform: 'macos', count: files.length, files });
+    } else {
+      // Windows large files endpoint lives at /api/windows/storage/large
+      res.json({ platform: 'windows', count: 0, files: [], note: 'Use GET /api/windows/storage/large for Windows.' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/storage/file-permissions ─────────────────────────────────────
+router.get('/storage/file-permissions', async (req, res) => {
+  try {
+    if (isMac) {
+      const rawPath = req.query.path || null;
+      let targetPath = null;
+      if (rawPath) {
+        const resolved = path.resolve(rawPath);
+        const home = os.homedir();
+        if (!resolved.startsWith(home) && !resolved.startsWith('/Applications')) {
+          return res.status(400).json({ error: 'Path must be within the home directory or /Applications.' });
+        }
+        targetPath = resolved;
+      }
+      res.json(await getMacFilePermissionsDoctor(targetPath));
+    } else {
+      res.status(404).json({ note: 'File Permissions Doctor is macOS-only.' });
     }
   } catch (err) {
     res.status(500).json({ error: err.message });

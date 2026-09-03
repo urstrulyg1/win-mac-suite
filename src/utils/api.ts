@@ -158,11 +158,24 @@ export const storageApi = {
   getDocker: () => apiGet('/storage/docker'),
   getXcode: () => apiGet('/storage/xcode'),
   getSnapshots: () => apiGet('/snapshots'),
+  // macOS extended storage
+  getDuplicates: (scanPath?: string, max = 50) =>
+    apiGet(`/storage/duplicates${scanPath ? `?path=${encodeURIComponent(scanPath)}&max=${max}` : `?max=${max}`}`, 60000),
+  getLargeFiles: () => apiGet('/storage/large-files', 15000),
+  getFilePermissions: (targetPath?: string) =>
+    apiGet(`/storage/file-permissions${targetPath ? `?path=${encodeURIComponent(targetPath)}` : ''}`, 10000),
+};
+
+export const securityApi = {
+  getPrivacyRisk: () => apiGet('/security/privacy-risk', 20000),
 };
 
 export const networkApi = {
   getDiagnostics: () => apiGet('/network/diagnostics', 30000),
   getListeningPorts: () => apiGet('/network/listening-ports'),
+  // macOS extended network
+  getDnsDiagnostics: () => apiGet('/network/dns-diagnostics', 20000),
+  getFirewallRules: () => apiGet('/network/firewall-rules', 20000),
 };
 
 export const servicesApi = {
@@ -356,6 +369,12 @@ export const windowsApi = {
   // Services & Tasks
   getServiceDeps: () => apiGet('/windows/v2/services/deps', 60000),
   getTaskAnalysis: () => apiGet('/windows/v2/tasks/analysis', 30000),
+
+  // System Extras (Enhancement Pack)
+  getClipboard: () => apiGet('/windows/v2/clipboard', 10000),
+  getEnvVars: () => apiGet('/windows/v2/env-vars', 15000),
+  getHostsFile: () => apiGet('/windows/v2/hosts', 10000),
+  getServicesSummary: () => apiGet('/windows/v2/services/summary', 20000),
 
   // Action Center
   getActionCenter: () => apiGet('/windows/v2/action-center', 60000),

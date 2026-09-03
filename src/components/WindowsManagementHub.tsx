@@ -153,6 +153,15 @@ const NAV_GROUPS = [
       { id: 'dev-docker', label: 'Docker', icon: Container },
     ],
   },
+  {
+    id: 'system-extras', label: 'System Extras', icon: Zap,
+    tabs: [
+      { id: 'clipboard', label: 'Clipboard History', icon: ClipboardList },
+      { id: 'env-vars', label: 'Environment Variables', icon: Settings },
+      { id: 'hosts', label: 'Hosts File Audit', icon: FileText },
+      { id: 'services-summary', label: 'Running Services Summary', icon: Server },
+    ],
+  },
 ];
 
 // ─── Shared UI Components ───────────────────────────────────────────────────
@@ -1802,6 +1811,117 @@ export default function WindowsManagementHub() {
       );
       case 'dev-wsl': return <WSLTab />;
       case 'dev-docker': return <DockerTab />;
+
+      case 'clipboard': return (
+        <SimpleDataTab endpoint={`${V2}/clipboard`} feature="Clipboard History" loadingText="Loading clipboard history..."
+          render={(data: any) => (
+            <div className="space-y-4">
+              <Card title="Clipboard Diagnostics" badge={data?.enabled ? 'healthy' : 'needs-attention'}>
+                <div className="space-y-2 text-sm text-gray-500">
+                  <p><strong>Status:</strong> {data?.enabled ? 'Enabled' : 'Disabled'}</p>
+                  <p className="text-xs text-slate-400">💡 {data?.note}</p>
+                </div>
+              </Card>
+            </div>
+          )}
+        />
+      );
+      case 'env-vars': return (
+        <SimpleDataTab endpoint={`${V2}/env-vars`} feature="Environment Variables" loadingText="Loading environment variables..."
+          render={(data: any) => (
+            <div className="space-y-6">
+              <div className="flex gap-4 text-sm font-semibold">
+                <span>User variables: {data?.userCount || 0}</span>
+                <span>System variables: {data?.systemCount || 0}</span>
+              </div>
+
+              {Array.isArray(data?.userVars) && data.userVars.length > 0 && (
+                <Card title="User Environment Variables" icon={Settings}>
+                  <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
+                    {data.userVars.map((v: any, idx: number) => (
+                      <div key={idx} className="p-2 border rounded text-xs flex flex-col md:flex-row md:items-center justify-between gap-2" style={{ borderColor: 'var(--color-line)', background: 'var(--color-surface-2)' }}>
+                        <code className="font-bold text-blue-500 break-all">{v.name}</code>
+                        <span className="text-gray-400 font-mono break-all text-[11px] md:text-right">{v.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
+              {Array.isArray(data?.systemVars) && data.systemVars.length > 0 && (
+                <Card title="System Environment Variables" icon={Settings}>
+                  <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
+                    {data.systemVars.map((v: any, idx: number) => (
+                      <div key={idx} className="p-2 border rounded text-xs flex flex-col md:flex-row md:items-center justify-between gap-2" style={{ borderColor: 'var(--color-line)', background: 'var(--color-surface-2)' }}>
+                        <code className="font-bold text-indigo-500 break-all">{v.name}</code>
+                        <span className="text-gray-400 font-mono break-all text-[11px] md:text-right">{v.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+            </div>
+          )}
+        />
+      );
+      case 'hosts': return (
+        <SimpleDataTab endpoint={`${V2}/hosts`} feature="Hosts File Audit" loadingText="Reading hosts file..."
+          render={(data: any) => (
+            <div className="space-y-4">
+              <Card title="Hosts File Properties">
+                <div className="text-xs text-gray-500 space-y-1">
+                  <p><strong>Path:</strong> <code className="break-all">{data?.path || 'C:\\Windows\\System32\\drivers\\etc\\hosts'}</code></p>
+                  <p><strong>Active Entries:</strong> {data?.count ?? 0}</p>
+                  {data?.note && <p className="text-red-500 font-medium">⚠️ {data.note}</p>}
+                </div>
+              </Card>
+
+              {Array.isArray(data?.entries) && data.entries.length > 0 && (
+                <Card title="Parsed Hosts File Entries" icon={FileText}>
+                  <DataTable data={data.entries} columns={[
+                    { key: 'ip', label: 'IP Address', mono: true },
+                    { key: 'hostname', label: 'Hostname', mono: true },
+                    { key: 'isLocal', label: 'Localhost Loopback', render: (v: any) => v ? '✅ Yes' : 'No' },
+                  ]} />
+                </Card>
+              )}
+            </div>
+          )}
+        />
+      );
+      case 'services-summary': return (
+        <SimpleDataTab endpoint={`${V2}/services/summary`} feature="Running Services Summary" loadingText="Loading running services..."
+          render={(data: any) => (
+            <div className="space-y-6">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="p-3.5 border rounded-xl text-center" style={{ borderColor: 'var(--color-line)', background: 'var(--color-surface-2)' }}>
+                  <span className="text-xs text-slate-400 uppercase font-semibold">Total Services</span>
+                  <p className="text-lg font-bold text-indigo-500 mt-1">{data?.total || 0}</p>
+                </div>
+                <div className="p-3.5 border rounded-xl text-center" style={{ borderColor: 'var(--color-line)', background: 'var(--color-surface-2)' }}>
+                  <span className="text-xs text-slate-400 uppercase font-semibold">Running</span>
+                  <p className="text-lg font-bold text-emerald-500 mt-1">{data?.running || 0}</p>
+                </div>
+                <div className="p-3.5 border rounded-xl text-center" style={{ borderColor: 'var(--color-line)', background: 'var(--color-surface-2)' }}>
+                  <span className="text-xs text-slate-400 uppercase font-semibold">Stopped</span>
+                  <p className="text-lg font-bold text-gray-500 mt-1">{data?.stopped || 0}</p>
+                </div>
+              </div>
+
+              {Array.isArray(data?.topRunning) && data.topRunning.length > 0 && (
+                <Card title="Top Running Services List" icon={Server}>
+                  <DataTable data={data.topRunning} columns={[
+                    { key: 'pid', label: 'PID', mono: true },
+                    { key: 'name', label: 'Service Name' },
+                    { key: 'displayName', label: 'Display Name' },
+                    { key: 'startMode', label: 'Start Mode' },
+                  ]} />
+                </Card>
+              )}
+            </div>
+          )}
+        />
+      );
 
       default: return <div className="p-4 text-center text-gray-400">Tab not implemented: {activeTab}</div>;
     }

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { tabTransition } from '../motion';
 import {
   Wifi, RefreshCw,
-  Bluetooth, Share2, Globe, Zap, Check, AlertTriangle
+  Bluetooth, Share2, Globe, Zap, Check, AlertTriangle, Shield
 } from 'lucide-react';
 import { usePlatform } from '../platform';
 import InspectorModal, { type InspectorData } from './InspectorModal';
@@ -11,10 +11,12 @@ import { actionsApi } from '../utils/api';
 
 export default function NetworkDoctorHub() {
   const { isMac } = usePlatform();
-  const [subTab, setSubTab] = useState<'doctor' | 'wifi' | 'bluetooth'>('doctor');
+  const [subTab, setSubTab] = useState<'doctor' | 'wifi' | 'bluetooth' | 'dns' | 'firewall'>('doctor');
   const [doctorData, setDoctorData] = useState<any>(null);
   const [btData, setBtData] = useState<any>(null);
   const [wifiData, setWifiData] = useState<any>(null);
+  const [dnsData, setDnsData] = useState<any>(null);
+  const [firewallData, setFirewallData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [flushingDNS, setFlushingDNS] = useState(false);
   const [dnsFlushed, setDnsFlushed] = useState(false);
@@ -23,15 +25,19 @@ export default function NetworkDoctorHub() {
   const fetchNetworkData = async () => {
     setLoading(true);
     try {
-      const [dRes, bRes, wRes] = await Promise.all([
-        fetch('/api/network/doctor').catch(() => null),
-        fetch('/api/network/bluetooth').catch(() => null),
-        fetch('/api/network/wifi-intelligence').catch(() => null),
+      const [dRes, bRes, wRes, dnsRes, fwRes] = await Promise.allSettled([
+        fetch('/api/network/doctor').then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch('/api/network/bluetooth').then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch('/api/network/wifi-intelligence').then(r => r.ok ? r.json() : null).catch(() => null),
+        isMac ? fetch('/api/network/dns-diagnostics').then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null),
+        isMac ? fetch('/api/network/firewall-rules').then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null),
       ]);
 
-      if (dRes && dRes.ok) setDoctorData(await dRes.json());
-      if (bRes && bRes.ok) setBtData(await bRes.json());
-      if (wRes && wRes.ok) setWifiData(await wRes.json());
+      if (dRes.status === 'fulfilled' && dRes.value) setDoctorData(dRes.value);
+      if (bRes.status === 'fulfilled' && bRes.value) setBtData(bRes.value);
+      if (wRes.status === 'fulfilled' && wRes.value) setWifiData(wRes.value);
+      if (dnsRes.status === 'fulfilled' && dnsRes.value) setDnsData(dnsRes.value);
+      if (fwRes.status === 'fulfilled' && fwRes.value) setFirewallData(fwRes.value);
     } catch {}
     finally {
       setLoading(false);
@@ -100,6 +106,10 @@ export default function NetworkDoctorHub() {
           { id: 'doctor' as const,    label: '6-Step Network Doctor',       icon: Globe,     color: '#60a5fa' },
           { id: 'wifi' as const,      label: 'Wi-Fi Intelligence & History', icon: Wifi,     color: '#22d3ee' },
           { id: 'bluetooth' as const, label: 'Bluetooth & AirDrop Doctor',  icon: Bluetooth, color: '#a78bfa' },
+          ...(isMac ? [
+            { id: 'dns' as const,       label: 'DNS Diagnostics',             icon: Globe,     color: '#f59e0b' },
+            { id: 'firewall' as const,  label: 'Firewall Rules',             icon: Shield,    color: '#10b981' },
+          ] : []),
         ].map((t) => {
           const isSel = subTab === t.id;
           return (
@@ -278,6 +288,121 @@ export default function NetworkDoctorHub() {
                     </span>
                   </div>
                 ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {subTab === 'dns' && (
+          <motion.div key="dns" {...tabTransition} className="card p-6 space-y-6">
+            <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: 'var(--color-line)' }}>
+              <div>
+                <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
+                  DNS Diagnostics &amp; Latency Test
+                </h3>
+                <p className="text-xs text-slate-400">Verifying configured servers and measuring resolution speed across major root domains.</p>
+              </div>
+              {dnsData?.avgLatencyMs !== null && (
+                <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-xs font-bold">
+                  Average Latency: {dnsData?.avgLatencyMs} ms
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Servers list */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Configured DNS Nameservers</h4>
+                <div className="space-y-2">
+                  {Array.isArray(dnsData?.configuredServers) && dnsData.configuredServers.length > 0 ? (
+                    dnsData.configuredServers.map((srv: string, idx: number) => (
+                      <div
+                        key={idx}
+                        className="p-3 rounded-xl border flex items-center gap-3 text-xs"
+                        style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+                      >
+                        <Globe size={14} className="text-blue-500" />
+                        <span className="font-mono font-bold" style={{ color: 'var(--color-ink)' }}>{srv}</span>
+                        <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25 text-[10px] ml-auto">Active</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-3 text-xs text-slate-400 border border-dashed rounded-xl" style={{ borderColor: 'var(--color-line)' }}>
+                      No custom DNS nameservers configured. Using system default.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Resolution tests */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Hostname Resolution Speed</h4>
+                <div className="space-y-2">
+                  {Array.isArray(dnsData?.testResults) ? (
+                    dnsData.testResults.map((t: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className="p-3 rounded-xl border flex items-center justify-between gap-3 text-xs"
+                        style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+                      >
+                        <div>
+                          <span className="font-bold" style={{ color: 'var(--color-ink)' }}>{t.host}</span>
+                          <p className="text-[10px] text-slate-400">DNS Resolution Test</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-blue-500">{t.latencyMs !== null ? `${t.latencyMs} ms` : 'N/A'}</span>
+                          <span className={`pill text-[10px] ${t.resolved ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/25' : 'bg-red-500/10 text-red-500 border-red-500/25'}`}>
+                            {t.resolved ? 'Resolved' : 'Failed'}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-3 text-xs text-slate-400 border border-dashed rounded-xl" style={{ borderColor: 'var(--color-line)' }}>
+                      No resolution test results.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {subTab === 'firewall' && (
+          <motion.div key="firewall" {...tabTransition} className="card p-6 space-y-6">
+            <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: 'var(--color-line)' }}>
+              <div>
+                <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
+                  Application Firewall Rules
+                </h3>
+                <p className="text-xs text-slate-400">Inspect socketfilterfw rules and connection permissions for locally installed binaries.</p>
+              </div>
+              <span className={`pill text-xs font-bold ${firewallData?.enabled ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/25' : 'bg-amber-500/10 text-amber-500 border-amber-500/25'}`}>
+                State: {firewallData?.enabled ? 'Active ✅' : 'Disabled ⚠️'}
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Registered Application Firewalls ({firewallData?.count ?? 0})</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-1">
+                {Array.isArray(firewallData?.rules) && firewallData.rules.length > 0 ? (
+                  firewallData.rules.map((rule: any, idx: number) => (
+                    <div
+                      key={idx}
+                      className="p-3.5 rounded-xl border flex items-center justify-between gap-3 text-xs"
+                      style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+                    >
+                      <span className="font-bold truncate max-w-[70%]" style={{ color: 'var(--color-ink)' }}>{rule.app}</span>
+                      <span className={`pill text-[10px] shrink-0 font-bold uppercase ${rule.action === 'ALLOW' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/25' : 'bg-red-500/10 text-red-500 border-red-500/25'}`}>
+                        {rule.action}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-4 text-center text-xs text-slate-400 border rounded-xl col-span-2" style={{ borderColor: 'var(--color-line)' }}>
+                    No firewall application rules defined.
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>

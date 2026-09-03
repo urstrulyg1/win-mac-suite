@@ -1,5 +1,5 @@
 /**
- * WinSuite & MacSuite v6.6 - Security & Privacy Auditor Route
+ * WinSuite & MacSuite v11.2 - Security & Privacy Auditor Route
  * Endpoints:
  * - GET /api/security
  * - GET /api/security/posture
@@ -7,6 +7,7 @@
  * - GET /api/privacy
  * - GET /api/privacy/auditor
  * - GET /api/privacy/score
+ * - GET /api/security/privacy-risk   (macOS — privacy risk score)
  */
 
 import express from 'express';
@@ -18,6 +19,7 @@ import {
   getMacSecurityStatus,
   getMacSecurityPosture,
   getMacFullPrivacyAuditor,
+  getMacPrivacyRiskScore,
 } from '../helpers/macos-helpers.js';
 
 const router = express.Router();
@@ -102,6 +104,19 @@ router.get('/privacy/score', async (_req, res) => {
       ? await getMacFullPrivacyAuditor()
       : await getWindowsPrivacyAuditor();
     res.json(auditor);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/security/privacy-risk ────────────────────────────────────────
+router.get('/security/privacy-risk', async (_req, res) => {
+  try {
+    if (isMac) {
+      res.json(await getMacPrivacyRiskScore());
+    } else {
+      res.status(404).json({ note: 'Privacy Risk Score is macOS-only. Use /api/privacy for Windows privacy audit.' });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

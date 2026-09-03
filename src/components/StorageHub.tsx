@@ -3,10 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { tabTransition } from '../motion';
 import {
   HardDrive, Trash2, ChevronRight,
-  Camera, Sparkles, Layers, Smartphone, Disc, RefreshCw
+  Camera, Sparkles, Layers, Smartphone, Disc, RefreshCw, Copy, FileText, ShieldCheck
 } from 'lucide-react';
 import type { SystemInfo, RunMode } from '../types';
 import { usePlatform } from '../platform';
+import { storageApi } from '../utils/api';
 import StorageAnalyzer from './StorageAnalyzer';
 import InspectorModal, { type InspectorData } from './InspectorModal';
 import SafeCleanupModal from './SafeCleanupModal';
@@ -16,7 +17,7 @@ interface Props {
   onClean: (mode: RunMode) => void;
 }
 
-type StorageTab = 'analyzer' | 'systemData' | 'apps' | 'leftovers' | 'backups' | 'snapshots' | 'drives';
+type StorageTab = 'analyzer' | 'systemData' | 'apps' | 'leftovers' | 'backups' | 'snapshots' | 'drives' | 'duplicates' | 'largeFiles' | 'permissions';
 
 export default function StorageHub({ systemInfo, onClean }: Props) {
   const { isMac } = usePlatform();
@@ -29,21 +30,54 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
   const [snapshotsData, setSnapshotsData] = useState<any>(null);
   const [thinningSnapshots, setThinningSnapshots] = useState(false);
   const [externalDrives, setExternalDrives] = useState<any[]>([]);
+  const [duplicates, setDuplicates] = useState<any>(null);
+  const [largeFiles, setLargeFiles] = useState<any>(null);
+  const [filePermissions, setFilePermissions] = useState<any>(null);
   const [showSafeCleanup, setShowSafeCleanup] = useState(false);
   const [inspectItem, setInspectItem] = useState<InspectorData | null>(null);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const [dupScanPath, setDupScanPath] = useState('');
+  const [permScanPath, setPermScanPath] = useState('');
+  const [scanningDupes, setScanningDupes] = useState(false);
+  const [checkingPerms, setCheckingPerms] = useState(false);
+
+  const handleScanDuplicates = async () => {
+    setScanningDupes(true);
+    try {
+      const res = await storageApi.getDuplicates(dupScanPath || undefined);
+      setDuplicates(res);
+    } catch {}
+    finally {
+      setScanningDupes(false);
+    }
+  };
+
+  const handleCheckPermissions = async () => {
+    setCheckingPerms(true);
+    try {
+      const res = await storageApi.getFilePermissions(permScanPath || undefined);
+      setFilePermissions(res);
+    } catch {}
+    finally {
+      setCheckingPerms(false);
+    }
+  };
+
   const fetchStorageData = async () => {
     setLoading(true);
     try {
-      const [sysRes, appsRes, orphRes, iosRes, snapRes, drvRes] = await Promise.allSettled([
+      const [sysRes, appsRes, orphRes, iosRes, snapRes, drvRes, dupRes, largeRes, permRes] = await Promise.allSettled([
         fetch('/api/storage/system-data').then((r) => r.ok ? r.json() : null).catch(() => null),
         fetch('/api/apps/inventory').then((r) => r.ok ? r.json() : null).catch(() => null),
         fetch('/api/storage/orphaned-leftovers').then((r) => r.ok ? r.json() : null).catch(() => null),
         fetch('/api/storage/ios-backups').then((r) => r.ok ? r.json() : null).catch(() => null),
         fetch('/api/snapshots').then((r) => r.ok ? r.json() : null).catch(() => null),
         fetch('/api/storage/external-drives').then((r) => r.ok ? r.json() : null).catch(() => null),
+        isMac ? storageApi.getDuplicates() : Promise.resolve(null),
+        isMac ? storageApi.getLargeFiles() : Promise.resolve(null),
+        isMac ? storageApi.getFilePermissions() : Promise.resolve(null),
       ]);
 
       if (sysRes.status === 'fulfilled' && sysRes.value) setSystemDataInfo(sysRes.value);
@@ -52,6 +86,9 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
       if (iosRes.status === 'fulfilled' && iosRes.value) setIosBackups(iosRes.value);
       if (snapRes.status === 'fulfilled' && snapRes.value) setSnapshotsData(snapRes.value);
       if (drvRes.status === 'fulfilled' && drvRes.value) setExternalDrives(drvRes.value.drives || []);
+      if (dupRes.status === 'fulfilled' && dupRes.value) setDuplicates(dupRes.value);
+      if (largeRes.status === 'fulfilled' && largeRes.value) setLargeFiles(largeRes.value);
+      if (permRes.status === 'fulfilled' && permRes.value) setFilePermissions(permRes.value);
     } finally {
       setLoading(false);
     }
@@ -148,6 +185,11 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
           { id: 'backups' as const,    label: 'iPhone / iPad Backups',         icon: Smartphone, color: '#34d399' },
           { id: 'snapshots' as const,  label: isMac ? 'APFS Snapshots' : 'System Snapshots', icon: Camera, color: '#ec4899' },
           { id: 'drives' as const,     label: 'External Drive Doctor',         icon: Disc,      color: '#60a5fa' },
+          ...(isMac ? [
+            { id: 'duplicates' as const, label: 'Duplicate Scanner',           icon: Copy,      color: '#f59e0b' },
+            { id: 'largeFiles' as const, label: 'Large File Finder',           icon: FileText,  color: '#6366f1' },
+            { id: 'permissions' as const, label: 'Permissions Doctor',         icon: ShieldCheck, color: '#10b981' },
+          ] : []),
         ].map((t) => {
           const isSel = subTab === t.id;
           return (
@@ -500,6 +542,186 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
                 </div>
               ))}
             </div>
+          </motion.div>
+        )}
+
+        {subTab === 'duplicates' && (
+          <motion.div key="duplicates" {...tabTransition} className="card p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
+              <div>
+                <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
+                  Duplicate File Scanner
+                </h3>
+                <p className="text-xs text-slate-400">Locate duplicate files by MD5 hashing. RESTRICTED to absolute paths inside your home directory.</p>
+              </div>
+            </div>
+
+            <div className="flex gap-2 max-w-xl">
+              <input
+                type="text"
+                value={dupScanPath}
+                onChange={(e) => setDupScanPath(e.target.value)}
+                placeholder="Custom absolute path (defaults to home directory)..."
+                className="field text-xs py-1.5 px-3 flex-1"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)', color: 'var(--color-ink)' }}
+              />
+              <button
+                onClick={handleScanDuplicates}
+                disabled={scanningDupes}
+                className="btn btn-primary text-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>{scanningDupes ? 'Scanning...' : 'Scan Duplicates'}</span>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {duplicates?.note && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-500">
+                  ⚠️ {duplicates.note}
+                </div>
+              )}
+
+              {Array.isArray(duplicates?.duplicates) && duplicates.duplicates.length > 0 ? (
+                <div className="space-y-3.5">
+                  {duplicates.duplicates.map((dup: any, idx: number) => (
+                    <div
+                      key={idx}
+                      className="p-4 rounded-xl border space-y-2"
+                      style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+                    >
+                      <div className="flex items-center justify-between border-b pb-1.5" style={{ borderColor: 'var(--color-line)' }}>
+                        <span className="text-xs font-mono text-blue-500 font-bold">MD5: {dup.hash}</span>
+                        <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25 text-[10px] font-bold">
+                          {dup.count} copies
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        {(dup.files || []).map((file: string, fIdx: number) => (
+                          <div key={fIdx} className="text-xs font-mono text-slate-300 break-all pl-2 border-l-2 border-blue-500/30">
+                            {file}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                !scanningDupes && (
+                  <div className="py-8 text-center text-xs text-slate-400 border rounded-xl" style={{ borderColor: 'var(--color-line)' }}>
+                    ✓ No duplicates found in target folder.
+                  </div>
+                )
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {subTab === 'largeFiles' && (
+          <motion.div key="largeFiles" {...tabTransition} className="card p-6 space-y-4">
+            <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
+              <div>
+                <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
+                  Large File Finder
+                </h3>
+                <p className="text-xs text-slate-400">Scan for files larger than 30MB inside your user Downloads and Caches folders.</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {Array.isArray(largeFiles?.files) && largeFiles.files.length > 0 ? (
+                largeFiles.files.map((file: any, idx: number) => (
+                  <div
+                    key={idx}
+                    className="p-4 rounded-xl border flex items-center justify-between gap-4"
+                    style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
+                  >
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold truncate" style={{ color: 'var(--color-ink)' }}>{file.name}</h4>
+                      <p className="text-[10px] font-mono text-slate-400 mt-1 truncate">{file.path}</p>
+                    </div>
+                    <span className="text-xs font-mono font-bold text-blue-500 shrink-0">{file.size}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="py-8 text-center text-xs text-slate-400 border rounded-xl" style={{ borderColor: 'var(--color-line)' }}>
+                  ✓ No files larger than 30MB found in Downloads or Library/Caches.
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {subTab === 'permissions' && (
+          <motion.div key="permissions" {...tabTransition} className="card p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
+              <div>
+                <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
+                  File Permissions Doctor
+                </h3>
+                <p className="text-xs text-slate-400">Inspect owner, mode bits, and read/write access for absolute paths within your home directory or /Applications.</p>
+              </div>
+            </div>
+
+            <div className="flex gap-2 max-w-xl">
+              <input
+                type="text"
+                value={permScanPath}
+                onChange={(e) => setPermScanPath(e.target.value)}
+                placeholder="Absolute path to analyze (defaults to home directory)..."
+                className="field text-xs py-1.5 px-3 flex-1"
+                style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)', color: 'var(--color-ink)' }}
+              />
+              <button
+                onClick={handleCheckPermissions}
+                disabled={checkingPerms}
+                className="btn btn-primary text-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>{checkingPerms ? 'Checking...' : 'Check Permissions'}</span>
+              </button>
+            </div>
+
+            {filePermissions && (
+              <div className="space-y-4">
+                {filePermissions.error && (
+                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/25 text-xs text-red-500">
+                    ❌ {filePermissions.error}
+                  </div>
+                )}
+
+                <div className="p-4 rounded-xl border space-y-3" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold" style={{ color: 'var(--color-ink)' }}>Path Checked</span>
+                    <span className="text-xs font-mono text-slate-400 break-all">{filePermissions.path}</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                    <div className="p-3 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-line)' }}>
+                      <span className="text-[10px] uppercase text-slate-400 font-bold">Exists</span>
+                      <p className="text-xs font-bold text-blue-500 mt-1">{filePermissions.exists ? 'Yes ✅' : 'No ❌'}</p>
+                    </div>
+                    <div className="p-3 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-line)' }}>
+                      <span className="text-[10px] uppercase text-slate-400 font-bold">Octal Mode</span>
+                      <p className="text-xs font-mono font-bold text-blue-500 mt-1">{filePermissions.modeOctal || 'N/A'}</p>
+                    </div>
+                    <div className="p-3 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-line)' }}>
+                      <span className="text-[10px] uppercase text-slate-400 font-bold">Is Owner</span>
+                      <p className="text-xs font-bold text-blue-500 mt-1">{filePermissions.isOwner ? 'Yes ✅' : 'No ❌'}</p>
+                    </div>
+                    <div className="p-3 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-line)' }}>
+                      <span className="text-[10px] uppercase text-slate-400 font-bold">User UID</span>
+                      <p className="text-xs font-mono font-bold text-blue-500 mt-1">
+                        Owner: {filePermissions.ownerUid ?? 'N/A'} (Self: {filePermissions.currentUserUid ?? 'N/A'})
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl border text-xs" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-line)', color: 'var(--color-ink)' }}>
+                    <strong>Verdict & Diagnosis:</strong>
+                    <p className="mt-1 text-slate-300">{filePermissions.diagnosis}</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
