@@ -27,6 +27,7 @@ function getTimestamp(): string {
 interface PhaseResult {
   success: boolean;
   result?: {
+    success?: boolean;
     stdout?: string;
     stderr?: string;
     exitCode?: number;
@@ -146,7 +147,15 @@ async function executeRealPhase(
     const durationSec = data.result?.durationSeconds || data.auditRecord?.durationSeconds || Math.round((Date.now() - startTime) / 100) / 10;
     const reclaimedBytes = data.reclaimedBytes ?? data.auditRecord?.reclaimedBytes ?? null;
 
-    if (data.success) {
+    const rawOutput = `${data.result?.stdout || ''} ${data.result?.stderr || ''}`;
+    const isElevationError = /administrator|elevat|740|privilege|access is denied/i.test(rawOutput);
+    const commandSucceeded = data.result?.success === true || (data.result?.exitCode === 0 && !isElevationError);
+
+    if (isElevationError) {
+      addLog('WARNING', `[ELEVATION REQUIRED] This task requires Administrator privileges. Run your terminal/server as Administrator to enable this repair.`);
+    }
+
+    if (commandSucceeded && !isElevationError) {
       addLog('SUCCESS', `Phase completed successfully (${durationSec}s)`);
       if (reclaimedBytes !== null && reclaimedBytes > 0) {
         const mb = Math.round(reclaimedBytes / 1024 / 1024);
@@ -158,10 +167,12 @@ async function executeRealPhase(
 
     onProgress(100);
     return {
-      status: data.success ? 'success' : 'warning',
-      result: data.success
+      status: (commandSucceeded && !isElevationError) ? 'success' : 'warning',
+      result: (commandSucceeded && !isElevationError)
         ? `VERIFIED — Command ${template.allowedCommandId} executed successfully`
-        : `WARNING — Command completed with non-zero exit`,
+        : isElevationError
+        ? `REQUIRES ELEVATION — Administrator privileges needed`
+        : `WARNING — Command completed with non-zero exit (${data.result?.exitCode ?? 1})`,
       duration: durationSec,
       realLogs: phaseLogs,
       reclaimedBytes,
@@ -278,7 +289,7 @@ export async function executeMaintenancePlan(
         phaseResult.realLogs,
       );
 
-      if (phaseResult.status !== 'error') passedCount++;
+      if (phaseResult.status === 'success') passedCount++;
 
       events.onLog?.({
         time: ts(),

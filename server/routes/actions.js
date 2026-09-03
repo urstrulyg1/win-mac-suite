@@ -703,8 +703,18 @@ router.post('/run-phase', async (req, res) => {
   }
 
   const startTime = Date.now();
+  const isCleanup = commandId.includes('storage') || commandId.includes('cleanup') || commandId.includes('dism') || commandId.includes('tempclean') || spec.verifyMethod === 'storage_free';
+  const getFreeBytes = async () => {
+    try {
+      const { statfs } = await import('fs/promises');
+      const rootPath = process.platform === 'win32' ? (process.env.SystemDrive ? `${process.env.SystemDrive}\\` : 'C:\\') : '/';
+      const st = await statfs(rootPath);
+      return st.bavail * st.bsize;
+    } catch { return null; }
+  };
 
   try {
+    const beforeBytes = isCleanup ? await getFreeBytes() : null;
     const onStreamLine = (entry) => {
       broadcastLog(sessionId, entry);
     };
@@ -722,6 +732,16 @@ router.post('/run-phase', async (req, res) => {
       });
     }
 
+    let reclaimedBytes = null;
+    if (beforeBytes !== null) {
+      const afterBytes = await getFreeBytes();
+      if (afterBytes !== null && afterBytes > beforeBytes) {
+        reclaimedBytes = afterBytes - beforeBytes;
+      } else {
+        reclaimedBytes = 0;
+      }
+    }
+
     const durationSeconds = result.durationSeconds || Math.round((Date.now() - startTime) / 100) / 10;
 
     const auditRecord = logAuditEntry({
@@ -732,6 +752,7 @@ router.post('/run-phase', async (req, res) => {
       result: result.success ? 'success' : 'warning',
       durationSeconds,
       changesMade: [spec.description],
+      reclaimedBytes: reclaimedBytes ?? 0,
       outputLogSnippet: (result.stdout || result.stderr || '').slice(0, 400),
     });
 
@@ -739,6 +760,7 @@ router.post('/run-phase', async (req, res) => {
       success: true,
       result,
       auditRecord,
+      reclaimedBytes,
     });
   } catch (err) {
     const durationSeconds = Math.round((Date.now() - startTime) / 100) / 10;

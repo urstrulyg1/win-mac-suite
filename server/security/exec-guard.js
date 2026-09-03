@@ -76,6 +76,8 @@ export function resolveBinaryPath(bin, platform) {
         return path.join(sys32, 'ipconfig.exe');
       case 'defrag':
         return path.join(sys32, 'defrag.exe');
+      case 'pnputil':
+        return path.join(sys32, 'pnputil.exe');
       case 'powershell':
         return path.join(psHome, 'powershell.exe');
       default:
