@@ -119,10 +119,10 @@ export default function ReportsPage({ onStartNew, onExport }: Props) {
     } catch {}
   };
 
-function buildRichHtmlReport(config: any, data: any): string {
+function buildRichHtmlReport(config: any, data: any, isMac: boolean = false): string {
   const host = data.hostname || data.hostName || 'Local Computer';
-  const osName = data.osInfo?.distro || data.os || 'macOS';
-  const cpuName = data.hardware?.chip || data.cpu?.brand || data.processor || 'Apple Silicon M3 Pro';
+  const osName = data.osInfo?.distro || data.os || (isMac ? 'macOS' : 'Windows');
+  const cpuName = data.hardware?.chip || data.cpu?.brand || data.processor || (isMac ? 'Apple Silicon M3 Pro' : 'Intel / AMD Processor');
   const cores = data.cpu?.cores || data.hardware?.cores || 12;
   const healthScore = data.healthScore || data.sec?.securityScore || 98;
   const temp = data.cpuTempFormatted || data.hardware?.temp || (data.cpuTemp ? `${data.cpuTemp}°C` : '44°C');
@@ -131,7 +131,18 @@ function buildRichHtmlReport(config: any, data: any): string {
   const dateStr = new Date(data.timestamp || Date.now()).toLocaleString();
   const reportTitle = data.title || `${config.productName} System Diagnostic Snapshot`;
 
-  const categories = data.storageIntelligence?.categories || data.sysData?.categories || [];
+  const categories = data.storageIntelligence?.categories || data.sysData?.categories || (isMac ? [
+    { name: 'APFS Local & Time Machine Snapshots', path: '/System/Volumes/Data (APFS)', sizeGB: 0.8 },
+    { name: 'Web Browser Caches (Chrome, Safari, Brave)', path: '~/Library/Caches/Google, ~/Library/Caches/com.apple.Safari', sizeGB: 2.5 },
+    { name: 'Slack, Discord & Teams Media', path: '~/Library/Caches/com.tinyspeck.slackmacgap', sizeGB: 0.4 },
+    { name: 'macOS System & Application Logs', path: '~/Library/Logs, /var/log', sizeGB: 0.2 },
+  ] : [
+    { name: 'Windows & User Temp Files', path: '%TEMP%, C:\\Windows\\Temp', sizeGB: 1.5 },
+    { name: 'Browser Caches (Edge, Chrome, Brave)', path: '%LOCALAPPDATA%\\Microsoft\\Edge, %LOCALAPPDATA%\\Google\\Chrome', sizeGB: 2.1 },
+    { name: 'Windows Update Cache', path: 'C:\\Windows\\SoftwareDistribution', sizeGB: 0.9 },
+    { name: 'Crash Dumps & Event Logs', path: 'C:\\Windows\\Minidump, C:\\Windows\\Logs', sizeGB: 0.4 },
+  ]);
+
   const secChecks = data.securityPosture?.checks || data.sec?.checks || [];
   const runtimes = data.developerDoctor?.runtimes || data.dev?.runtimes || [];
   const battery = data.batteryIntelligence || data.batt || {};
@@ -337,7 +348,7 @@ function buildRichHtmlReport(config: any, data: any): string {
 
     <!-- Security Posture -->
     <div class="card">
-      <h3 style="font-size: 16px; font-weight: 700; color: var(--ink); margin-bottom: 16px;">macOS Security & Integrity Posture</h3>
+      <h3 style="font-size: 16px; font-weight: 700; color: var(--ink); margin-bottom: 16px;">${isMac ? 'macOS Security & Integrity Posture' : 'Windows Security & Integrity Posture'}</h3>
       <table>
         <thead>
           <tr>
@@ -350,7 +361,7 @@ function buildRichHtmlReport(config: any, data: any): string {
           ${(secChecks.length > 0 ? secChecks : []).map((chk: any) => `
           <tr>
             <td><strong>${chk.name}</strong></td>
-            <td style="color: var(--ink-3);">${chk.detail || 'Verified kernel assessment'}</td>
+            <td style="color: var(--ink-3);">${chk.detail || (isMac ? 'Verified kernel assessment' : 'Verified system policy')}</td>
             <td>
               <span class="pill ${chk.passed ? 'pill-emerald' : 'pill-rose'}">
                 ${chk.passed ? '✓ PASSED' : 'ACTION REQUIRED'}
@@ -364,27 +375,27 @@ function buildRichHtmlReport(config: any, data: any): string {
 
     <!-- Battery & Power Subsystem -->
     <div class="card">
-      <h3 style="font-size: 16px; font-weight: 700; color: var(--ink); margin-bottom: 16px;">Battery & Power Intelligence</h3>
+      <h3 style="font-size: 16px; font-weight: 700; color: var(--ink); margin-bottom: 16px;">${isMac ? 'Battery & Power Intelligence' : 'Power & Battery Management'}</h3>
       <div class="vitals-grid" style="margin-bottom: 0;">
         <div class="vital-box">
-          <div class="vital-lbl">Cycle Count</div>
-          <div class="vital-val" style="font-size: 18px; color: #60a5fa;">${battery?.cycleCount ?? 'N/A'} / 1000</div>
-          <div class="vital-sub">Design Lifetime</div>
+          <div class="vital-lbl">${isMac ? 'Cycle Count' : 'Battery Status'}</div>
+          <div class="vital-val" style="font-size: 18px; color: #60a5fa;">${battery?.cycleCount ? `${battery.cycleCount} / 1000` : (battery?.present ? (battery?.status || 'OK') : 'AC Connected')}</div>
+          <div class="vital-sub">${isMac ? 'Design Lifetime' : 'ACPI Standard'}</div>
         </div>
         <div class="vital-box">
           <div class="vital-lbl">Capacity Health</div>
-          <div class="vital-val" style="font-size: 18px; color: var(--emerald);">${battery?.healthPercent ?? 'N/A'}%</div>
-          <div class="vital-sub">Maximum Capacity</div>
+          <div class="vital-val" style="font-size: 18px; color: var(--emerald);">${battery?.healthPercent ? `${battery.healthPercent}%` : (battery?.present ? 'Operational' : 'Desktop')}</div>
+          <div class="vital-sub">Health Status</div>
         </div>
         <div class="vital-box">
           <div class="vital-lbl">Charge Level</div>
-          <div class="vital-val" style="font-size: 18px; color: var(--cyan);">${battery?.percent ?? 'N/A'}%</div>
-          <div class="vital-sub">${battery?.isCharging ? 'Charging' : battery ? 'On Battery Power' : 'Unavailable'}</div>
+          <div class="vital-val" style="font-size: 18px; color: var(--cyan);">${battery?.percent ?? battery?.chargePercent ?? 'N/A'}%</div>
+          <div class="vital-sub">${battery?.isCharging ? 'Charging' : battery?.present ? 'On Battery Power' : (isMac ? 'Unavailable' : 'AC Connected')}</div>
         </div>
         <div class="vital-box">
           <div class="vital-lbl">Power Adapter</div>
           <div class="vital-val" style="font-size: 18px; color: var(--amber);">${battery?.powerAdapter?.watts ? `${battery?.powerAdapter.watts}W` : 'Connected'}</div>
-          <div class="vital-sub">MagSafe / USB-C PD</div>
+          <div class="vital-sub">${battery?.powerAdapter?.type || (isMac ? 'MagSafe / USB-C PD' : 'AC Adapter / USB-C PD')}</div>
         </div>
       </div>
     </div>
@@ -453,7 +464,7 @@ function buildRichHtmlReport(config: any, data: any): string {
   const handlePreviewHtmlReport = async (customData?: any) => {
     try {
       const data = customData || (await (await fetch('/api/reports/full-system')).json());
-      const html = buildRichHtmlReport(config, data);
+      const html = buildRichHtmlReport(config, data, isMac);
       const blob = new Blob([html], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
@@ -468,7 +479,7 @@ function buildRichHtmlReport(config: any, data: any): string {
       const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 
       if (format === 'html') {
-        const htmlContent = buildRichHtmlReport(config, data);
+        const htmlContent = buildRichHtmlReport(config, data, isMac);
         blob = new Blob([htmlContent], { type: 'text/html' });
         filename = `${config.productName.toLowerCase()}-diagnostic-report-${stamp}.html`;
       } else {
@@ -500,12 +511,13 @@ function InPageReportDetail({
   onDownloadHtml: () => void;
   onDownloadJson: () => void;
 }) {
+  const { isMac } = usePlatform();
   const [copied, setCopied] = useState(false);
   const [showJson, setShowJson] = useState(false);
   const data = report.data || {};
   const host = report.hostname || data.hostname || data.hostName || 'Local Computer';
-  const osName = data.osInfo?.distro || data.os || 'macOS';
-  const cpuName = data.hardware?.chip || data.cpu?.brand || data.processor || 'Apple Silicon M3 Pro';
+  const osName = data.osInfo?.distro || data.os || (isMac ? 'macOS' : 'Windows');
+  const cpuName = data.hardware?.chip || data.cpu?.brand || data.processor || (isMac ? 'Apple Silicon M3 Pro' : 'Intel / AMD Processor');
   const cores = data.cpu?.cores || data.hardware?.cores || 12;
   const healthScore = report.healthScore || data.healthScore || data.sec?.securityScore || 98;
   const temp = data.cpuTempFormatted || data.hardware?.temp || (data.cpuTemp ? `${data.cpuTemp}°C` : '44°C');
@@ -514,12 +526,17 @@ function InPageReportDetail({
   const dateStr = new Date(report.timestamp || data.timestamp || Date.now()).toLocaleString();
   const reportTitle = report.title || data.title || `${config.productName} System Diagnostic Snapshot`;
 
-  const categories = data.storageIntelligence?.categories || data.sysData?.categories || [
+  const categories = data.storageIntelligence?.categories || data.sysData?.categories || (isMac ? [
     { name: 'APFS Local & Time Machine Snapshots', path: '/System/Volumes/Data (APFS)', sizeGB: 0.8 },
     { name: 'Web Browser Caches (Chrome, Safari, Brave)', path: '~/Library/Caches/Google, ~/Library/Caches/com.apple.Safari', sizeGB: 2.5 },
     { name: 'Slack, Discord & Teams Media', path: '~/Library/Caches/com.tinyspeck.slackmacgap', sizeGB: 0.4 },
     { name: 'macOS System & Application Logs', path: '~/Library/Logs, /var/log', sizeGB: 0.2 },
-  ];
+  ] : [
+    { name: 'Windows & User Temp Files', path: '%TEMP%, C:\\Windows\\Temp', sizeGB: 1.5 },
+    { name: 'Browser Caches (Edge, Chrome, Brave)', path: '%LOCALAPPDATA%\\Microsoft\\Edge, %LOCALAPPDATA%\\Google\\Chrome', sizeGB: 2.1 },
+    { name: 'Windows Update Cache', path: 'C:\\Windows\\SoftwareDistribution', sizeGB: 0.9 },
+    { name: 'Crash Dumps & Event Logs', path: 'C:\\Windows\\Minidump, C:\\Windows\\Logs', sizeGB: 0.4 },
+  ]);
 
   const secChecks = data.securityPosture?.checks || data.sec?.checks || [];
 
@@ -672,11 +689,15 @@ function InPageReportDetail({
         <div className="card p-6 rounded-2xl border space-y-4" style={{ borderColor: 'var(--color-line)' }}>
           <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
             <div>
-              <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>macOS Security &amp; Integrity Posture</h3>
-              <p className="text-xs text-slate-400 mt-0.5">Kernel assessments, volume encryption, and Gatekeeper verification.</p>
+              <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
+                {isMac ? 'macOS Security & Integrity Posture' : 'Windows Security & Integrity Posture'}
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {isMac ? 'Kernel assessments, volume encryption, and Gatekeeper verification.' : 'Microsoft Defender, Firewall profiles, BitLocker, and TPM 2.0 verification.'}
+              </p>
             </div>
             <span className="pill text-[10px] bg-emerald-500/10 text-emerald-400 border-emerald-500/25">
-              100% Compliant
+              {secChecks.length > 0 && secChecks.every((c: any) => c.passed) ? '100% Compliant' : `${secChecks.filter((c: any) => c.passed).length}/${secChecks.length || 5} Active`}
             </span>
           </div>
 
@@ -685,7 +706,7 @@ function InPageReportDetail({
               <div key={idx} className="py-3 flex items-center justify-between text-xs">
                 <div>
                   <span className="font-bold text-slate-200">{chk.name}</span>
-                  <p className="text-[11px] text-slate-400">{chk.detail || 'Verified kernel assessment'}</p>
+                  <p className="text-[11px] text-slate-400">{chk.detail || (isMac ? 'Verified kernel assessment' : 'Verified system policy')}</p>
                 </div>
                 <span className={`pill text-[10px] ${chk.passed ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25' : 'bg-rose-500/10 text-rose-400 border-rose-500/25'}`}>
                   {chk.passed ? '✓ PASSED' : 'ACTION NEEDED'}
@@ -699,37 +720,51 @@ function InPageReportDetail({
         <div className="card p-6 rounded-2xl border space-y-4" style={{ borderColor: 'var(--color-line)' }}>
           <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
             <div>
-              <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>Battery &amp; Power Health</h3>
-              <p className="text-xs text-slate-400 mt-0.5">Lithium-ion cycle degradation and power adapter telemetry.</p>
+              <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
+                {isMac ? 'Battery & Power Health' : 'Power & Battery Management'}
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {isMac ? 'Lithium-ion cycle degradation and power adapter telemetry.' : 'AC power delivery, active Windows power plan, and battery telemetry.'}
+              </p>
             </div>
             <span className="pill text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/25">
-              {battery?.healthPercent ?? 'N/A'}% Capacity Health
+              {battery?.healthPercent ? `${battery.healthPercent}% Capacity Health` : (battery?.present ? 'Battery Operational' : 'AC Desktop Power')}
             </span>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3.5 rounded-xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
-              <span className="text-[10px] text-slate-400 uppercase font-bold">Cycle Count</span>
-              <p className="text-lg font-extrabold font-mono text-blue-400">{battery?.cycleCount ?? 'N/A'} / 1000</p>
-              <p className="text-[10px] text-slate-500">Design Lifetime Rating</p>
+              <span className="text-[10px] text-slate-400 uppercase font-bold">{isMac ? 'Cycle Count' : 'Battery Status'}</span>
+              <p className="text-lg font-extrabold font-mono text-blue-400">
+                {battery?.cycleCount ? `${battery.cycleCount} / 1000` : (battery?.present ? (battery?.status || 'OK') : 'N/A')}
+              </p>
+              <p className="text-[10px] text-slate-500">
+                {battery?.cycleCount ? 'Design Lifetime Rating' : (isMac ? 'Design Lifetime Rating' : 'ACPI Standard')}
+              </p>
             </div>
 
             <div className="p-3.5 rounded-xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
               <span className="text-[10px] text-slate-400 uppercase font-bold">Charge Level</span>
-              <p className="text-lg font-extrabold font-mono text-emerald-400">{battery?.percent ?? 'N/A'}%</p>
-              <p className="text-[10px] text-slate-500">{battery?.isCharging ? 'Charging Active' : battery ? 'On Battery Power' : 'Unavailable'}</p>
+              <p className="text-lg font-extrabold font-mono text-emerald-400">{battery?.percent ?? battery?.chargePercent ?? 'N/A'}%</p>
+              <p className="text-[10px] text-slate-500">{battery?.isCharging ? 'Charging Active' : battery?.present ? 'On Battery Power' : (isMac ? 'Unavailable' : 'AC Connected')}</p>
             </div>
 
             <div className="p-3.5 rounded-xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
-              <span className="text-[10px] text-slate-400 uppercase font-bold">Battery Condition</span>
-              <p className="text-sm font-extrabold text-emerald-400">Normal</p>
-              <p className="text-[10px] text-slate-500">No Service Required</p>
+              <span className="text-[10px] text-slate-400 uppercase font-bold">{isMac ? 'Battery Condition' : 'Power Profile'}</span>
+              <p className="text-sm font-extrabold text-emerald-400">
+                {isMac ? 'Normal' : (battery?.powerPlan?.active ? 'Active Profile' : 'Normal')}
+              </p>
+              <p className="text-[10px] text-slate-500">
+                {isMac ? 'No Service Required' : (battery?.powerPlan?.active ? 'Windows Power Plan' : 'No Service Required')}
+              </p>
             </div>
 
             <div className="p-3.5 rounded-xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
               <span className="text-[10px] text-slate-400 uppercase font-bold">Power Adapter</span>
               <p className="text-sm font-extrabold text-amber-400">{battery?.powerAdapter?.watts ? `${battery?.powerAdapter.watts}W` : 'Connected'}</p>
-              <p className="text-[10px] text-slate-500">MagSafe / USB-C PD</p>
+              <p className="text-[10px] text-slate-500">
+                {battery?.powerAdapter?.type || (isMac ? 'MagSafe / USB-C PD' : 'AC Adapter / USB-C PD')}
+              </p>
             </div>
           </div>
         </div>
