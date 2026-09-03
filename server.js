@@ -35,7 +35,8 @@ import windowsV2Router from './server/routes/windows-v2.js';
 import { localhostOnlyGuard, concurrencyGuard } from './server/security/request-guard.js';
 import { createErrorResponse } from './server/contracts/api-schemas.js';
 import { getDegradedModeStatus } from './server/runtime/degraded-mode.js';
-import { safeModeMiddleware, safeModeGuardMiddleware } from './server/security/safe-mode.js';
+import { safeModeMiddleware, safeModeGuardMiddleware, getSafeModeStatus, activateSafeMode, deactivateSafeMode } from './server/security/safe-mode.js';
+import { getDatabase } from './server/db/database.js';
 
 const PORT = parseInt(process.env.PORT || '3131', 10);
 const app = express();
@@ -79,6 +80,15 @@ app.use(cors({
  */
 app.use(express.json({ limit: '64kb', strict: true }));
 
+// ── Production Security Headers (must be before routes) ───────────────────
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  next();
+});
+
 /** Turn body-parser failures into the same contract envelope as every other error. */
 app.use((err, _req, res, next) => {
   if (!err) return next();
@@ -120,8 +130,6 @@ app.use('/api/windows', windowsRouter);
 app.use('/api/windows/v2', windowsV2Router);
 
 // ── Safe Mode management endpoints ─────────────────────────────────────────────
-import { getSafeModeStatus, activateSafeMode, deactivateSafeMode } from './server/security/safe-mode.js';
-
 app.get('/api/v10/safe-mode', (_req, res) => {
   res.json({ safeMode: getSafeModeStatus() });
 });
@@ -174,17 +182,6 @@ app.use((err, _req, res, _next) => {
     remediation: 'The system was left in its previous state. Other subsystems are unaffected.',
     details: process.env.NODE_ENV === 'development' ? { message: err?.message } : null,
   }));
-});
-
-import { getDatabase } from './server/db/database.js';
-
-// Production Security Headers
-app.use((_req, res, next) => {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  next();
 });
 
 const isMac = process.platform === 'darwin';

@@ -184,7 +184,7 @@ export async function executeMaintenancePlan(
   plan: MaintenancePlan,
   events: ExecutionEvents,
   isCancelled: () => boolean,
-  options: { noReboot?: boolean } = {},
+  options: { noReboot?: boolean; diagnosticOnly?: boolean } = {},
 ): Promise<RunSummary> {
   const startTime = new Date();
   const ts = getTimestamp;
@@ -193,7 +193,7 @@ export async function executeMaintenancePlan(
   events.onLog?.({
     time: ts(),
     level: 'INFO',
-    message: `${plan.platform === 'macos' ? 'MacSuite' : 'WinSuite'} v11.0 initialized — Profile: ${plan.mode}`,
+    message: `${plan.platform === 'macos' ? 'MacSuite' : 'WinSuite'} v11.0 initialized — Profile: ${plan.mode}${options.diagnosticOnly ? ' · Safe Mode (Read-Only)' : ''}`,
   });
   events.onLog?.({
     time: ts(),

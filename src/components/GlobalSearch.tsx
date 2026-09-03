@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Search, X, Package, Activity, Server, Zap, HardDrive, Shield, Wifi, Cpu, Code, FileText } from 'lucide-react';
+import { usePlatform } from '../platform';
 
 interface SearchResult {
   id: string;
@@ -15,56 +16,52 @@ interface GlobalSearchProps {
 }
 
 // Platform-aware command palette actions
-const getCommands = (platform: string): SearchResult[] => {
+const getCommands = (platform: string, navigate: (tab: string) => void): SearchResult[] => {
+  const nav = (tab: string) => () => navigate(tab);
   const commands: SearchResult[] = [
-    { id: 'cmd-health', category: 'Actions', title: 'Run Health Check', subtitle: 'Aggregated system health probe', icon: <Activity size={14} /> },
-    { id: 'cmd-processes', category: 'Navigation', title: 'Open Process Monitor', subtitle: 'View active processes', icon: <Activity size={14} />, action: undefined },
-    { id: 'cmd-storage', category: 'Navigation', title: 'Open Storage Analyzer', subtitle: 'Disk usage and cleanup', icon: <HardDrive size={14} /> },
-    { id: 'cmd-network', category: 'Navigation', title: 'Open Network Doctor', subtitle: 'Connectivity diagnostics', icon: <Wifi size={14} /> },
-    { id: 'cmd-security', category: 'Navigation', title: 'Open Security Center', subtitle: 'Security posture and privacy', icon: <Shield size={14} /> },
-    { id: 'cmd-developer', category: 'Navigation', title: 'Open Developer Tools', subtitle: 'Dev environment probes', icon: <Code size={14} /> },
-    { id: 'cmd-reports', category: 'Navigation', title: 'Open Reports', subtitle: 'System reports and history', icon: <FileText size={14} /> },
+    { id: 'cmd-health',     category: 'Navigation', title: 'Open Health Diagnostics',  subtitle: 'Aggregated system health probe',    icon: <Activity  size={14} />, action: nav('diagnostics') },
+    { id: 'cmd-processes',  category: 'Navigation', title: 'Open Process Monitor',      subtitle: 'View active processes & threads',  icon: <Activity  size={14} />, action: nav('diagnostics') },
+    { id: 'cmd-storage',    category: 'Navigation', title: 'Open Storage Analyzer',     subtitle: 'Disk usage and cleanup',           icon: <HardDrive size={14} />, action: nav('storage') },
+    { id: 'cmd-network',    category: 'Navigation', title: 'Open Network Doctor',       subtitle: 'Connectivity diagnostics',         icon: <Wifi      size={14} />, action: nav('network') },
+    { id: 'cmd-security',   category: 'Navigation', title: 'Open Security Center',      subtitle: 'Security posture and privacy',     icon: <Shield    size={14} />, action: nav('security') },
+    { id: 'cmd-developer',  category: 'Navigation', title: 'Open Developer Tools',      subtitle: 'Dev environment health probes',    icon: <Code      size={14} />, action: nav('developer') },
+    { id: 'cmd-reports',    category: 'Navigation', title: 'Open Reports',              subtitle: 'System reports and history',       icon: <FileText  size={14} />, action: nav('reports') },
+    { id: 'cmd-performance',category: 'Navigation', title: 'Open Performance Doctor',   subtitle: 'CPU, memory and thermal analysis', icon: <Cpu       size={14} />, action: nav('performance') },
   ];
 
   if (platform === 'windows') {
     commands.push(
-      { id: 'cmd-wu', category: 'Windows', title: 'Check Windows Update', subtitle: 'Update status and history', icon: <Cpu size={14} /> },
-      { id: 'cmd-sfc', category: 'Windows', title: 'Run SFC Scan', subtitle: 'System File Checker', icon: <Shield size={14} /> },
-      { id: 'cmd-dism', category: 'Windows', title: 'Run DISM', subtitle: 'Deployment Image Servicing', icon: <Shield size={14} /> },
-      { id: 'cmd-defender', category: 'Windows', title: 'Check Defender', subtitle: 'Antivirus status', icon: <Shield size={14} /> },
-      { id: 'cmd-drivers', category: 'Windows', title: 'Open Drivers', subtitle: 'Driver inventory and health', icon: <Cpu size={14} /> },
-      { id: 'cmd-services', category: 'Windows', title: 'Open Services', subtitle: 'Windows services', icon: <Server size={14} /> },
+      { id: 'cmd-wu',       category: 'Windows', title: 'Windows Management Center', subtitle: 'Updates, drivers, services',      icon: <Cpu    size={14} />, action: nav('windows') },
+      { id: 'cmd-sfc',      category: 'Windows', title: 'Run SFC Scan',              subtitle: 'System File Checker',            icon: <Shield size={14} />, action: nav('windows') },
+      { id: 'cmd-dism',     category: 'Windows', title: 'Run DISM',                  subtitle: 'Deployment Image Servicing',     icon: <Shield size={14} />, action: nav('windows') },
+      { id: 'cmd-defender', category: 'Windows', title: 'Check Defender',            subtitle: 'Antivirus status',               icon: <Shield size={14} />, action: nav('security') },
+      { id: 'cmd-drivers',  category: 'Windows', title: 'Open Drivers',              subtitle: 'Driver inventory and health',    icon: <Cpu    size={14} />, action: nav('windows') },
+      { id: 'cmd-services', category: 'Windows', title: 'Open Services',             subtitle: 'Windows services management',    icon: <Server size={14} />, action: nav('windows') },
     );
   }
 
   if (platform === 'macos') {
     commands.push(
-      { id: 'cmd-swupdate', category: 'macOS', title: 'Check Software Update', subtitle: 'macOS update status', icon: <Cpu size={14} /> },
-      { id: 'cmd-filevault', category: 'macOS', title: 'Check FileVault', subtitle: 'Disk encryption status', icon: <Shield size={14} /> },
-      { id: 'cmd-sip', category: 'macOS', title: 'Check SIP', subtitle: 'System Integrity Protection', icon: <Shield size={14} /> },
-      { id: 'cmd-launchagents', category: 'macOS', title: 'Open LaunchAgents', subtitle: 'Startup service management', icon: <Zap size={14} /> },
+      { id: 'cmd-swupdate',    category: 'macOS', title: 'Check Software Update',   subtitle: 'macOS update status',            icon: <Cpu    size={14} />, action: nav('apple') },
+      { id: 'cmd-filevault',   category: 'macOS', title: 'Check FileVault',         subtitle: 'Disk encryption status',         icon: <Shield size={14} />, action: nav('security') },
+      { id: 'cmd-sip',         category: 'macOS', title: 'Check SIP',               subtitle: 'System Integrity Protection',    icon: <Shield size={14} />, action: nav('security') },
+      { id: 'cmd-launchagents',category: 'macOS', title: 'Open LaunchAgents',       subtitle: 'Startup service management',     icon: <Zap    size={14} />, action: nav('startup') },
+      { id: 'cmd-crashes',     category: 'macOS', title: 'Open Crash Doctor',       subtitle: 'Crash logs and panic diagnostics', icon: <Activity size={14} />, action: nav('crashes') },
+      { id: 'cmd-timeline',    category: 'macOS', title: 'Open System Timeline',    subtitle: 'Kernel events and reboot history', icon: <FileText size={14} />, action: nav('timeline') },
     );
   }
 
   return commands;
 };
 
-export default function GlobalSearch({ onNavigate: _onNavigate }: GlobalSearchProps) {
+export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
+  const { platform } = usePlatform();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
-  const [platform, setPlatform] = useState('unknown');
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
-  // Detect platform on mount
-  useEffect(() => {
-    fetch('/api/sysinfo').then(r => r.json()).then(data => {
-      if (data?.platform) setPlatform(data.platform);
-      else if (data?.os?.platform) setPlatform(data.os.platform);
-    }).catch(() => {});
-  }, []);
 
   // Keyboard shortcut: Ctrl/Cmd + K
   useEffect(() => {
@@ -88,7 +85,12 @@ export default function GlobalSearch({ onNavigate: _onNavigate }: GlobalSearchPr
     }
   }, [open]);
 
-  const commands = useMemo(() => getCommands(platform), [platform]);
+  const navigate = useCallback((tab: string) => {
+    onNavigate?.(tab);
+    setOpen(false);
+  }, [onNavigate]);
+
+  const commands = useMemo(() => getCommands(platform, navigate), [platform, navigate]);
 
   // Search function — queries real data endpoints
   const doSearch = useCallback(async (q: string) => {

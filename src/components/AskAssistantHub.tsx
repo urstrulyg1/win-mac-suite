@@ -11,18 +11,29 @@ interface Props {
   onNavigateTab?: (tab: string) => void;
 }
 
-const suggestedPrompts = [
+const MAC_PROMPTS = [
   'Why is my Mac getting hot?',
   'Why is my Mac using 70GB of System Data?',
   'Why did Chrome crash?',
   'Why is TCP port 3000 busy?',
   'Why did my Mac lose battery overnight?',
-  'Why won’t my application open?',
+  "Why won't my application open?",
   'Is my Mac ready for the macOS Sequoia update?',
 ];
 
+const WIN_PROMPTS = [
+  'Why is my Windows PC running slow?',
+  'Why is my disk usage at 100%?',
+  'Why did an application crash?',
+  'Why is TCP port 3000 busy?',
+  'Why is Windows Update failing?',
+  "Why won't my application open?",
+  'How do I check if my drivers are up to date?',
+];
+
 export default function AskAssistantHub({ onNavigateTab }: Props) {
-  const { config } = usePlatform();
+  const { config, isMac } = usePlatform();
+  const suggestedPrompts = isMac ? MAC_PROMPTS : WIN_PROMPTS;
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<any>(null);

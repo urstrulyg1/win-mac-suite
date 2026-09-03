@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { tabTransition } from '../motion';
 import {
   HardDrive, Trash2, ChevronRight,
-  Camera, Sparkles, Layers, Smartphone, Disc
+  Camera, Sparkles, Layers, Smartphone, Disc, RefreshCw
 } from 'lucide-react';
 import type { SystemInfo, RunMode } from '../types';
 import { usePlatform } from '../platform';
@@ -32,41 +32,34 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
   const [showSafeCleanup, setShowSafeCleanup] = useState(false);
   const [inspectItem, setInspectItem] = useState<InspectorData | null>(null);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const fetchStorageData = () => {
-    fetch('/api/storage/system-data')
-      .then((r) => r.ok ? r.json() : null)
-      .then((d) => d && setSystemDataInfo(d))
-      .catch(() => {});
+  const fetchStorageData = async () => {
+    setLoading(true);
+    try {
+      const [sysRes, appsRes, orphRes, iosRes, snapRes, drvRes] = await Promise.allSettled([
+        fetch('/api/storage/system-data').then((r) => r.ok ? r.json() : null).catch(() => null),
+        fetch('/api/apps/inventory').then((r) => r.ok ? r.json() : null).catch(() => null),
+        fetch('/api/storage/orphaned-leftovers').then((r) => r.ok ? r.json() : null).catch(() => null),
+        fetch('/api/storage/ios-backups').then((r) => r.ok ? r.json() : null).catch(() => null),
+        fetch('/api/snapshots').then((r) => r.ok ? r.json() : null).catch(() => null),
+        fetch('/api/storage/external-drives').then((r) => r.ok ? r.json() : null).catch(() => null),
+      ]);
 
-    fetch('/api/apps/inventory')
-      .then((r) => r.ok ? r.json() : null)
-      .then((d) => d && setInstalledApps(d.apps || []))
-      .catch(() => {});
-
-    fetch('/api/storage/orphaned-leftovers')
-      .then((r) => r.ok ? r.json() : null)
-      .then((d) => d && setOrphans(d.leftovers || []))
-      .catch(() => {});
-
-    fetch('/api/storage/ios-backups')
-      .then((r) => r.ok ? r.json() : null)
-      .then((d) => d && setIosBackups(d))
-      .catch(() => {});
-
-    fetch('/api/snapshots')
-      .then((r) => r.ok ? r.json() : null)
-      .then((d) => d && setSnapshotsData(d))
-      .catch(() => {});
-
-    fetch('/api/storage/external-drives')
-      .then((r) => r.ok ? r.json() : null)
-      .then((d) => d && setExternalDrives(d.drives || []))
-      .catch(() => {});
+      if (sysRes.status === 'fulfilled' && sysRes.value) setSystemDataInfo(sysRes.value);
+      if (appsRes.status === 'fulfilled' && appsRes.value) setInstalledApps(appsRes.value.apps || []);
+      if (orphRes.status === 'fulfilled' && orphRes.value) setOrphans(orphRes.value.leftovers || []);
+      if (iosRes.status === 'fulfilled' && iosRes.value) setIosBackups(iosRes.value);
+      if (snapRes.status === 'fulfilled' && snapRes.value) setSnapshotsData(snapRes.value);
+      if (drvRes.status === 'fulfilled' && drvRes.value) setExternalDrives(drvRes.value.drives || []);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     fetchStorageData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const inspectAppFootprint = async (appName: string) => {
@@ -123,13 +116,19 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
           </p>
         </div>
 
-        <button
-          onClick={() => setShowSafeCleanup(true)}
-          className="btn btn-primary text-xs flex items-center gap-2 cursor-pointer shadow-lg shadow-blue-500/20"
-        >
-          <Sparkles size={14} />
-          <span>Launch Safe Cleanup Engine (Undo Ready)</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={fetchStorageData} disabled={loading} className="btn btn-ghost text-xs cursor-pointer">
+            <RefreshCw size={13} className={loading ? 'animate-spin-smooth' : ''} />
+            <span>Refresh</span>
+          </button>
+          <button
+            onClick={() => setShowSafeCleanup(true)}
+            className="btn btn-primary text-xs flex items-center gap-2 cursor-pointer shadow-lg shadow-blue-500/20"
+          >
+            <Sparkles size={14} />
+            <span>Launch Safe Cleanup Engine (Undo Ready)</span>
+          </button>
+        </div>
       </div>
 
       {actionMsg && (

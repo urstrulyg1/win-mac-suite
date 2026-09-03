@@ -455,7 +455,7 @@ export async function getMacPeripheralDoctor() {
   const peripheralsWithBattery = peripherals.map(p => ({
     ...p,
     batteryPct: p.type === 'Bluetooth'
-      ? (bluetooth.find && bluetooth.find(b => b.name === p.name)?.batteryPercent ?? null)
+      ? ((bluetooth.find && bluetooth.find(b => b.name === p.name)?.batteryPercent) ?? null)
       : null,
   }));
 

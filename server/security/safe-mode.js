@@ -80,50 +80,6 @@ export function safeModeMiddleware(req, res, next) {
   next();
 }
 
-/**
- * Express route handlers for Safe Mode management.
- * Mount at /api/v10/safe-mode
- */
-export function createSafeModeRouter() {
-  // Dynamically import express to avoid circular dependency issues
-  let router;
-  try {
-    const express = require('express');
-    router = express.Router();
-  } catch {
-    // Fallback: create a minimal router-like object
-    return null;
-  }
-
-  // GET status
-  router.get('/', (_req, res) => {
-    res.json({
-      safeMode: getSafeModeStatus(),
-      description: 'Safe Mode blocks all mutating operations server-side. Read-only diagnostics remain available.',
-    });
-  });
-
-  // POST activate
-  router.post('/activate', (req, res) => {
-    const result = activateSafeMode(req.body?.source || 'api');
-    res.json({ success: true, ...result });
-  });
-
-  // POST deactivate (requires explicit confirmation)
-  router.post('/deactivate', (req, res) => {
-    const { confirmed } = req.body || {};
-    if (!confirmed) {
-      return res.status(400).json({
-        error: 'Deactivating Safe Mode requires explicit confirmation.',
-        remediation: 'Re-send with { "confirmed": true } after the user approves.',
-      });
-    }
-    const result = deactivateSafeMode(req.body?.source || 'api');
-    res.json({ success: true, ...result });
-  });
-
-  return router;
-}
 
 /**
  * List of HTTP method + path patterns that are considered mutating.

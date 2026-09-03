@@ -4,6 +4,7 @@ import {
   MemoryStick, ChevronRight
 } from 'lucide-react';
 import InspectorModal, { type InspectorData } from './InspectorModal';
+import { actionsApi } from '../utils/api';
 
 interface Props {
   onNavigateTab?: (tab: string) => void;
@@ -46,11 +47,12 @@ export default function PerformanceDoctorHub({ onNavigateTab }: Props) {
   const handlePurgeRam = async () => {
     setPurgingRam(true);
     try {
-      await fetch('/api/actions/purge-ram', { method: 'POST' });
-      setPurgeDone(true);
-      await fetchPerfData();
-    } catch {}
-    finally {
+      const res = await actionsApi.purgeRam();
+      if (res.ok) {
+        setPurgeDone(true);
+        await fetchPerfData();
+      }
+    } finally {
       setPurgingRam(false);
     }
   };

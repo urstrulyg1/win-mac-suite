@@ -105,7 +105,7 @@ export default function TopNav({
                 {brandPrefix}<span style={{ color: config.accentColor }}>{brandSuffix}</span>
               </span>
               <span className="text-[10px] font-mono tracking-wider opacity-60 mt-0.5" style={{ color: 'var(--color-ink-3)' }}>
-                v10.1 System Intelligence
+                v11.0 System Intelligence
               </span>
             </div>
           </button>

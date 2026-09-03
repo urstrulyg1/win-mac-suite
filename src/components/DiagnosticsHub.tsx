@@ -19,10 +19,10 @@ interface Props {
 
 type DiagTab = 'matrix' | 'battery' | 'processes' | 'events' | 'spotlight';
 
-export default function DiagnosticsHub({ systemInfo, onStartAction: _onStartAction }: Props) {
+export default function DiagnosticsHub({ systemInfo: _systemInfo, onStartAction: _onStartAction }: Props) {
   const { isMac } = usePlatform();
   const [activeSubTab, setActiveSubTab] = useState<DiagTab>('matrix');
-  const [healthScore, setHealthScore] = useState(96);
+  const [healthScore, setHealthScore] = useState<number | null>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [batteryIntelligence, setBatteryIntelligence] = useState<any>(null);
   const [spotlightInfo, setSpotlightInfo] = useState<any>(null);
@@ -43,7 +43,7 @@ export default function DiagnosticsHub({ systemInfo, onStartAction: _onStartActi
 
       if (hRes && hRes.ok) {
         const data = await hRes.json();
-        setHealthScore(data.score || 96);
+        if (typeof data.score === 'number') setHealthScore(data.score);
       }
       if (eRes && eRes.ok) {
         const eData = await eRes.json();
@@ -69,7 +69,8 @@ export default function DiagnosticsHub({ systemInfo, onStartAction: _onStartActi
 
   useEffect(() => {
     fetchDiagnostics();
-  }, [systemInfo]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const subTabs: { id: DiagTab; label: string; icon: any; color: string }[] = [
     { id: 'matrix',    label: 'Health Matrix',                        icon: Activity,  color: '#34d399' },
@@ -134,7 +135,13 @@ export default function DiagnosticsHub({ systemInfo, onStartAction: _onStartActi
       <AnimatePresence mode="wait">
         {activeSubTab === 'matrix' && (
           <motion.div key="matrix" {...tabTransition} className="space-y-6">
-            <HealthScore score={healthScore} />
+            {healthScore === null ? (
+              <div className="card p-8 flex items-center justify-center">
+                <span className="text-sm text-slate-400">Loading health score…</span>
+              </div>
+            ) : (
+              <HealthScore score={healthScore} />
+            )}
           </motion.div>
         )}
 

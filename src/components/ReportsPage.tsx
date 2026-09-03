@@ -17,7 +17,7 @@ interface Props {
   onExport?: () => void;
 }
 
-export default function ReportsPage({ onStartNew: _onStartNew }: Props) {
+export default function ReportsPage({ onStartNew, onExport }: Props) {
   const { config, isMac } = usePlatform();
   const [subTab, setSubTab] = useState<'reports' | 'manifest' | 'audit'>('reports');
   const [savedReports, setSavedReports] = useState<any[]>([]);
@@ -851,7 +851,16 @@ function InPageReportDetail({
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {onStartNew && (
+            <button
+              onClick={() => onStartNew()}
+              className="btn btn-secondary text-xs flex items-center gap-1.5 cursor-pointer"
+            >
+              <RotateCcw size={13} />
+              <span>New Maintenance Run</span>
+            </button>
+          )}
           <button
             onClick={handleGenerateAndSave}
             disabled={generating}
@@ -876,7 +885,7 @@ function InPageReportDetail({
             <span>Export HTML</span>
           </button>
           <button
-            onClick={() => handleDownloadFullReport('json')}
+            onClick={onExport ?? (() => handleDownloadFullReport('json'))}
             className="btn btn-ghost text-xs flex items-center gap-1.5 cursor-pointer"
           >
             <Download size={13} />

@@ -1,8 +1,25 @@
 # Win-Mac Suite — Feature Parity & Gap Analysis
 
-> **Version:** 10.3.0
+> **Version:** 11.0.0
 > **Last audited:** all helpers, routes, and frontend tabs
 > Sources examined: `server/helpers/`, `server/routes/`, `src/components/`, `src/App.tsx`
+>
+> **Changelog since v10.3.0 → v11.0.0**
+> - **Bug fixes (server.js):** Security headers middleware was dead code (registered after route handlers) — moved before route registration; duplicate `import` statements consolidated to top of file
+> - **Bug fix (safe-mode.js):** `createSafeModeRouter()` used CommonJS `require()` in an ES Module — removed dead function
+> - **Bug fix (macos-advanced-helpers.js):** Illegal `&&` mixed with `??` without grouping parens (ES2020 syntax error) — fixed with explicit parentheses
+> - **Bug fix (NetworkDoctorHub.tsx):** `AlertTriangle` icon used but never imported — added to lucide-react imports
+> - **Bug fix (App.tsx):** `buildExportReport` hardcoded version `'10.1.0'` — now uses `config.version` from `PlatformConfig`
+> - **Enhancement (GlobalSearch.tsx):** `onNavigate` prop was silently discarded (`_onNavigate`) and all command `action` fields were `undefined` — now fully wired; platform detection now uses `usePlatform()` instead of duplicate `/api/sysinfo` fetch; added 6 new macOS and Windows command shortcuts
+> - **Enhancement (ReportsPage.tsx):** `onStartNew` and `onExport` props were discarded — "New Maintenance Run" button wired to `onStartNew`; Export JSON button falls back to `onExport` when provided
+> - **Enhancement (DiagnosticsHub.tsx):** Health score initialised to hardcoded `96` — now `null` with a loading skeleton; `useEffect` depended on `systemInfo` (polled every 3 s), causing continuous re-fetches — fixed to run once on mount
+> - **Enhancement (AskAssistantHub.tsx):** Suggested prompts were macOS-only even on Windows — now platform-aware via `usePlatform()`
+> - **Enhancement (NetworkDoctorHub.tsx):** `handleFlushDNS` used a raw `fetch` with no error check or timeout — replaced with `actionsApi.runPhase` from the central API client
+> - **Enhancement (PerformanceDoctorHub.tsx):** `handlePurgeRam` used a raw `fetch` with no `Content-Type` or body — replaced with `actionsApi.purgeRam()`
+> - **Enhancement (StorageHub.tsx):** `fetchStorageData` fired fire-and-forget `.then()` chains with no loading state — refactored to `async/await` with `Promise.allSettled` and a shared `loading` state; added Refresh button
+> - **Enhancement (server/routes/actions.js):** `POST /api/actions/cleanup-plan` returned hardcoded static sizes (e.g. 3.1 GB, 4.8 GB) violating the zero-fabrication principle — now measures real directory sizes from disk and marks each item with `measured: true/false`
+> - **Enhancement (App.tsx):** `diagnosticOnly` toggle existed in UI but was never passed into the maintenance plan — now forces `ScanOnly` mode when active
+> - **Enhancement (TopNav.tsx):** Brand sub-title showed stale `v10.1` — updated to `v11.0`
 >
 > **Changelog since v10.2.0**
 > - Resolved all frontend ↔ server field-name mismatches for `HardwarePeripheralsHub.tsx`

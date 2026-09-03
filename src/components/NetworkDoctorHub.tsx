@@ -3,10 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { tabTransition } from '../motion';
 import {
   Wifi, RefreshCw,
-  Bluetooth, Share2, Globe, Zap, Check
+  Bluetooth, Share2, Globe, Zap, Check, AlertTriangle
 } from 'lucide-react';
 import { usePlatform } from '../platform';
 import InspectorModal, { type InspectorData } from './InspectorModal';
+import { actionsApi } from '../utils/api';
 
 export default function NetworkDoctorHub() {
   const { isMac } = usePlatform();
@@ -44,15 +45,12 @@ export default function NetworkDoctorHub() {
   const handleFlushDNS = async () => {
     setFlushingDNS(true);
     try {
-      await fetch('/api/actions/run-phase', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ commandId: isMac ? 'mac.flushdns' : 'win.flushdns' }),
-      });
-      setDnsFlushed(true);
-      await fetchNetworkData();
-    } catch {}
-    finally {
+      const res = await actionsApi.runPhase({ commandId: isMac ? 'mac.flushdns' : 'win.flushdns', confirmed: true });
+      if (res.ok) {
+        setDnsFlushed(true);
+        await fetchNetworkData();
+      }
+    } finally {
       setFlushingDNS(false);
     }
   };

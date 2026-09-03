@@ -114,83 +114,131 @@ router.post('/ask-assistant', async (req, res) => {
 });
 
 // ── POST /api/actions/cleanup-plan (Safe Cleanup Engine: Preview & Risk Plan) ─
+// Sizes are measured from disk; categories with no detectable content report 0 MB.
 router.post('/cleanup-plan', async (_req, res) => {
+  const isDarwin = process.platform === 'darwin';
+  const home = os.homedir();
+
+  /**
+   * Measure real directory size (bytes) non-recursively safe.
+   * Returns null when the path does not exist or is unreadable.
+   */
+  const measureDir = async (dirPath) => {
+    try {
+      const entries = await fs.promises.readdir(dirPath, { withFileTypes: true }).catch(() => null);
+      if (!entries) return null;
+      let total = 0;
+      await Promise.all(entries.map(async (e) => {
+        try {
+          const st = await fs.promises.stat(path.join(dirPath, e.name));
+          total += st.size;
+        } catch {}
+      }));
+      return total;
+    } catch {
+      return null;
+    }
+  };
+
   try {
+    const [tmBytes, xcodeBytes, chromeCacheBytes, safariCacheBytes, brewCacheBytes, logBytes] = await Promise.all([
+      isDarwin ? measureDir(`/System/Volumes/Data/.Spotlight-V100`) : Promise.resolve(null),
+      isDarwin ? measureDir(path.join(home, 'Library/Developer/Xcode/DerivedData')) : Promise.resolve(null),
+      measureDir(path.join(home, isDarwin ? 'Library/Caches/Google/Chrome' : 'AppData/Local/Google/Chrome/User Data/Default/Cache')),
+      isDarwin ? measureDir(path.join(home, 'Library/Caches/com.apple.Safari')) : Promise.resolve(null),
+      isDarwin ? measureDir(path.join(home, 'Library/Caches/Homebrew')) : Promise.resolve(null),
+      measureDir(path.join(home, isDarwin ? 'Library/Logs' : 'AppData/Local/CrashDumps')),
+    ]);
+
+    const toMB = (bytes) => bytes !== null ? Math.round(bytes / 1024 / 1024) : null;
+
     const planItems = [
       {
         id: 'plan-1',
-        name: 'APFS Time Machine Snapshot Deltas',
-        location: '/System/Volumes/Data',
-        owner: 'com.apple.TimeMachine',
-        reason: 'Temporary local backup delta extents',
-        sizeMB: 3100,
+        name: isDarwin ? 'APFS Time Machine Snapshot Deltas' : 'Windows Temp & Staging Files',
+        location: isDarwin ? '/System/Volumes/Data' : '%TEMP%',
+        owner: isDarwin ? 'com.apple.TimeMachine' : 'Windows Component Store',
+        reason: isDarwin ? 'Temporary local backup delta extents' : 'Staging files from Windows Update & Store',
+        sizeMB: toMB(tmBytes) ?? 0,
+        reclaimable: toMB(tmBytes) !== null ? `${toMB(tmBytes)} MB` : 'Unavailable',
         risk: 'Safe',
-        reclaimable: '3.1 GB',
         reversible: false,
-        reversibilityLabel: 'Irreversible (Safe System Extent)',
-        selected: true,
+        reversibilityLabel: isDarwin ? 'Irreversible (Safe System Extent)' : 'Rebuilt on next Windows Update',
+        selected: toMB(tmBytes) !== null && toMB(tmBytes) > 0,
+        measured: toMB(tmBytes) !== null,
       },
       {
         id: 'plan-2',
-        name: 'Xcode DerivedData & Module Caches',
-        location: '~/Library/Developer/Xcode/DerivedData',
-        owner: 'Xcode.app',
+        name: isDarwin ? 'Xcode DerivedData & Module Caches' : 'Visual Studio Build Artifacts',
+        location: isDarwin ? '~/Library/Developer/Xcode/DerivedData' : '%LOCALAPPDATA%\\Microsoft\\VisualStudio',
+        owner: isDarwin ? 'Xcode.app' : 'Visual Studio',
         reason: 'Intermediate build artifacts and index files',
-        sizeMB: 4800,
+        sizeMB: toMB(xcodeBytes) ?? 0,
+        reclaimable: toMB(xcodeBytes) !== null ? `${toMB(xcodeBytes)} MB` : 'Unavailable',
         risk: 'Safe',
-        reclaimable: '4.8 GB',
         reversible: false,
         reversibilityLabel: 'Rebuilt automatically on next compile',
-        selected: true,
+        selected: toMB(xcodeBytes) !== null && toMB(xcodeBytes) > 0,
+        measured: toMB(xcodeBytes) !== null,
       },
       {
         id: 'plan-3',
-        name: 'Browser Caches (Chrome, Safari, Brave)',
-        location: '~/Library/Caches/Google, Safari',
+        name: 'Browser Caches (Chrome' + (isDarwin ? ', Safari, Brave)' : ')'),
+        location: isDarwin ? '~/Library/Caches/Google, Safari' : '%LOCALAPPDATA%\\Google\\Chrome\\Cache',
         owner: 'Web Browsers',
         reason: 'Cached rendered web files and offline media',
-        sizeMB: 2200,
+        sizeMB: (toMB(chromeCacheBytes) ?? 0) + (toMB(safariCacheBytes) ?? 0),
+        reclaimable: (toMB(chromeCacheBytes) !== null || toMB(safariCacheBytes) !== null)
+          ? `${(toMB(chromeCacheBytes) ?? 0) + (toMB(safariCacheBytes) ?? 0)} MB`
+          : 'Unavailable',
         risk: 'Safe',
-        reclaimable: '2.2 GB',
         reversible: false,
         reversibilityLabel: 'Re-cached on web browsing',
-        selected: true,
+        selected: ((toMB(chromeCacheBytes) ?? 0) + (toMB(safariCacheBytes) ?? 0)) > 0,
+        measured: toMB(chromeCacheBytes) !== null || toMB(safariCacheBytes) !== null,
       },
-      {
+      ...(isDarwin ? [{
         id: 'plan-4',
         name: 'Homebrew Downloads & Stale Bottles',
         location: '~/Library/Caches/Homebrew',
         owner: 'brew CLI',
         reason: 'Outdated package tarballs and bottle downloads',
-        sizeMB: 1600,
+        sizeMB: toMB(brewCacheBytes) ?? 0,
+        reclaimable: toMB(brewCacheBytes) !== null ? `${toMB(brewCacheBytes)} MB` : 'Unavailable',
         risk: 'Safe',
-        reclaimable: '1.6 GB',
         reversible: false,
         reversibilityLabel: 'Can re-download if ever needed',
-        selected: true,
-      },
+        selected: toMB(brewCacheBytes) !== null && toMB(brewCacheBytes) > 0,
+        measured: toMB(brewCacheBytes) !== null,
+      }] : []),
       {
         id: 'plan-5',
-        name: 'Crash Dumps & Unified Diagnostic Logs',
-        location: '~/Library/Logs',
-        owner: 'macOS Diagnostic Subsystem',
+        name: isDarwin ? 'Crash Dumps & Unified Diagnostic Logs' : 'Crash Dumps & Error Reports',
+        location: isDarwin ? '~/Library/Logs' : '%LOCALAPPDATA%\\CrashDumps',
+        owner: isDarwin ? 'macOS Diagnostic Subsystem' : 'Windows Error Reporting',
         reason: 'Historical stack trace logs and panic dumps',
-        sizeMB: 450,
+        sizeMB: toMB(logBytes) ?? 0,
+        reclaimable: toMB(logBytes) !== null ? `${toMB(logBytes)} MB` : 'Unavailable',
         risk: 'Safe',
-        reclaimable: '450 MB',
         reversible: true,
         reversibilityLabel: 'Reversible (Archived in Manifest)',
-        selected: true,
+        selected: toMB(logBytes) !== null && toMB(logBytes) > 0,
+        measured: toMB(logBytes) !== null,
       },
     ];
 
-    const totalReclaimableMB = planItems.reduce((s, i) => s + i.sizeMB, 0);
+    const measuredItems = planItems.filter((i) => i.measured && i.sizeMB > 0);
+    const totalReclaimableMB = measuredItems.reduce((s, i) => s + i.sizeMB, 0);
+    const anyMeasured = measuredItems.length > 0;
 
     res.json({
       planItems,
       totalReclaimableMB,
       totalReclaimableGB: +(totalReclaimableMB / 1024).toFixed(1),
-      summary: `Safe Cleanup Plan prepared: 5 categories selected, ~${(totalReclaimableMB / 1024).toFixed(1)} GB reclaimable with full risk assessment and transaction manifest recording.`,
+      measurement: anyMeasured ? 'observed' : 'unavailable',
+      summary: anyMeasured
+        ? `Safe Cleanup Plan prepared: ${measuredItems.length} categories with measured content, ~${(totalReclaimableMB / 1024).toFixed(1)} GB reclaimable.`
+        : 'Safe Cleanup Plan: directory sizes could not be measured on this platform.',
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

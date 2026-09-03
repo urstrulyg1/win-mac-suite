@@ -37,10 +37,11 @@ export function buildExportReport(
   sections: Section[],
   logs: LogEntry[],
   summary: RunSummary | null,
+  version = 'unknown',
 ): string {
   const report = {
     suite: platform === 'macos' ? 'MacSuite' : 'WinSuite',
-    version: '10.1.0',
+    version,
     exportTimestamp: new Date().toISOString(),
     mode,
     summary,
@@ -198,7 +199,7 @@ function MainApp() {
   const downloadReport = useCallback(
     (secs: Section[], logs: LogEntry[], summ: RunSummary | null, runMode: RunMode) => {
       try {
-        const blob = new Blob([buildExportReport(platform, runMode, secs, logs, summ)], {
+        const blob = new Blob([buildExportReport(platform, runMode, secs, logs, summ, config.version)], {
           type: 'application/json',
         });
         const url = URL.createObjectURL(blob);
@@ -230,7 +231,9 @@ function MainApp() {
     setSections(initialSections);
     setAllLogs([]);
 
-    const plan = createMaintenancePlan(config, mode, capabilities);
+    // When Safe Mode (Audit Only) is active, force ScanOnly so no mutations execute.
+    const effectiveMode: RunMode = diagnosticOnly ? 'ScanOnly' : mode;
+    const plan = createMaintenancePlan(config, effectiveMode, capabilities);
 
     const finalSummary = await executeMaintenancePlan(
       plan,
@@ -252,7 +255,7 @@ function MainApp() {
         },
       },
       () => cancelRef.current,
-      { noReboot },
+      { noReboot, diagnosticOnly },
     );
 
     setSummary(finalSummary);
