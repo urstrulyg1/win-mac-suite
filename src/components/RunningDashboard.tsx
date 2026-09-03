@@ -4,7 +4,7 @@ import { easeOut, tabTransition, tapPress } from '../motion';
 import {
   Play, Sliders, CheckSquare, Square,
   SquareX, Timer, Search, Filter, ChevronsUpDown, ChevronsDownUp,
-  TrendingUp, Package, ShieldCheck, CheckCircle2,
+  TrendingUp, Package, ShieldCheck, CheckCircle2, Shield,
 } from 'lucide-react';
 import type { Section, RunMode, LogEntry, AppPhase, SystemInfo, RunSummary } from '../types';
 import { useElapsedTimer, formatDuration } from '../hooks/useElapsedTimer';
@@ -30,6 +30,7 @@ interface Props {
   currentSectionName: string;
   noReboot: boolean;
   exportJson: boolean;
+  diagnosticOnly?: boolean;
   onModeChange: (mode: RunMode) => void;
   onToggleNoReboot: () => void;
   onToggleExportJson: () => void;
@@ -44,7 +45,7 @@ type FilterKey = 'all' | 'pending' | 'running' | 'done' | 'issues';
 
 export default function RunningDashboard({
   phase, mode, sections, allLogs, isRunning, systemInfo, summary,
-  overallProgress, currentSectionName, noReboot, exportJson,
+  overallProgress, currentSectionName, noReboot, exportJson, diagnosticOnly = false,
   onModeChange, onToggleNoReboot, onToggleExportJson,
   onStart, onReset, onCancel, onClearLogs, onExport,
 }: Props) {
@@ -220,6 +221,30 @@ export default function RunningDashboard({
                 </div>
               )}
 
+              {diagnosticOnly && (
+                <div
+                  className="p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm"
+                  style={{ backgroundColor: 'rgba(16, 185, 129, 0.08)', borderColor: 'rgba(16, 185, 129, 0.25)' }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 flex items-center justify-center shrink-0">
+                      <Shield size={18} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-xs font-bold text-emerald-400">Dry Run (Audit Only) Active</span>
+                        <span className="pill text-[10px] bg-emerald-500/10 text-emerald-400 border-emerald-500/25">
+                          Zero System Changes
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400">
+                        Modifying phases (package upgrades, temp cleaning, drive defrag) will be simulated/skipped. Switch to <strong>Active Repairs</strong> in the top header to apply live changes.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <ModeSelector selectedMode={mode} onSelect={onModeChange} />
 
               <div className="card p-5 sm:p-6">
@@ -241,7 +266,9 @@ export default function RunningDashboard({
                 >
                   <span className="shimmer-bar" />
                   <Play size={17} className="fill-white relative z-10" />
-                  <span className="relative z-10">Start Execution — {mode} Profile</span>
+                  <span className="relative z-10">
+                    Start Execution — {diagnosticOnly ? `${mode} Profile (Dry Run)` : `${mode} Profile (Active)`}
+                  </span>
                 </motion.button>
               </div>
 

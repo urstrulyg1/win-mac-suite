@@ -193,7 +193,7 @@ export async function executeMaintenancePlan(
   events.onLog?.({
     time: ts(),
     level: 'INFO',
-    message: `${plan.platform === 'macos' ? 'MacSuite' : 'WinSuite'} v11.0 initialized — Profile: ${plan.mode}${options.diagnosticOnly ? ' · Safe Mode (Read-Only)' : ''}`,
+    message: `${plan.platform === 'macos' ? 'MacSuite' : 'WinSuite'} v11.0 initialized — Profile: ${plan.mode}${options.diagnosticOnly ? ' · Dry Run (Audit Only)' : ' · Active Repairs (Live Changes)'}`,
   });
   events.onLog?.({
     time: ts(),

@@ -544,6 +544,7 @@ function MainApp() {
               currentSectionName={currentSectionName}
               noReboot={noReboot}
               exportJson={exportJson}
+              diagnosticOnly={diagnosticOnly}
               onModeChange={setMode}
               onToggleNoReboot={() => setNoReboot((v) => !v)}
               onToggleExportJson={() => setExportJson((v) => !v)}

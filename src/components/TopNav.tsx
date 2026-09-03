@@ -129,12 +129,12 @@ export default function TopNav({
                 }}
                 title={
                   diagnosticOnly
-                    ? 'Safe Mode (Audit Only): 100% read-only inspection. No files or settings will be modified.'
-                    : 'Repair Mode (Active): Guided 1-click repairs, cache thinning, and maintenance actions are enabled.'
+                    ? 'Dry Run (Audit Only): 100% read-only inspection. No files or settings will be modified.'
+                    : 'Active Repairs (Enabled): Live updates, cache thinning, and maintenance actions are executed.'
                 }
               >
                 {diagnosticOnly ? <Shield size={14} className="text-emerald-400" /> : <Wrench size={14} className="text-amber-400" />}
-                <span>{diagnosticOnly ? 'Safe Mode (Read-Only)' : 'Repair Mode (Fixes Enabled)'}</span>
+                <span>{diagnosticOnly ? 'Dry Run (Audit Only)' : 'Active Repairs (Enabled)'}</span>
               </button>
             )}
 
