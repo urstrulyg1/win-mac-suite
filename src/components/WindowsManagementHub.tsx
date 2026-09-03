@@ -1005,13 +1005,34 @@ function PowerTab() {
   if (loading) return <Spinner text="Querying power settings..." />;
   if (data?.platform === 'unsupported') return <Unsupported feature="Power & Battery" />;
 
+  const isPluggedIn = data?.battery?.isPluggedIn ?? (data?.battery?.status?.includes('Plugged') || data?.battery?.status === 'Charging');
+
   return (
     <div className="space-y-4">
+      <div className={`p-4 rounded-xl border flex items-center justify-between ${isPluggedIn ? 'bg-amber-500/10 border-amber-500/30' : 'bg-emerald-500/10 border-emerald-500/30'}`}>
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg ${isPluggedIn ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+            <Zap className="w-5 h-5" />
+          </div>
+          <div>
+            <h4 className="font-bold text-sm text-slate-100">
+              {isPluggedIn ? '⚡ High Performance (Beast Mode) Active' : '🌱 Normal (Battery Efficient) Active'}
+            </h4>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {isPluggedIn ? '100% Minimum Processor State · Maximum 5.4 GHz Turbo Boost Enabled' : '5% Minimum Processor State · CPU Downclocks to 800 MHz at Idle'}
+            </p>
+          </div>
+        </div>
+        <span className={`pill text-xs font-bold px-3 py-1 ${isPluggedIn ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'}`}>
+          {isPluggedIn ? 'BEAST MODE' : 'NORMAL'}
+        </span>
+      </div>
+
       <Card title="Battery" icon={Battery}>
         {data?.battery?.present ? (
           <div className="space-y-1 text-sm">
-            <div>Status: {data.battery.status}</div>
-            <div>Charge: {data.battery.chargePercent}%</div>
+            <div>Status: <span className="font-semibold">{data.battery.status}</span></div>
+            <div>Charge: <span className="font-mono font-bold text-emerald-400">{data.battery.chargePercent}%</span></div>
             {data.battery.healthPercent && <div>Health: {data.battery.healthPercent}%</div>}
             {data.battery.designCapacity && <div>Design: {data.battery.designCapacity} mWh</div>}
             {data.battery.fullChargeCapacity && <div>Full Charge: {data.battery.fullChargeCapacity} mWh</div>}
@@ -1020,7 +1041,8 @@ function PowerTab() {
       </Card>
       <Card title="Power Plan" icon={Zap}>
         <div className="text-sm">
-          <div>Active: {data?.powerPlan?.active || 'N/A'}</div>
+          <div>Profile: <span className="font-bold text-indigo-400">{data?.powerPlan?.profileMode || (isPluggedIn ? 'High Performance (Beast Mode)' : 'Normal (Battery Efficient)')}</span></div>
+          <div className="mt-1 text-xs text-slate-400">Windows Scheme: {data?.powerPlan?.active || 'N/A'}</div>
           {data?.powerPlan?.available && (
             <div className="mt-2">
               <div className="text-xs text-gray-500 mb-1">Available Plans:</div>

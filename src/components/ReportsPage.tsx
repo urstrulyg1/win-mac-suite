@@ -752,10 +752,10 @@ function InPageReportDetail({
             <div className="p-3.5 rounded-xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
               <span className="text-[10px] text-slate-400 uppercase font-bold">{isMac ? 'Battery Condition' : 'Power Profile'}</span>
               <p className="text-sm font-extrabold text-emerald-400">
-                {isMac ? 'Normal' : (battery?.powerPlan?.active ? 'Active Profile' : 'Normal')}
+                {isMac ? 'Normal' : (battery?.powerPlan?.profileMode || (battery?.isPluggedIn ? 'High Performance (Beast Mode)' : 'Normal (Battery Efficient)'))}
               </p>
               <p className="text-[10px] text-slate-500">
-                {isMac ? 'No Service Required' : (battery?.powerPlan?.active ? 'Windows Power Plan' : 'No Service Required')}
+                {isMac ? 'No Service Required' : (battery?.isPluggedIn ? 'Plugged In · 100% Turbo Active' : 'On Battery · 5% Throttle Idle')}
               </p>
             </div>
 

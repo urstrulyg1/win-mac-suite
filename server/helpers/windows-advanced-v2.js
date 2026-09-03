@@ -1293,24 +1293,32 @@ export async function getPowerBattery() {
     # Battery
     try {
       $bat = Get-CimInstance Win32_Battery -ErrorAction Stop
+      $onAC = ($bat.BatteryStatus -in @(2, 3, 6, 7, 8, 9))
       $result.battery = @{
         present = $true
-        status = $bat.Status
+        status = if ($onAC) { if ($bat.BatteryStatus -in @(6,7,8,9)) { 'Charging' } else { 'Plugged In (AC)' } } else { 'On Battery (Discharging)' }
         chargePercent = $bat.EstimatedChargeRemaining
         health = $bat.BatteryStatus
         designCapacity = $bat.DesignCapacity
         fullChargeCapacity = $bat.FullChargeCapacity
         name = $bat.Name
         manufacturer = $bat.Manufacturer
+        isPluggedIn = $onAC
       }
       if ($bat.DesignCapacity -and $bat.FullChargeCapacity) {
         $result.battery.healthPercent = [math]::Round($bat.FullChargeCapacity / $bat.DesignCapacity * 100, 1)
       }
-    } catch { $result.battery = @{ present = false } }
+    } catch { 
+      $result.battery = @{ present = false; isPluggedIn = $true; status = 'AC Desktop Connected' } 
+    }
     # Power plan
     try {
       $plan = powercfg /getactivescheme 2>&1
+      $onAC = $result.battery.isPluggedIn
+      $profileName = if ($onAC) { 'High Performance (Beast Mode)' } else { 'Normal (Battery Efficient)' }
       $result.powerPlan.active = ($plan -join ' ').Trim()
+      $result.powerPlan.profileMode = $profileName
+      $result.powerPlan.isBeastMode = $onAC
       $plans = powercfg /list 2>&1
       $result.powerPlan.available = ($plans | Where-Object { $_ -match 'Power Scheme' } | ForEach-Object { $_.Trim() })
     } catch {}

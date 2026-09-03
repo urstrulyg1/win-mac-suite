@@ -203,18 +203,26 @@ async function generateDiagnosticSnapshot() {
     };
 
     // Format battery for Windows
+    const isPluggedIn = winPower?.battery?.isPluggedIn ?? (winPower?.battery?.status?.includes('Plugged') || winPower?.battery?.status === 'Charging');
+    const profileMode = isPluggedIn ? 'High Performance (Beast Mode)' : 'Normal (Battery Efficient)';
+
     batt = {
       present: winPower?.battery?.present ?? false,
       percent: winPower?.battery?.chargePercent ?? null,
       healthPercent: winPower?.battery?.healthPercent ?? (winPower?.battery?.present ? 100 : null),
       cycleCount: null,
       isCharging: winPower?.battery?.status === 'Charging',
-      status: winPower?.battery?.status || (winPower?.battery?.present ? 'Normal' : 'No Battery'),
+      status: winPower?.battery?.status || (winPower?.battery?.present ? (isPluggedIn ? 'Plugged In (AC)' : 'On Battery') : 'No Battery'),
+      isPluggedIn,
       powerAdapter: {
-        type: 'AC Power Adapter',
+        type: isPluggedIn ? 'AC Power Adapter (Beast Mode)' : 'Disconnected (Battery Mode)',
         watts: null,
       },
-      powerPlan: winPower?.powerPlan || null,
+      powerPlan: {
+        ...(winPower?.powerPlan || {}),
+        profileMode,
+        isBeastMode: isPluggedIn,
+      },
     };
 
     // Format developer tools for Windows
