@@ -107,7 +107,7 @@ export async function runProbe(name, fn, {
         ok: false,
         skipped: true,
         availability: AVAILABILITY.LIMITED,
-        value: fallbackValue,
+        value: null,
         durationMs: Date.now() - startedAt,
         reason: 'No internet connection. This check is optional and was skipped.',
         remediation: meta?.fallback || 'All local diagnostics continue to run normally.',
@@ -140,7 +140,7 @@ export async function runProbe(name, fn, {
         : failure.code === 'MISSING_BINARY_OR_PATH'
           ? AVAILABILITY.UNSUPPORTED
           : AVAILABILITY.FAILED,
-      value: fallbackValue,
+      value: null,
       durationMs: Date.now() - startedAt,
       code: failure.code,
       reason: failure.userMessage,
