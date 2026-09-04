@@ -1,17 +1,8 @@
 /**
- * WinSuite & MacSuite v11.0 — Real Maintenance Executor
+ * WinSuite & MacSuite — Real Maintenance Executor
  *
- * CRITICAL: This executor makes REAL API calls to the backend server
- * for each phase that has an `allowedCommandId`. Phases without a command
- * are diagnostic/read-only and report their status honestly.
- *
- * No fabricated logs. No fake progress. No hardcoded reclaim values.
- *
- * Trust model per phase:
- *   - If a backend command runs: logs are real command output
- *   - If no command is available: phase reports UNAVAILABLE
- *   - If the command fails: phase reports the actual error
- *   - Space reclamation: only reported when actually measured
+ * UI results are derived only from backend command execution and observed output.
+ * Configuration templates describe intended work; they are never treated as evidence.
  */
 
 import type { LogEntry, RunSummary, Section } from '../types';
@@ -20,32 +11,17 @@ import { verifyPhaseExecution } from './verifier';
 import { apiPost, createLogStream } from '../utils/api';
 
 function getTimestamp(): string {
-  const d = new Date();
-  return d.toTimeString().split(' ')[0];
+  return new Date().toTimeString().split(' ')[0];
 }
 
 interface PhaseResult {
-  success: boolean;
-  result?: {
-    success?: boolean;
-    stdout?: string;
-    stderr?: string;
-    exitCode?: number;
-    durationSeconds?: number;
-  };
-  auditRecord?: {
-    durationSeconds?: number;
-    reclaimedBytes?: number;
-  };
+  success?: boolean;
+  result?: { success?: boolean; stdout?: string; stderr?: string; exitCode?: number; durationSeconds?: number };
+  auditRecord?: { durationSeconds?: number; reclaimedBytes?: number };
   error?: string;
-  measurement?: string;
   reclaimedBytes?: number | null;
 }
 
-/**
- * Executes a real maintenance phase by calling the backend.
- * Returns real logs derived from the command output, not fabricated ones.
- */
 async function executeRealPhase(
   template: { allowedCommandId?: string; id: string; title: string; targetTools: string[] },
   sessionId: string,
@@ -53,43 +29,30 @@ async function executeRealPhase(
   onLog: (entry: LogEntry) => void,
   onProgress: (pct: number) => void,
 ): Promise<{ status: Section['status']; result: string; duration: number; realLogs: LogEntry[]; reclaimedBytes: number | null }> {
-  const phaseLogs: LogEntry[] = [];
-  const startTime = Date.now();
-
+  const logs: LogEntry[] = [];
+  const started = Date.now();
   const addLog = (level: LogEntry['level'], message: string) => {
-    const entry: LogEntry = { time: getTimestamp(), level, message };
-    phaseLogs.push(entry);
+    const entry = { time: getTimestamp(), level, message } as LogEntry;
+    logs.push(entry);
     onLog(entry);
   };
 
-  // Report what tools this phase targets
-  addLog('INFO', `Starting phase: ${template.title}`);
-  addLog('INFO', `Target tools: ${template.targetTools.join(', ')}`);
-  onProgress(10);
-
-  if (isCancelled()) {
-    addLog('WARNING', 'Phase cancelled before execution.');
-    return { status: 'skipped', result: 'CANCELLED', duration: 0, realLogs: phaseLogs, reclaimedBytes: null };
-  }
+  if (isCancelled()) return { status: 'skipped', result: 'CANCELLED', duration: 0, realLogs: logs, reclaimedBytes: null };
 
   if (!template.allowedCommandId) {
-    // No backend command configured — this is a diagnostic-only phase template
-    // that cannot actually execute without a real command binding.
-    addLog('WARNING', `Phase '${template.title}' has no backend command binding (allowedCommandId).`);
-    addLog('INFO', 'This phase is configured for display only. Real execution requires a command binding.');
-    addLog('INFO', `Would target: ${template.targetTools.join(', ')}`);
+    addLog('WARNING', `UNAVAILABLE — ${template.title} has no executable backend command binding.`);
     onProgress(100);
     return {
       status: 'warning',
-      result: 'NO_COMMAND_BINDING — Phase template lacks executable command',
-      duration: Math.round((Date.now() - startTime) / 100) / 10,
-      realLogs: phaseLogs,
+      result: 'UNAVAILABLE — no executable backend command binding',
+      duration: 0,
+      realLogs: logs,
       reclaimedBytes: null,
     };
   }
 
   addLog('INFO', `Executing backend command: ${template.allowedCommandId}`);
-  onProgress(25);
+  onProgress(20);
 
   try {
     const response = await apiPost<PhaseResult>('/actions/run-phase', {
@@ -99,95 +62,53 @@ async function executeRealPhase(
       parameters: {},
     }, 300000);
 
-    onProgress(80);
-
     if (isCancelled()) {
       addLog('WARNING', 'Phase cancelled during execution.');
       await apiPost('/actions/cancel', {});
-      return { status: 'skipped', result: 'CANCELLED', duration: 0, realLogs: phaseLogs, reclaimedBytes: null };
+      return { status: 'skipped', result: 'CANCELLED', duration: 0, realLogs: logs, reclaimedBytes: null };
     }
 
     if (!response.ok || !response.data) {
-      const errMsg = response.error?.error || 'Backend command failed';
-      addLog('ERROR', `Command failed: ${errMsg}`);
-      if (response.error?.remediation) {
-        addLog('INFO', `Remediation: ${response.error.remediation}`);
-      }
+      const message = response.error?.error || 'Backend command failed.';
+      addLog('ERROR', message);
+      if (response.error?.remediation) addLog('INFO', `Remediation: ${response.error.remediation}`);
       onProgress(100);
-      return {
-        status: 'error',
-        result: `FAILED — ${errMsg}`,
-        duration: Math.round((Date.now() - startTime) / 100) / 10,
-        realLogs: phaseLogs,
-        reclaimedBytes: null,
-      };
+      return { status: 'error', result: `FAILED — ${message}`, duration: (Date.now() - started) / 1000, realLogs: logs, reclaimedBytes: null };
     }
 
     const data = response.data;
-
-    // Parse real stdout/stderr into log entries
-    if (data.result?.stdout) {
-      const lines = data.result.stdout.split('\n').filter((l) => l.trim());
-      for (const line of lines.slice(0, 20)) {
-        const level = /error|fail|denied/i.test(line) ? 'ERROR'
-          : /warn|skip|deprecat/i.test(line) ? 'WARNING'
-          : /success|done|complet|ok|healthy/i.test(line) ? 'SUCCESS'
-          : 'INFO';
-        addLog(level, line.trim());
-      }
+    const stdout = data.result?.stdout || '';
+    const stderr = data.result?.stderr || '';
+    for (const line of stdout.split('\n').filter(Boolean).slice(0, 50)) {
+      const level = /error|fail|denied/i.test(line) ? 'ERROR' : /warn|skip|deprecat/i.test(line) ? 'WARNING' : 'INFO';
+      addLog(level, line.trim());
     }
+    for (const line of stderr.split('\n').filter(Boolean).slice(0, 20)) addLog('WARNING', line.trim());
 
-    if (data.result?.stderr) {
-      const lines = data.result.stderr.split('\n').filter((l) => l.trim());
-      for (const line of lines.slice(0, 10)) {
-        addLog('WARNING', line.trim());
-      }
-    }
+    const raw = `${stdout}\n${stderr}`;
+    const duration = Number.isFinite(data.result?.durationSeconds) ? data.result.durationSeconds! : Number.isFinite(data.auditRecord?.durationSeconds) ? data.auditRecord.durationSeconds! : (Date.now() - started) / 1000;
+    const reclaimed = data.reclaimedBytes ?? data.auditRecord?.reclaimedBytes ?? null;
+    const elevationError = /administrator|elevat|privilege|access is denied|\b740\b/i.test(raw);
+    const exitCode = data.result?.exitCode;
+    const succeeded = !elevationError && (data.result?.success === true || exitCode === 0);
 
-    const durationSec = data.result?.durationSeconds || data.auditRecord?.durationSeconds || Math.round((Date.now() - startTime) / 100) / 10;
-    const reclaimedBytes = data.reclaimedBytes ?? data.auditRecord?.reclaimedBytes ?? null;
-
-    const rawOutput = `${data.result?.stdout || ''} ${data.result?.stderr || ''}`;
-    const isElevationError = /administrator|elevat|740|privilege|access is denied/i.test(rawOutput);
-    const commandSucceeded = data.result?.success === true || (data.result?.exitCode === 0 && !isElevationError);
-
-    if (isElevationError) {
-      addLog('WARNING', `[ELEVATION REQUIRED] This task requires Administrator privileges. Run your terminal/server as Administrator to enable this repair.`);
-    }
-
-    if (commandSucceeded && !isElevationError) {
-      addLog('SUCCESS', `Phase completed successfully (${durationSec}s)`);
-      if (reclaimedBytes !== null && reclaimedBytes > 0) {
-        const mb = Math.round(reclaimedBytes / 1024 / 1024);
-        addLog('SUCCESS', `Measured space reclaimed: ${mb} MB`);
-      }
-    } else {
-      addLog('WARNING', `Phase completed with warnings (${durationSec}s)`);
-    }
+    if (elevationError) addLog('WARNING', 'REQUIRES ELEVATION — Administrator privileges are required for this operation.');
+    else if (succeeded) addLog('SUCCESS', `Command completed successfully (${duration.toFixed(1)}s).`);
+    else addLog('WARNING', `Command completed without a successful exit result (${exitCode ?? 'UNAVAILABLE'}).`);
 
     onProgress(100);
     return {
-      status: (commandSucceeded && !isElevationError) ? 'success' : 'warning',
-      result: (commandSucceeded && !isElevationError)
-        ? `VERIFIED — Command ${template.allowedCommandId} executed successfully`
-        : isElevationError
-        ? `REQUIRES ELEVATION — Administrator privileges needed`
-        : `WARNING — Command completed with non-zero exit (${data.result?.exitCode ?? 1})`,
-      duration: durationSec,
-      realLogs: phaseLogs,
-      reclaimedBytes,
+      status: succeeded ? 'success' : elevationError ? 'warning' : 'error',
+      result: succeeded ? `OBSERVED SUCCESS — ${template.allowedCommandId}` : elevationError ? 'REQUIRES ELEVATION' : `FAILED — exit code ${exitCode ?? 'UNAVAILABLE'}`,
+      duration,
+      realLogs: logs,
+      reclaimedBytes: Number.isFinite(reclaimed) ? reclaimed : null,
     };
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    addLog('ERROR', `Execution error: ${msg}`);
+    const message = err instanceof Error ? err.message : String(err);
+    addLog('ERROR', message);
     onProgress(100);
-    return {
-      status: 'error',
-      result: `ERROR — ${msg}`,
-      duration: Math.round((Date.now() - startTime) / 100) / 10,
-      realLogs: phaseLogs,
-      reclaimedBytes: null,
-    };
+    return { status: 'error', result: `ERROR — ${message}`, duration: (Date.now() - started) / 1000, realLogs: logs, reclaimedBytes: null };
   }
 }
 
@@ -197,167 +118,80 @@ export async function executeMaintenancePlan(
   isCancelled: () => boolean,
   options: { noReboot?: boolean; diagnosticOnly?: boolean } = {},
 ): Promise<RunSummary> {
-  const startTime = new Date();
-  const ts = getTimestamp;
+  const started = new Date();
   const sessionId = `session-${Date.now()}`;
-
-  events.onLog?.({
-    time: ts(),
-    level: 'INFO',
-    message: `${plan.platform === 'macos' ? 'MacSuite' : 'WinSuite'} v11.0 initialized — Profile: ${plan.mode}${options.diagnosticOnly ? ' · Dry Run (Audit Only)' : ' · Active Repairs (Live Changes)'}`,
-  });
-  events.onLog?.({
-    time: ts(),
-    level: 'SUCCESS',
-    message: `[OK] Backend connection verified · ${plan.activePhases.length} active phases planned`,
-  });
-  events.onLog?.({ time: ts(), level: 'INFO', message: '─'.repeat(48) });
-
-  // Open SSE stream for live backend logs
   const eventSource = createLogStream(sessionId, (data) => {
-    if (data.type === 'log' && data.entry) {
-      events.onLog?.(data.entry as LogEntry);
-    }
+    if (data.type === 'log' && data.entry) events.onLog?.(data.entry as LogEntry);
   });
 
   const total = plan.phases.length;
-  let passedCount = 0;
+  let successful = 0;
   let cancelled = false;
   let totalReclaimedBytes = 0;
+  let observedUpdateCount = 0;
+  let observedIssueCount = 0;
   const verifications = [];
+
+  events.onLog?.({ time: getTimestamp(), level: 'INFO', message: `${plan.platform === 'macos' ? 'MacSuite' : 'WinSuite'} maintenance started — ${total} planned phases.` });
 
   try {
     for (let i = 0; i < total; i++) {
-      if (isCancelled()) {
-        cancelled = true;
-        break;
-      }
-
+      if (isCancelled()) { cancelled = true; break; }
       const phase = plan.phases[i];
       const template = phase.template;
+      events.onPhaseStart?.(phase.phaseId, phase.title, i + 1, total);
 
       if (phase.skip) {
-        events.onPhaseStart?.(phase.phaseId, phase.title, i + 1, total);
-        events.onLog?.({
-          time: ts(),
-          level: 'INFO',
-          message: `[SKIP] Phase ${phase.number}: ${phase.title} (${phase.skipReason || 'Profile Policy'})`,
-        });
-        events.onPhaseComplete?.(phase.phaseId, 'skipped', 'SKIPPED (Profile Policy)', 0, []);
-        passedCount++;
+        events.onLog?.({ time: getTimestamp(), level: 'INFO', message: `[SKIP] ${phase.title}: ${phase.skipReason || 'profile policy'}` });
+        events.onPhaseComplete?.(phase.phaseId, 'skipped', 'SKIPPED — not executed', 0, []);
         events.onOverallProgress?.(Math.round(((i + 1) / total) * 100));
         continue;
       }
 
-      events.onPhaseStart?.(phase.phaseId, phase.title, i + 1, total);
-      events.onLog?.({
-        time: ts(),
-        level: 'INFO',
-        message: `═ [Phase ${phase.number}/${total}] ${phase.title.toUpperCase()}`,
+      const result = await executeRealPhase(template, sessionId, isCancelled, (entry) => events.onLog?.(entry), (pct) => {
+        events.onPhaseProgress?.(phase.phaseId, pct, []);
+        events.onOverallProgress?.(Math.round(((i + pct / 100) / total) * 100));
       });
 
-      // Execute the real phase via backend API
-      const phaseResult = await executeRealPhase(
-        template,
-        sessionId,
-        isCancelled,
-        (entry) => events.onLog?.(entry),
-        (pct) => {
-          events.onPhaseProgress?.(phase.phaseId, pct, []);
-          events.onOverallProgress?.(Math.round(((i + pct / 100) / total) * 100));
-        },
-      );
+      if (result.status === 'success') successful++;
+      if (result.reclaimedBytes !== null && result.reclaimedBytes > 0) totalReclaimedBytes += result.reclaimedBytes;
+      if (result.status === 'error') observedIssueCount++;
 
-      if (isCancelled()) {
-        cancelled = true;
-        break;
-      }
-
-      // Track reclaimed space only from real measurements
-      if (phaseResult.reclaimedBytes !== null && phaseResult.reclaimedBytes > 0) {
-        totalReclaimedBytes += phaseResult.reclaimedBytes;
-      }
-
-      const verification = verifyPhaseExecution(template, phaseResult.status, phaseResult.realLogs);
+      const verification = verifyPhaseExecution(template, result.status, result.realLogs);
       verifications.push(verification);
+      if (verification.verified) observedUpdateCount++;
 
-      events.onPhaseComplete?.(
-        phase.phaseId,
-        phaseResult.status,
-        phaseResult.result,
-        phaseResult.duration,
-        phaseResult.realLogs,
-      );
-
-      if (phaseResult.status === 'success') passedCount++;
-
-      events.onLog?.({
-        time: ts(),
-        level: phaseResult.status === 'success' ? 'SUCCESS' : phaseResult.status === 'warning' ? 'WARNING' : 'ERROR',
-        message: `Result: ${phaseResult.result} (${phaseResult.duration}s)`,
-      });
+      events.onPhaseComplete?.(phase.phaseId, result.status, result.result, result.duration, result.realLogs);
     }
   } finally {
-    if (eventSource) {
-      try { eventSource.close(); } catch { /* ignore */ }
-    }
+    try { eventSource?.close(); } catch {}
   }
 
-  // Follow-up suggestions based on real platform
-  const followUps: string[] = [];
-  if (plan.platform === 'windows') {
-    if (!options.noReboot && plan.mode !== 'ScanOnly' && plan.mode !== 'CleanupOnly') {
-      followUps.push('Restart system to finalize staged Windows component and driver updates.');
-    }
-    if (plan.mode === 'ScanOnly' || plan.mode === 'Safe' || plan.mode === 'Aggressive') {
-      followUps.push('Review Windows CBS integrity logs at C:\\Windows\\Logs\\CBS\\CBS.log.');
-    }
-  } else {
-    if (plan.mode === 'Safe' || plan.mode === 'Aggressive') {
-      followUps.push('Check System Settings > General > Software Update periodically for firmware rollouts.');
-    }
-    if (plan.mode === 'CleanupOnly' || plan.mode === 'Aggressive') {
-      followUps.push('Local Time Machine snapshot storage optimized; purgeable space returned to APFS container.');
-    }
-  }
-
-  if (followUps.length === 0) {
-    followUps.push('System is optimized and healthy. No pending actions required.');
-  }
-
-  const endTime = new Date();
-  const actualDurationMinutes = Math.round(((endTime.getTime() - startTime.getTime()) / 60000) * 10) / 10;
-  const spaceReclaimedMB = Math.round(totalReclaimedBytes / 1024 / 1024);
+  const durationMinutes = Math.round((Date.now() - started.getTime()) / 6000) / 10;
+  const spaceReclaimedMB = totalReclaimedBytes > 0 ? Math.round(totalReclaimedBytes / 1024 / 1024) : null;
+  const executedCount = plan.phases.filter((p) => !p.skip).length;
+  const healthScore = executedCount > 0 ? Math.round((successful / executedCount) * 100) : null;
 
   const finalSummary: RunSummary = {
-    healthScore: total > 0 ? Math.round((passedCount / total) * 100) : 0,
+    healthScore,
     totalSections: total,
-    passedSections: passedCount,
-    durationMinutes: actualDurationMinutes,
-    totalUpdated: 0, // Only reported by backend if actually measured
+    passedSections: successful,
+    durationMinutes,
+    totalUpdated: observedUpdateCount,
     spaceReclaimed: spaceReclaimedMB,
-    issuesFound: 0,
-    issuesFixed: 0,
-    rebootRequired: plan.platform === 'windows' && !options.noReboot && plan.mode !== 'ScanOnly' && plan.mode !== 'CleanupOnly',
-    followUps,
+    issuesFound: observedIssueCount,
+    issuesFixed: null,
+    rebootRequired: null,
+    followUps: [],
     cancelled,
     mode: plan.mode,
-    startedAt: startTime.toISOString(),
+    startedAt: started.toISOString(),
   };
 
-  if (cancelled) {
-    events.onLog?.({ time: ts(), level: 'WARNING', message: '⚠ Execution cancelled by user — partial report compiled.' });
-    apiPost('/actions/cancel', {}).catch(() => {});
-  } else {
+  if (cancelled) events.onLog?.({ time: getTimestamp(), level: 'WARNING', message: 'Execution cancelled — report contains only observed results up to cancellation.' });
+  else {
     events.onOverallProgress?.(100);
-    events.onLog?.({ time: ts(), level: 'SUCCESS', message: '═ SYSTEM MAINTENANCE PIPELINE COMPLETED' });
-    if (totalReclaimedBytes > 0) {
-      events.onLog?.({
-        time: ts(),
-        level: 'SUCCESS',
-        message: `Total measured space reclaimed: ${spaceReclaimedMB} MB`,
-      });
-    }
+    events.onLog?.({ time: getTimestamp(), level: 'INFO', message: 'Maintenance pipeline finished. Summary contains observed backend results only.' });
   }
 
   return finalSummary;
