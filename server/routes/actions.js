@@ -31,7 +31,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { executeAllowlistedCommand, cancelActiveExecution } from '../security/exec-guard.js';
-import { runGuardedOperation } from '../runtime/operation-executor.js';
+import { runGuardedOperation, classifyFailure } from '../runtime/operation-executor.js';
 import { operationRegistry } from '../runtime/operations.js';
 import { validateRequest, createErrorResponse } from '../contracts/api-schemas.js';
 import { COMMAND_ALLOWLIST } from '../security/allowlist.js';
@@ -682,6 +682,21 @@ router.post('/run-phase', async (req, res) => {
     return res.status(403).json({ error: `Command ID '${commandId}' is rejected by security allowlist.` });
   }
 
+  // Enforce the platform contract BEFORE any elevation/confirmation logic so a
+  // Windows-only command is never presented as a macOS "sudo required" prompt
+  // (and vice-versa). exec-guard also enforces this later, but a clear early
+  // guard produces the right UX and avoids confusing errors.
+  const hostPlatform = process.platform === 'win32' ? 'windows' : process.platform === 'darwin' ? 'macos' : 'unsupported';
+  if (spec.platform !== hostPlatform) {
+    return res.status(400).json({
+      error: `Operation '${commandId}' requires platform '${spec.platform}', but the host is '${hostPlatform}'.`,
+      requiresPlatform: spec.platform,
+      platform: hostPlatform,
+      commandId,
+      operationName: spec.description,
+    });
+  }
+
   if (spec.risk === 'advanced' && !confirmed) {
     return res.status(400).json({
       error: `Operation '${commandId}' has risk level '${spec.risk}' and requires explicit user confirmation.`,
@@ -764,6 +779,7 @@ router.post('/run-phase', async (req, res) => {
     });
   } catch (err) {
     const durationSeconds = Math.round((Date.now() - startTime) / 100) / 10;
+    const failure = classifyFailure(err);
     const auditRecord = logAuditEntry({
       operation: spec.description,
       commandId,
@@ -772,13 +788,18 @@ router.post('/run-phase', async (req, res) => {
       result: 'error',
       durationSeconds,
       changesMade: [],
-      errorCode: 'EXEC_FAILED',
+      errorCode: failure.code,
       outputLogSnippet: err.message,
     });
 
-    res.status(500).json({
+    res.status(failure.httpStatus).json({
       success: false,
-      error: err.message,
+      code: failure.code,
+      error: failure.userMessage,
+      message: failure.message,
+      recoverable: failure.recoverable,
+      remediation: failure.remediation,
+      operationId: `op_failed_${Date.now().toString(36)}`,
       auditRecord,
     });
   }

@@ -271,7 +271,11 @@ router.get('/storage/file-permissions', async (req, res) => {
       }
       res.json(await getMacFilePermissionsDoctor(targetPath));
     } else {
-      res.status(404).json({ note: 'File Permissions Doctor is macOS-only.' });
+      res.json({
+        platform: process.platform === 'win32' ? 'windows' : 'unsupported',
+        available: false,
+        note: 'File Permissions Doctor is macOS-exclusive.',
+      });
     }
   } catch (err) {
     res.status(500).json({ error: err.message });

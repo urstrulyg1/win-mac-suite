@@ -219,19 +219,41 @@ async function safeSnapshot(fn, phase) {
 }
 
 /**
+ * Platform-specific user-facing copy so that a Windows operation never reports
+ * "on this Mac" and a macOS operation never reports a Windows-only remediation.
+ */
+function platformCopy(win, mac) {
+  const platform = process.platform === 'win32' ? 'windows' : process.platform === 'darwin' ? 'macos' : 'unsupported';
+  return platform === 'windows' ? win : platform === 'macos' ? mac : `${win} (${mac})`;
+}
+
+/**
  * Turns any thrown error into something safe, explainable and recoverable —
  * the v10 requirement for every failure path.
  */
 export function classifyFailure(err) {
   const msg = err?.message || String(err);
   const code = err?.code || '';
+  const isMac = process.platform === 'darwin';
+  const isWin = process.platform === 'win32';
 
   const table = [
     { test: /EACCES|EPERM|permission denied|not permitted/i, code: 'PERMISSION_DENIED', httpStatus: 403, recoverable: true,
-      userMessage: 'macOS denied access to the resource this operation needed.',
-      remediation: 'Grant the required permission in System Settings → Privacy & Security, then retry.' },
+      userMessage: isMac
+        ? 'macOS denied access to the resource this operation needed.'
+        : isWin
+        ? 'Windows denied access to the resource this operation needed.'
+        : 'The operating system denied access to the resource this operation needed.',
+      remediation: isMac
+        ? 'Grant the required permission in System Settings → Privacy & Security, then retry.'
+        : isWin
+        ? 'Run the application as Administrator (elevated), or grant the required permission, then retry.'
+        : 'Grant the required permission, then retry.' },
     { test: /ENOENT|not found|no such file|command not found/i, code: 'MISSING_BINARY_OR_PATH', httpStatus: 424, recoverable: true,
-      userMessage: 'A required system binary or path was not present on this Mac.',
+      userMessage: platformCopy(
+        'A required Windows binary or path was not present on this system.',
+        'A required macOS binary or path was not present on this system.',
+      ),
       remediation: 'The feature is unavailable on this configuration. Other diagnostics are unaffected.' },
     { test: /ETIMEDOUT|timed? ?out/i, code: 'TIMEOUT', httpStatus: 504, recoverable: true,
       userMessage: 'The operation exceeded its time budget and was aborted safely.',
@@ -241,15 +263,21 @@ export function classifyFailure(err) {
       remediation: 'Nothing to do: the desired end state is already true.' },
     { test: /ENOSPC|no space left/i, code: 'INSUFFICIENT_DISK_SPACE', httpStatus: 507, recoverable: true,
       userMessage: 'There is not enough free disk space to complete this operation safely.',
-      remediation: 'Free space first (quarantine restore is preserved), then retry.' },
+      remediation: 'Free space first, then retry.' },
     { test: /Unexpected token|JSON|malformed/i, code: 'MALFORMED_OUTPUT', httpStatus: 502, recoverable: true,
-      userMessage: 'A macOS command returned output this version cannot parse. The result was discarded rather than guessed.',
+      userMessage: platformCopy(
+        'A Windows command returned output this version cannot parse. The result was discarded rather than guessed.',
+        'A macOS command returned output this version cannot parse. The result was discarded rather than guessed.',
+      ),
       remediation: 'This subsystem is reported UNAVAILABLE rather than healthy. Other subsystems are unaffected.' },
     { test: /ENETUNREACH|ENOTFOUND|EAI_AGAIN|network/i, code: 'NETWORK_UNAVAILABLE', httpStatus: 503, recoverable: true,
       userMessage: 'Network access was unavailable for this operation.',
       remediation: 'All local diagnostics continue to work offline. Only online-optional data is affected.' },
     { test: /privileged helper|authorization/i, code: 'PRIVILEGED_HELPER_UNAVAILABLE', httpStatus: 403, recoverable: true,
-      userMessage: 'The privileged helper needed for this repair is not installed or not responding.',
+      userMessage: platformCopy(
+        'The privileged helper needed for this repair is not installed or not responding.',
+        'The privileged helper needed for this repair is not installed or not responding.',
+      ),
       remediation: 'Run the read-only diagnosis instead, or install the helper when prompted.' },
     { test: /ALLOWLIST/i, code: 'NOT_AUTHORIZED', httpStatus: 403, recoverable: false,
       userMessage: 'This action is not in the security allowlist and was refused.',

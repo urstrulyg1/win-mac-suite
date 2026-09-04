@@ -248,7 +248,7 @@ export const MACOS_QUICK_ACTIONS: QuickAction[] = [
 export const MACOS_CONFIG: PlatformConfig = {
   platform: 'macos',
   productName: 'MacSuite',
-  version: '6.3.0',
+  version: '16.1.1',
   subtitle: 'macOS System Maintenance & Diagnostics',
   tagline: 'Intelligent, capability-aware Mac optimization & performance engine',
   osFamily: 'macOS',

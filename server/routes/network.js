@@ -30,16 +30,47 @@ import {
 } from '../helpers/windows-helpers.js';
 
 const resolveAsync = promisify(dns.resolve);
+
+/**
+ * Resolves a hostname but never hangs the request: if the system resolver stalls
+ * (offline host, blocked outbound DNS, no resolver configured) we abort after
+ * 4s and let the caller report the probe as unavailable rather than blocking the
+ * whole diagnostics endpoint. This matters equally on Windows and macOS.
+ */
+function resolveWithTimeout(host, timeoutMs = 4000) {
+  return Promise.race([
+    resolveAsync(host),
+    new Promise((_resolve, reject) => {
+      setTimeout(() => reject(new Error('DNS resolution timed out')), timeoutMs);
+    }),
+  ]);
+}
+
+/**
+ * Bounds an arbitrary async probe so a misbehaving OS call (a WMI/WinRM query
+ * that never returns on some Windows configurations, or a platform mismatch
+ * during cross-platform development) can never hang the diagnostics endpoint.
+ */
+function withTimeout(promise, timeoutMs = 6000, label = 'probe') {
+  return Promise.race([
+    promise,
+    new Promise((_resolve, reject) => {
+      setTimeout(() => reject(new Error(`${label} timed out`)), timeoutMs);
+    }),
+  ]);
+}
+
 const router = express.Router();
 const isMac = process.platform === 'darwin';
 
 // ── GET /api/network/diagnostics ────────────────────────────────────────────
 router.get('/diagnostics', async (_req, res) => {
   try {
-    const [netInterfaces, defaultGateway] = await Promise.all([
-      si.networkInterfaces(),
-      si.networkGatewayDefault().catch(() => null),
+    const [netInterfacesSafe, defaultGateway] = await Promise.all([
+      withTimeout(si.networkInterfaces(), 6000, 'network interfaces').catch(() => null),
+      withTimeout(si.networkGatewayDefault(), 6000, 'default gateway').catch(() => null),
     ]);
+    const netInterfaces = netInterfacesSafe && Array.isArray(netInterfacesSafe) ? netInterfacesSafe : null;
 
     const activeIface = Array.isArray(netInterfaces)
       ? netInterfaces.find((n) => n.operstate === 'up' && !n.internal) || netInterfaces[0]
@@ -48,7 +79,7 @@ router.get('/diagnostics', async (_req, res) => {
     let dnsTimeMs = null;
     try {
       const start = performance.now();
-      await resolveAsync('apple.com').catch(() => resolveAsync('cloudflare.com'));
+      await resolveWithTimeout('apple.com').catch(() => resolveWithTimeout('cloudflare.com'));
       dnsTimeMs = Math.round(performance.now() - start);
     } catch {
       dnsTimeMs = null; // DNS resolution failed — report as unavailable, not a fake value
@@ -152,12 +183,16 @@ router.get('/dns-diagnostics', async (_req, res) => {
     } else {
       // Windows: use the top-level dns import (no re-import needed)
       const resolve = promisify(dns.resolve4);
+      const resolveTimed = (host) => Promise.race([
+        resolve(host),
+        new Promise((_resolve, reject) => setTimeout(() => reject(new Error('DNS resolution timed out')), 4000)),
+      ]);
       const testHosts = ['microsoft.com', 'cloudflare.com', 'google.com'];
       const results = [];
       for (const host of testHosts) {
         try {
           const start = performance.now();
-          await resolve(host);
+          await resolveTimed(host);
           results.push({ host, resolved: true, latencyMs: Math.round(performance.now() - start) });
         } catch {
           results.push({ host, resolved: false, latencyMs: null });
