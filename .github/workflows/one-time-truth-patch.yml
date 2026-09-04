@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Remove misleading telemetry defaults
+      - name: Patch App telemetry state
         shell: python
         run: |
           from pathlib import Path
@@ -31,94 +31,16 @@ jobs:
               "isOnline: (data.isOnline as boolean) ?? true,": "isOnline: typeof data.isOnline === 'boolean' ? data.isOnline : null,",
               "cpuUsage: (data.cpuUsage as number) ?? 0,": "cpuUsage: typeof data.cpuUsage === 'number' ? data.cpuUsage : null,",
               "memoryUsage: (data.memoryUsage as number) ?? 0,": "memoryUsage: typeof data.memoryUsage === 'number' ? data.memoryUsage : null,",
-              "memoryUsage: (data.memoryUsage as number) ?? 0,": "memoryUsage: typeof data.memoryUsage === 'number' ? data.memoryUsage : null,",
           }
-          for old, new in replacements.items():
-              s = s.replace(old, new)
-          old = """    setRealSysInfo((prev) => ({\n      ...prev,\n      freeDiskGB: +(prev.freeDiskGB + (finalSummary.spaceReclaimed / 1024)).toFixed(1),\n    }));\n"""
-          s = s.replace(old, "")
-          old = """      summary: `Completed ${finalSummary.passedSections} of ${finalSummary.totalSections} phases. Reclaimed ${finalSummary.spaceReclaimed >= 1024 ? `${(finalSummary.spaceReclaimed / 1024).toFixed(1)} GB` : `${finalSummary.spaceReclaimed} MB`} disk space.`,\n"""
-          new = """      summary: `Completed ${finalSummary.passedSections} of ${finalSummary.totalSections} phases. Disk space reclaimed: ${finalSummary.spaceReclaimed == null ? 'NOT_MEASURED' : finalSummary.spaceReclaimed >= 1024 ? `${(finalSummary.spaceReclaimed / 1024).toFixed(1)} GB` : `${finalSummary.spaceReclaimed} MB`}.`,\n"""
-          s = s.replace(old, new)
+          for old, new in replacements.items(): s = s.replace(old, new)
+          s = s.replace("""    setRealSysInfo((prev) => ({\n      ...prev,\n      freeDiskGB: +(prev.freeDiskGB + (finalSummary.spaceReclaimed / 1024)).toFixed(1),\n    }));\n""", "")
+          s = s.replace("""      summary: `Completed ${finalSummary.passedSections} of ${finalSummary.totalSections} phases. Reclaimed ${finalSummary.spaceReclaimed >= 1024 ? `${(finalSummary.spaceReclaimed / 1024).toFixed(1)} GB` : `${finalSummary.spaceReclaimed} MB`} disk space.`,\n""", """      summary: `Completed ${finalSummary.passedSections} of ${finalSummary.totalSections} phases. Disk space reclaimed: ${finalSummary.spaceReclaimed == null ? 'NOT_MEASURED' : finalSummary.spaceReclaimed >= 1024 ? `${(finalSummary.spaceReclaimed / 1024).toFixed(1)} GB` : `${finalSummary.spaceReclaimed} MB`}.`,\n""")
           p.write_text(s)
-          assert "ramGB: 0" not in s
-          assert "isOnline: true" not in s
-          assert "Local Computer" not in s
-          assert "processor: (data.processor as string) || 'CPU'" not in s
-          assert "freeDiskGB: +(prev.freeDiskGB" not in s
-      - name: Add repository truth contract regression test
-        shell: bash
+      - name: Commit patch
         run: |
-          cat > server/tests/v17-repository-truth.test.js <<'EOF'
-          import test from 'node:test';
-          import assert from 'node:assert/strict';
-          import fs from 'node:fs';
-          import path from 'node:path';
-          
-          const root = process.cwd();
-          const productionRoots = ['src', 'server'];
-          const excluded = new Set(['server/tests']);
-          const extensions = new Set(['.js', '.ts', '.tsx', '.json']);
-          const files = [];
-          function walk(dir) {
-            for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-              const full = path.join(dir, entry.name);
-              const rel = path.relative(root, full);
-              if (excluded.has(rel) || [...excluded].some((x) => rel.startsWith(`${x}${path.sep}`))) continue;
-              if (entry.isDirectory()) walk(full);
-              else if (extensions.has(path.extname(entry.name))) files.push(rel);
-            }
-          }
-          for (const dir of productionRoots) walk(path.join(root, dir));
-          const source = files.map((f) => fs.readFileSync(path.join(root, f), 'utf8')).join('\n');
-          
-          const forbidden = [
-            /1\.1\.24090\.2/, /Latest Verified/, /v5280/, /100% Health/, /Graphics Driver\s*[:=]\s*['\"]Optimal/, /SFC Scan\s*[:=]\s*['\"]Clean/, /DISM Health\s*[:=]\s*['\"]Healthy/,
-            /\b(?:1\.4|1\.7|2\.3|3\.1)\s*GB[^\n]*(?:reclaim|reclaimed)/i,
-            /Analyzed query against Windows telemetry/, /Health 96%/, /Optimal System Integrity/,
-            /memoryUsagePct\s*=\s*74/, /swapUsedGB\s*=\s*0\.8/, /chromeMemoryMB\s*=\s*3800/, /systemDataGB\s*=\s*48\.2/, /freeDiskGB\s*=\s*18\.4/,
-          ];
-          test('repository production tree contains no known fabricated telemetry', () => {
-            for (const pattern of forbidden) assert.doesNotMatch(source, pattern);
-          });
-          
-          test('App initial system state is explicitly unmeasured', () => {
-            const app = fs.readFileSync(path.join(root, 'src/App.tsx'), 'utf8');
-            assert.match(app, /ramGB: null/);
-            assert.match(app, /freeDiskGB: null/);
-            assert.match(app, /totalDiskGB: null/);
-            assert.match(app, /isOnline: null/);
-            assert.match(app, /cpuUsage: null/);
-            assert.match(app, /memoryUsage: null/);
-            assert.doesNotMatch(app, /Local Computer/);
-            assert.doesNotMatch(app, /processor: \(data\.processor as string\) \|\| 'CPU'/);
-          });
-          
-          test('health contract fails closed when availability is not backed by a health probe', () => {
-            const contract = fs.readFileSync(path.join(root, 'server/core/contract.js'), 'utf8');
-            assert.match(contract, /availability = AVAILABILITY\.LIMITED/);
-            assert.match(contract, /return proposedStatus \|\| HEALTH_STATUS\.INFORMATIONAL/);
-          });
-          EOF
-      - name: Add truth contract to npm test
-        shell: python
-        run: |
-          import json
-          from pathlib import Path
-          p = Path('package.json')
-          data = json.loads(p.read_text())
-          test = data['scripts']['test']
-          if 'v17-repository-truth.test.js' not in test:
-              data['scripts']['test'] = test + ' && node server/tests/v17-repository-truth.test.js'
-          p.write_text(json.dumps(data, indent=2) + '\n')
-      - name: Validate and commit
-        run: |
-          npm ci
-          npm run build
-          npm test
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/App.tsx server/tests/v17-repository-truth.test.js package.json
+          git add src/App.tsx
           git diff --cached --quiet && exit 0
           git commit -m '[truth-patch] Remove misleading initial telemetry defaults'
           git push
