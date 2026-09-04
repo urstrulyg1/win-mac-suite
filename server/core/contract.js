@@ -1,49 +1,19 @@
 /**
- * WinSuite & MacSuite v10.0 — Global System Health Contract
- *
- * Health claims are evidence-driven. A subsystem cannot become HEALTHY merely
- * because a caller omitted a status or because its feature is configured.
+ * Global health contract. Health claims require runtime evidence.
  */
 export const HEALTH_STATUS = {
-  HEALTHY: 'HEALTHY',
-  WARNING: 'WARNING',
-  CRITICAL: 'CRITICAL',
-  UNAVAILABLE: 'UNAVAILABLE',
-  INFORMATIONAL: 'INFORMATIONAL',
+  HEALTHY: 'HEALTHY', WARNING: 'WARNING', CRITICAL: 'CRITICAL', UNAVAILABLE: 'UNAVAILABLE', INFORMATIONAL: 'INFORMATIONAL',
 };
-
 export const AVAILABILITY = {
-  AVAILABLE: 'AVAILABLE',
-  LIMITED: 'LIMITED',
-  REQUIRES_PERMISSION: 'REQUIRES_PERMISSION',
-  UNSUPPORTED: 'UNSUPPORTED',
-  FAILED: 'FAILED',
+  AVAILABLE: 'AVAILABLE', LIMITED: 'LIMITED', REQUIRES_PERMISSION: 'REQUIRES_PERMISSION', UNSUPPORTED: 'UNSUPPORTED', FAILED: 'FAILED',
 };
-
-export const SEVERITY = {
-  NONE: 'none',
-  INFO: 'info',
-  LOW: 'low',
-  MEDIUM: 'medium',
-  HIGH: 'high',
-  CRITICAL: 'critical',
-};
-
+export const SEVERITY = { NONE: 'none', INFO: 'info', LOW: 'low', MEDIUM: 'medium', HIGH: 'high', CRITICAL: 'critical' };
 const SEVERITY_RANK = { none: 0, info: 1, low: 2, medium: 3, high: 4, critical: 5 };
-
-export const STATUS_GLYPH = {
-  HEALTHY: '🟢',
-  WARNING: '🟡',
-  CRITICAL: '🔴',
-  UNAVAILABLE: '⚪',
-  INFORMATIONAL: '🔵',
-};
+export const STATUS_GLYPH = { HEALTHY: '🟢', WARNING: '🟡', CRITICAL: '🔴', UNAVAILABLE: '⚪', INFORMATIONAL: '🔵' };
 
 export function statusForAvailability(availability, proposedStatus) {
   switch (availability) {
-    case AVAILABILITY.AVAILABLE:
-      // AVAILABLE means the feature can run; it does not prove the machine is healthy.
-      return proposedStatus || HEALTH_STATUS.INFORMATIONAL;
+    case AVAILABILITY.AVAILABLE: return proposedStatus || HEALTH_STATUS.INFORMATIONAL;
     case AVAILABILITY.LIMITED:
       if (proposedStatus === HEALTH_STATUS.CRITICAL || proposedStatus === HEALTH_STATUS.WARNING) return proposedStatus;
       return HEALTH_STATUS.INFORMATIONAL;
@@ -51,31 +21,15 @@ export function statusForAvailability(availability, proposedStatus) {
     case AVAILABILITY.UNSUPPORTED:
     case AVAILABILITY.FAILED:
       return HEALTH_STATUS.UNAVAILABLE;
-    default:
-      return HEALTH_STATUS.UNAVAILABLE;
+    default: return HEALTH_STATUS.UNAVAILABLE;
   }
 }
 
 export function createSubsystemReport({
-  subsystem,
-  displayName,
-  platform = process.platform === 'darwin' ? 'macos' : process.platform === 'win32' ? 'windows' : 'unsupported',
-  availability = AVAILABILITY.LIMITED,
-  status,
-  severity,
-  summary = '',
-  findings = [],
-  evidence = [],
-  metrics = {},
-  recommendations = [],
-  requiredPermissions = [],
-  missingPermissions = [],
-  degraded = false,
-  degradedReason = null,
-  dataSources = [],
-  errors = [],
-  contractVersion = '10.0',
-  lastUpdated = new Date().toISOString(),
+  subsystem, displayName, platform = process.platform === 'darwin' ? 'macos' : process.platform === 'win32' ? 'windows' : 'unsupported',
+  availability = AVAILABILITY.LIMITED, status, severity, summary = '', findings = [], evidence = [], metrics = {}, recommendations = [],
+  requiredPermissions = [], missingPermissions = [], degraded = false, degradedReason = null, dataSources = [], errors = [],
+  contractVersion = '10.0', lastUpdated = new Date().toISOString(),
 } = {}) {
   const resolvedStatus = statusForAvailability(availability, status);
   const derivedSeverity = severity || findings.reduce((worst, f) => {
@@ -83,28 +37,12 @@ export function createSubsystemReport({
     return rank > (SEVERITY_RANK[worst] ?? 0) ? f.severity : worst;
   }, SEVERITY.NONE);
   const unavailable = resolvedStatus === HEALTH_STATUS.UNAVAILABLE;
-
   return {
-    contractVersion,
-    subsystem,
-    displayName: displayName || subsystem,
-    platform,
-    status: resolvedStatus,
-    statusGlyph: STATUS_GLYPH[resolvedStatus],
-    availability,
-    severity: unavailable ? SEVERITY.NONE : derivedSeverity,
-    summary: summary || defaultSummary(resolvedStatus, availability, subsystem),
-    findings,
-    evidence,
-    metrics,
-    recommendations,
-    requiredPermissions,
-    missingPermissions,
-    degraded: degraded || availability === AVAILABILITY.LIMITED,
-    degradedReason,
-    dataSources,
-    errors: errors.map(normalizeError),
-    lastUpdated,
+    contractVersion, subsystem, displayName: displayName || subsystem, platform, status: resolvedStatus,
+    statusGlyph: STATUS_GLYPH[resolvedStatus], availability, severity: unavailable ? SEVERITY.NONE : derivedSeverity,
+    summary: summary || defaultSummary(resolvedStatus, availability, subsystem), findings, evidence, metrics, recommendations,
+    requiredPermissions, missingPermissions, degraded: degraded || availability === AVAILABILITY.LIMITED, degradedReason, dataSources,
+    errors: errors.map(normalizeError), lastUpdated,
   };
 }
 
@@ -119,45 +57,38 @@ function defaultSummary(status, availability, subsystem) {
 
 function normalizeError(err) {
   if (typeof err === 'string') return { code: 'PROBE_ERROR', message: err, recoverable: true };
-  return {
-    code: err.code || 'PROBE_ERROR',
-    message: err.message || String(err),
-    recoverable: err.recoverable ?? true,
-    remediation: err.remediation || null,
-  };
+  return { code: err.code || 'PROBE_ERROR', message: err.message || String(err), recoverable: err.recoverable ?? true, remediation: err.remediation || null };
 }
 
 export function aggregateReports(reports = []) {
   const counts = { HEALTHY: 0, WARNING: 0, CRITICAL: 0, UNAVAILABLE: 0, INFORMATIONAL: 0 };
   for (const r of reports) counts[r.status] = (counts[r.status] || 0) + 1;
-  const evaluated = reports.length - counts.UNAVAILABLE;
-  const scoreBase = evaluated > 0
-    ? Math.round(((counts.HEALTHY + counts.INFORMATIONAL * 0.8) / evaluated) * 100)
-    : null;
+  const healthEvaluated = counts.HEALTHY + counts.WARNING + counts.CRITICAL;
+  const observable = reports.length - counts.UNAVAILABLE;
+  const scoreBase = healthEvaluated > 0 ? Math.round((counts.HEALTHY / healthEvaluated) * 100) : null;
 
   let overall = HEALTH_STATUS.INFORMATIONAL;
   if (counts.CRITICAL > 0) overall = HEALTH_STATUS.CRITICAL;
   else if (counts.WARNING > 0) overall = HEALTH_STATUS.WARNING;
-  else if (evaluated === 0) overall = HEALTH_STATUS.UNAVAILABLE;
+  else if (counts.HEALTHY > 0) overall = HEALTH_STATUS.HEALTHY;
+  else if (observable === 0) overall = HEALTH_STATUS.UNAVAILABLE;
 
   return {
-    contractVersion: '10.0',
-    overallStatus: overall,
-    overallGlyph: STATUS_GLYPH[overall],
+    contractVersion: '10.0', overallStatus: overall, overallGlyph: STATUS_GLYPH[overall],
     coverage: {
       subsystemsTotal: reports.length,
-      subsystemsEvaluated: evaluated,
+      subsystemsEvaluated: observable,
       subsystemsUnavailable: counts.UNAVAILABLE,
-      coveragePct: reports.length ? Math.round((evaluated / reports.length) * 100) : 0,
+      coveragePct: reports.length ? Math.round((observable / reports.length) * 100) : 0,
     },
     healthScore: scoreBase,
-    scoreQualified: counts.UNAVAILABLE > 0,
-    scoreQualifier: counts.UNAVAILABLE > 0
-      ? `${counts.UNAVAILABLE} subsystem(s) could not be evaluated; this score describes only what was observable.`
-      : 'Score is based only on subsystem observations supplied by probes.',
-    counts,
-    subsystems: reports,
-    generatedAt: new Date().toISOString(),
+    scoreQualified: healthEvaluated > 0 && counts.UNAVAILABLE === 0,
+    scoreQualifier: healthEvaluated === 0
+      ? 'No subsystem produced a health observation; no health score is claimed.'
+      : counts.UNAVAILABLE > 0
+        ? `${counts.UNAVAILABLE} subsystem(s) could not be evaluated; this score describes only the observed health statuses.`
+        : 'Score is derived only from subsystem health observations supplied by probes.',
+    counts, subsystems: reports, generatedAt: new Date().toISOString(),
   };
 }
 
@@ -170,5 +101,6 @@ export function validateContract(report) {
   for (const k of ['findings', 'evidence', 'recommendations', 'requiredPermissions', 'errors']) if (report && report[k] !== undefined && !Array.isArray(report[k])) violations.push(`${k} must be an array`);
   if (report && report.availability !== AVAILABILITY.AVAILABLE && report.status === HEALTH_STATUS.HEALTHY) violations.push('CONTRACT VIOLATION: subsystem claims HEALTHY without full availability');
   if (report && report.lastUpdated && Number.isNaN(Date.parse(report.lastUpdated))) violations.push('lastUpdated must be an ISO-8601 timestamp');
+  if (report && report.status === HEALTH_STATUS.HEALTHY && (!Array.isArray(report.evidence) || report.evidence.length === 0)) violations.push('CONTRACT VIOLATION: HEALTHY requires evidence');
   return { valid: violations.length === 0, violations };
 }
