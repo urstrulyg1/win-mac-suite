@@ -14,12 +14,6 @@ function pct(value) {
 
 function buildDiagnosis(query, cpu, memory, disk) {
   const q = query.toLowerCase();
-  const evidence = [
-    `CPU utilization: ${cpu === null ? 'UNAVAILABLE' : `${cpu}%`}`,
-    `Memory utilization: ${memory === null ? 'UNAVAILABLE' : `${memory}%`}`,
-    `Disk utilization: ${disk === null ? 'UNAVAILABLE' : `${disk}%`}`,
-  ];
-
   if (/slow|performance|lag|freeze|hang/.test(q)) {
     const causes = [];
     if (cpu !== null && cpu >= 85) causes.push(`high CPU utilization (${cpu}%)`);
@@ -101,7 +95,9 @@ router.post('/ask-assistant', async (req, res) => {
 
     const cpu = pct(load.currentLoad);
     const memory = mem.total > 0 ? pct(((mem.total - mem.available) / mem.total) * 100) : null;
-    const root = Array.isArray(fs) ? fs.find((v) => String(v.mount || '').toLowerCase() === String(process.env.SystemDrive || 'C:').toLowerCase()) || fs[0] : null;
+    const root = Array.isArray(fs)
+      ? fs.find((v) => String(v.mount || '').toLowerCase() === String(process.env.SystemDrive || 'C:').toLowerCase()) || fs[0]
+      : null;
     const disk = root && Number.isFinite(root.use) ? pct(root.use) : null;
     const result = buildDiagnosis(query, cpu, memory, disk);
 
@@ -110,7 +106,9 @@ router.post('/ask-assistant', async (req, res) => {
       topic: 'Windows System Intelligence',
       diagnosis: result.diagnosis,
       evidence: [
-        ...result.evidence,
+        `CPU utilization: ${cpu === null ? 'UNAVAILABLE' : `${cpu}%`}`,
+        `Memory utilization: ${memory === null ? 'UNAVAILABLE' : `${memory}%`}`,
+        `Disk utilization: ${disk === null ? 'UNAVAILABLE' : `${disk}%`}`,
         'Source: local systeminformation telemetry on the Windows host.',
       ],
       confidence: result.confidence,
