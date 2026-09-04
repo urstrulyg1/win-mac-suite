@@ -285,8 +285,13 @@ function MainApp() {
 
     if (finalSummary.cancelled) {
       toast('Run cancelled — partial diagnostics saved', 'warning');
-    } else {
+    } else if (finalSummary.passedSections === finalSummary.totalSections) {
       toast(`${config.productName} completed successfully`, 'success');
+      if (exportJson) {
+        downloadReport(sectionsRef.current, logsRef.current, finalSummary, mode);
+      }
+    } else {
+      toast(`${config.productName} completed with warnings or errors`, 'warning');
       if (exportJson) {
         downloadReport(sectionsRef.current, logsRef.current, finalSummary, mode);
       }
