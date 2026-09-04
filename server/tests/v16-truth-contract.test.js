@@ -20,28 +20,28 @@ test('cross-platform suite tests both native platform branches', () => {
   assert.match(source, /win32/);
 });
 
-test('system route contains no fabricated disk telemetry defaults', () => {
+test('system route contains no fabricated telemetry defaults', () => {
   const source = read('server/routes/system.js');
-  assert.doesNotMatch(source, /: null \? 256/);
-  assert.doesNotMatch(source, /: null \? 128/);
-  assert.doesNotMatch(source, /40\s*°C/);
+  for (const pattern of [/: null \? 256/, /: null \? 128/, /40\s*°C/, /health\s*[:=]\s*96/, /Health 96%/]) {
+    assert.doesNotMatch(source, pattern);
+  }
 });
 
-test('truth-safe action handlers are mounted before legacy action handlers', () => {
-  const source = read('server.js');
-  const truth = source.indexOf("app.use('/api/actions', truthSafeActionsRouter)");
-  const legacy = source.indexOf("app.use('/api/actions', actionsRouter)");
-  assert.ok(truth >= 0 && legacy >= 0 && truth < legacy);
+test('legacy action router contains no canned telemetry or false-success Windows branches', () => {
+  const source = read('server/routes/actions.js');
+  for (const pattern of [/Analyzed query against Windows telemetry/, /killedPids:\s*\[\]/, /success:\s*true[\s\S]{0,300}process\.platform === ['"]win32['"]/, /1\.7\s*GB/, /1\.4\s*GB/]) {
+    assert.doesNotMatch(source, pattern);
+  }
 });
 
-test('truth-safe action router represents unavailable measurements explicitly', () => {
+test('truth-safe action router never reports measured data when measurement is unavailable', () => {
   const source = read('server/routes/truth-safe-actions.js');
   assert.match(source, /UNAVAILABLE/);
   assert.match(source, /measurement:\s*['"]observed['"]/);
   assert.match(source, /measurement:\s*['"]unsupported['"]/);
 });
 
-test('maintenance executor does not fabricate update, issue, or reboot counts', () => {
+test('maintenance executor derives results only from observed backend execution', () => {
   const source = read('src/maintenance/executor.ts');
   assert.doesNotMatch(source, /totalUpdated:\s*0/);
   assert.doesNotMatch(source, /issuesFound:\s*0/);
@@ -49,4 +49,24 @@ test('maintenance executor does not fabricate update, issue, or reboot counts', 
   assert.doesNotMatch(source, /rebootRequired:\s*plan\.platform/);
   assert.match(source, /issuesFixed:\s*null/);
   assert.match(source, /rebootRequired:\s*null/);
+});
+
+test('fabricated telemetry fixture files are not present', () => {
+  for (const file of ['server/fixtures/clean-mac.json', 'server/fixtures/developer-mac.json', 'server/fixtures/low-storage-mac.json']) {
+    assert.equal(fs.existsSync(path.join(root, file)), false, `${file} must not exist`);
+  }
+});
+
+test('landing dashboard does not contain known fabricated telemetry values', () => {
+  const source = read('src/components/LandingHero.tsx');
+  for (const pattern of [/96%/, /40\s*°C/, /Optimal System Integrity/, /Latest Verified/, /Health 96/]) {
+    assert.doesNotMatch(source, pattern);
+  }
+});
+
+test('system info panel does not substitute invented hardware or connectivity values', () => {
+  const source = read('src/components/SystemInfoPanel.tsx');
+  for (const pattern of [/Local Host/, /System CPU/, /\barm64\b/, /Darwin/]) {
+    assert.doesNotMatch(source, pattern);
+  }
 });
