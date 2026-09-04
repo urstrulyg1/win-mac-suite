@@ -34,6 +34,43 @@ test('legacy action router contains no known canned telemetry or fake cleanup to
   }
 });
 
+test('platform phase templates contain configuration only, never observed result fields', () => {
+  for (const file of ['src/platform/windows.ts', 'src/platform/macos.ts']) {
+    const source = read(file);
+    for (const pattern of [/successResult\s*:/, /verificationSummary\s*:/, /details\s*:/, /logs\s*:/]) {
+      assert.doesNotMatch(source, pattern, `${file} contains a runtime-result field`);
+    }
+  }
+});
+
+test('known fabricated telemetry values are absent from production source', () => {
+  const files = [
+    'src/platform/windows.ts',
+    'src/platform/macos.ts',
+    'src/maintenance/executor.ts',
+    'server/routes/actions.js',
+    'server/routes/system.js',
+    'src/components/LandingHero.tsx',
+    'src/components/SystemInfoPanel.tsx',
+  ];
+  const source = files.map(read).join('\n');
+  for (const pattern of [
+    /1\.1\.24090\.2/,
+    /Latest Verified/,
+    /Graphics Driver['\"]?\s*:\s*['\"]Optimal/,
+    /SFC Scan['\"]?\s*:\s*['\"]Clean/,
+    /DISM Health['\"]?\s*:\s*['\"]Healthy/,
+    /1\.4\s*GB[^\n]*(?:Reclaimed|reclaimed)/i,
+    /1\.7\s*GB[^\n]*(?:Reclaimed|reclaimed)/i,
+    /v5280/,
+    /Battery Condition['\"]?\s*:\s*['\"]Normal \(100% Health\)/,
+    /2\.3\s*GB[^\n]*(?:Reclaimed|reclaimed)/i,
+    /3\.1\s*GB[^\n]*(?:Reclaimed|reclaimed)/i,
+  ]) {
+    assert.doesNotMatch(source, pattern);
+  }
+});
+
 test('truth-safe action router never reports measured data when measurement is unavailable', () => {
   const source = read('server/routes/truth-safe-actions.js');
   assert.match(source, /UNAVAILABLE/);
