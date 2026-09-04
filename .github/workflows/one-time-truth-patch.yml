@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Patch App telemetry state
+      - name: Patch App truth state
         shell: python
         run: |
           from pathlib import Path
@@ -35,6 +35,8 @@ jobs:
           for old, new in replacements.items(): s = s.replace(old, new)
           s = s.replace("""    setRealSysInfo((prev) => ({\n      ...prev,\n      freeDiskGB: +(prev.freeDiskGB + (finalSummary.spaceReclaimed / 1024)).toFixed(1),\n    }));\n""", "")
           s = s.replace("""      summary: `Completed ${finalSummary.passedSections} of ${finalSummary.totalSections} phases. Reclaimed ${finalSummary.spaceReclaimed >= 1024 ? `${(finalSummary.spaceReclaimed / 1024).toFixed(1)} GB` : `${finalSummary.spaceReclaimed} MB`} disk space.`,\n""", """      summary: `Completed ${finalSummary.passedSections} of ${finalSummary.totalSections} phases. Disk space reclaimed: ${finalSummary.spaceReclaimed == null ? 'NOT_MEASURED' : finalSummary.spaceReclaimed >= 1024 ? `${(finalSummary.spaceReclaimed / 1024).toFixed(1)} GB` : `${finalSummary.spaceReclaimed} MB`}.`,\n""")
+          s = s.replace("""    } else {\n      toast(`${config.productName} completed successfully`, 'success');\n      if (exportJson) {\n""", """    } else if (finalSummary.passedSections === finalSummary.totalSections) {\n      toast(`${config.productName} completed successfully`, 'success');\n      if (exportJson) {\n""")
+          s = s.replace("""    }\n\n    setTimeout(() => {\n""", """    } else {\n      toast(`${config.productName} completed with warnings or errors`, 'warning');\n      if (exportJson) {\n        downloadReport(sectionsRef.current, logsRef.current, finalSummary, mode);\n      }\n    }\n\n    setTimeout(() => {\n""", 1)
           p.write_text(s)
       - name: Commit patch
         run: |
@@ -42,5 +44,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add src/App.tsx
           git diff --cached --quiet && exit 0
-          git commit -m '[truth-patch] Remove misleading initial telemetry defaults'
+          git commit -m '[truth-patch] Make operation result messaging fail closed'
           git push
