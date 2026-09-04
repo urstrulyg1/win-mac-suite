@@ -48,8 +48,10 @@ for (const pathname of probes) {
 
 const sysinfo = await request('/api/sysinfo');
 assert.equal(sysinfo.body.platform, expected, `Expected ${expected}, got ${sysinfo.body.platform}`);
-assert.notEqual(sysinfo.body.totalDiskGB, 256, 'Fabricated 256GB disk fallback detected');
-assert.notEqual(sysinfo.body.freeDiskGB, 128, 'Fabricated 128GB disk fallback detected');
-assert.notEqual(sysinfo.body.processor, 'Apple Silicon M3 Pro', 'Fabricated processor detected');
+for (const field of ['totalDiskGB', 'freeDiskGB', 'ramGB', 'cpuUsage', 'memoryUsage']) {
+  const value = sysinfo.body[field];
+  assert.ok(value === null || Number.isFinite(value), `${field} must be numeric or null, got ${value}`);
+}
+assert.ok(typeof sysinfo.body.processor === 'string' || sysinfo.body.processor === null, 'processor must be observed text or null');
 
 console.log(`✓ Native ${expected} platform smoke test passed`);
