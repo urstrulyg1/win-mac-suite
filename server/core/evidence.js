@@ -1,16 +1,8 @@
 /**
- * WinSuite & MacSuite v10.0 — Evidence Quality Layer
- *
- * Prevents the UI from presenting estimates as facts. Every single datum carried
- * inside a Finding is tagged with how we came to know it.
- *
- *   observed    — read directly from the system (highest trust)
- *   inferred    — derived deterministically from observed values
- *   estimated   — modelled/apportioned; macOS does not expose the true value
- *   unavailable — could not be read (permission, missing binary, offline)
- *   stale       — previously observed but older than its freshness budget
+ * Evidence quality layer.
+ * A datum is never considered an observation unless the caller supplies evidence
+ * from a real runtime probe or command result.
  */
-
 export const EVIDENCE_QUALITY = {
   OBSERVED: 'observed',
   INFERRED: 'inferred',
@@ -35,7 +27,6 @@ export const QUALITY_LABEL = {
   stale: 'Stale',
 };
 
-/** Trust weight applied to confidence maths. */
 export const QUALITY_WEIGHT = {
   observed: 1.0,
   inferred: 0.8,
@@ -44,37 +35,35 @@ export const QUALITY_WEIGHT = {
   unavailable: 0.0,
 };
 
-/** Default freshness budget per quality class (ms). */
 const DEFAULT_FRESHNESS_MS = 120_000;
 
-/**
- * Creates a single evidence datum.
- */
 export function createEvidence({
   key,
   label,
-  quality = EVIDENCE_QUALITY.OBSERVED,
+  quality = EVIDENCE_QUALITY.UNAVAILABLE,
   value = null,
   unit = null,
   expectedRange = null,
-  source = 'telemetry',
+  source = null,
   collectedAt = new Date().toISOString(),
   freshnessBudgetMs = DEFAULT_FRESHNESS_MS,
   reason = null,
   estimationMethod = null,
 } = {}) {
   let resolvedQuality = quality;
+  const parsedCollectedAt = Date.parse(collectedAt);
+  const age = Number.isFinite(parsedCollectedAt) ? Date.now() - parsedCollectedAt : null;
 
-  // Auto-demote to stale when the sample has aged past its budget.
-  const age = Date.now() - Date.parse(collectedAt);
   if (
-    Number.isFinite(age) && age > freshnessBudgetMs &&
+    age !== null && age > freshnessBudgetMs &&
     (quality === EVIDENCE_QUALITY.OBSERVED || quality === EVIDENCE_QUALITY.INFERRED)
   ) {
     resolvedQuality = EVIDENCE_QUALITY.STALE;
   }
-  // Never present a value for unavailable evidence.
-  const resolvedValue = resolvedQuality === EVIDENCE_QUALITY.UNAVAILABLE ? null : value;
+
+  const resolvedValue = resolvedQuality === EVIDENCE_QUALITY.UNAVAILABLE || resolvedQuality === EVIDENCE_QUALITY.STALE
+    ? (resolvedQuality === EVIDENCE_QUALITY.UNAVAILABLE ? null : value)
+    : value;
 
   return {
     key: key || (label || 'evidence').toLowerCase().replace(/\s+/g, '_'),
@@ -85,18 +74,14 @@ export function createEvidence({
     trustWeight: QUALITY_WEIGHT[resolvedQuality],
     value: resolvedValue,
     unit,
-    // The single string the UI should print. Estimates are labelled inline so they
-    // can never be mistaken for measurements.
     displayValue: formatDisplay(resolvedQuality, resolvedValue, unit, reason),
     expectedRange,
     source,
     collectedAt,
-    ageMs: Number.isFinite(age) ? age : null,
+    ageMs: age,
     isFact: resolvedQuality === EVIDENCE_QUALITY.OBSERVED,
     reason,
-    estimationMethod: resolvedQuality === EVIDENCE_QUALITY.ESTIMATED
-      ? (estimationMethod || 'Apportioned from observed aggregates; macOS does not expose an exact per-source value.')
-      : null,
+    estimationMethod: resolvedQuality === EVIDENCE_QUALITY.ESTIMATED ? estimationMethod : null,
   };
 }
 
@@ -119,13 +104,9 @@ export function estimated(label, value, opts = {}) {
   return createEvidence({ label, value, quality: EVIDENCE_QUALITY.ESTIMATED, ...opts });
 }
 export function unavailable(label, reason, opts = {}) {
-  return createEvidence({ label, quality: EVIDENCE_QUALITY.UNAVAILABLE, reason, ...opts });
+  return createEvidence({ label, quality: EVIDENCE_QUALITY.UNAVAILABLE, value: null, reason, ...opts });
 }
 
-/**
- * Summarises the evidentiary basis of a finding — this is what makes the UI able to
- * print "3 observed, 1 estimated, 1 unavailable" next to any conclusion.
- */
 export function summarizeEvidence(evidence = []) {
   const counts = { observed: 0, inferred: 0, estimated: 0, unavailable: 0, stale: 0 };
   let weight = 0;
@@ -133,8 +114,8 @@ export function summarizeEvidence(evidence = []) {
     counts[e.quality] = (counts[e.quality] || 0) + 1;
     weight += QUALITY_WEIGHT[e.quality] ?? 0;
   }
-  const total = evidence.length || 1;
-  const qualityScore = Math.round((weight / total) * 100);
+  const total = evidence.length;
+  const qualityScore = total > 0 ? Math.round((weight / total) * 100) : 0;
 
   let grade = 'Weak';
   if (qualityScore >= 90) grade = 'Strong';
@@ -143,12 +124,10 @@ export function summarizeEvidence(evidence = []) {
 
   return {
     counts,
-    total: evidence.length,
+    total,
     qualityScore,
     grade,
-    // Confidence must be capped by evidence quality — you cannot be 95% sure
-    // of something built on estimates.
-    confidenceCeiling: Math.min(99, Math.max(35, qualityScore)),
+    confidenceCeiling: qualityScore,
     hasUnavailable: counts.unavailable > 0,
     hasEstimates: counts.estimated > 0,
     basis: describeBasis(counts),
