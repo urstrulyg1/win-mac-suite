@@ -1,18 +1,6 @@
 /**
  * WinSuite & MacSuite v11.0 Production Architecture
  * Local Telemetry, Secure Command Allowlist & Operations Server (:3131).
- *
- * Modular Route Organization:
- * - /api/sysinfo, /api/capabilities, /api/permissions -> routes/system.js
- * - /api/health-check, /api/processes, /api/event-logs -> routes/diagnostics.js
- * - /api/security, /api/privacy                       -> routes/security.js
- * - /api/storage, /api/developer-cleanup, /api/snapshots -> routes/storage.js
- * - /api/services, /api/startup-items                 -> routes/services.js
- * - /api/network/diagnostics                          -> routes/network.js
- * - /api/reports, /api/audit-history                  -> routes/reports.js
- * - /api/actions/*                                    -> routes/actions.js
- * - /api/v10/*  (health contract, permission matrix, operations ledger,
- *                calibration, chaos, privacy, API contracts) -> routes/v10.js
  */
 
 import express from 'express';
@@ -27,6 +15,7 @@ import servicesRouter from './server/routes/services.js';
 import networkRouter from './server/routes/network.js';
 import reportsRouter from './server/routes/reports.js';
 import actionsRouter from './server/routes/actions.js';
+import windowsAssistantRouter from './server/routes/windows-assistant.js';
 import v10Router from './server/routes/v10.js';
 import intelligenceRouter from './server/routes/intelligence.js';
 import windowsRouter from './server/routes/windows.js';
@@ -41,8 +30,6 @@ import { getDatabase } from './server/db/database.js';
 const PORT = parseInt(process.env.PORT || '3131', 10);
 const app = express();
 
-// ── CORS: Allow local dev + sandboxed preview hosts ─────────────────────────
-// The preview environment proxies under *.e2b.app — these must be accepted.
 const ALLOWED_ORIGINS = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
@@ -54,33 +41,17 @@ const ALLOWED_ORIGINS = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (same-origin, curl, server-to-server)
     if (!origin) return callback(null, true);
-    // Allow known local origins
     if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
-    // Allow sandboxed preview hosts (*.e2b.app)
     if (/\.e2b\.app$/.test(new URL(origin).hostname)) return callback(null, true);
-    // Allow localhost on any port (dev flexibility)
     if (/^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)) return callback(null, true);
     callback(null, false);
   },
   credentials: true,
 }));
 
-/**
- * SECURITY (P1-C #14 — unbounded request body).
- *
- * v10.0 used a bare `express.json()`, whose default 100kb limit was never stated and
- * whose rejection produced an unstructured HTML error. A local API is still an API: a
- * malfunctioning client (or anything that reaches the port) could previously push
- * arbitrarily large payloads through the JSON parser before any route logic ran.
- *
- * The limit is now explicit and deliberately small — no legitimate request this server
- * accepts is larger than a few kilobytes of parameters.
- */
 app.use(express.json({ limit: '64kb', strict: true }));
 
-// ── Production Security Headers (must be before routes) ───────────────────
 app.use((_req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
@@ -89,7 +60,6 @@ app.use((_req, res, next) => {
   next();
 });
 
-/** Turn body-parser failures into the same contract envelope as every other error. */
 app.use((err, _req, res, next) => {
   if (!err) return next();
   if (err.type === 'entity.too.large') {
@@ -109,13 +79,11 @@ app.use((err, _req, res, next) => {
   return next(err);
 });
 
-// ── Security middleware chain ───────────────────────────────────────────────
 app.use(localhostOnlyGuard);
 app.use(concurrencyGuard);
 app.use(safeModeMiddleware);
 app.use(safeModeGuardMiddleware);
 
-// ── Mount modular sub-routers ──────────────────────────────────────────────
 app.use('/api', systemRouter);
 app.use('/api', diagnosticsRouter);
 app.use('/api', securityRouter);
@@ -123,13 +91,15 @@ app.use('/api', storageRouter);
 app.use('/api', servicesRouter);
 app.use('/api', reportsRouter);
 app.use('/api/network', networkRouter);
+// Windows assistant must be mounted before the generic action router so its
+// platform-specific implementation owns POST /api/actions/ask-assistant.
+app.use('/api/actions', windowsAssistantRouter);
 app.use('/api/actions', actionsRouter);
 app.use('/api/v10', v10Router);
 app.use('/api/intelligence', intelligenceRouter);
 app.use('/api/windows', windowsRouter);
 app.use('/api/windows/v2', windowsV2Router);
 
-// ── Safe Mode management endpoints ─────────────────────────────────────────────
 app.get('/api/v10/safe-mode', (_req, res) => {
   res.json({ safeMode: getSafeModeStatus() });
 });
@@ -151,7 +121,6 @@ app.post('/api/v10/safe-mode/deactivate', (req, res) => {
   res.json({ success: true, ...result });
 });
 
-// ── Health endpoint ────────────────────────────────────────────────────────
 app.get('/api/health', async (_req, res) => {
   res.json({
     status: 'ok',
@@ -162,7 +131,6 @@ app.get('/api/health', async (_req, res) => {
   });
 });
 
-// ── v10 P0 #6: nothing leaves this server without a well-formed error envelope ──
 app.use((req, res) => {
   res.status(404).json(createErrorResponse({
     code: 'ROUTE_NOT_FOUND',
@@ -172,7 +140,6 @@ app.use((req, res) => {
   }));
 });
 
-// eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
   console.error('[v11] Unhandled error:', err);
   res.status(500).json(createErrorResponse({
@@ -192,15 +159,12 @@ const brand = isMac ? 'MacSuite' : 'WinSuite';
 const server = app.listen(PORT, '127.0.0.1', async () => {
   console.log(`✅  ${brand} (v11.0) telemetry & operations server listening on http://127.0.0.1:${PORT}`);
   console.log(`    Platform: ${detectedPlatform.toUpperCase()} | Host: ${os.hostname()} (${os.arch()})`);
-
-  // v10 P0 #9 — announce offline-first posture at boot so degraded mode is never a surprise.
   const runtime = await getDegradedModeStatus();
   console.log(`    Runtime: ${runtime.online ? 'ONLINE' : 'OFFLINE'} | ${runtime.message}`);
-  console.log(`    Safe Mode: Available via POST /api/v10/safe-mode/activate`);
-  console.log(`    Contract: GET /api/v10/health · /api/v10/permissions/matrix · /api/v10/contracts/schemas`);
+  console.log('    Safe Mode: Available via POST /api/v10/safe-mode/activate');
+  console.log('    Contract: GET /api/v10/health · /api/v10/permissions/matrix · /api/v10/contracts/schemas');
 });
 
-// Production Graceful Shutdown & Database Checkpoint
 function handleShutdown(signal) {
   console.log(`\n🛑 [${brand}] Received ${signal}. Checkpointing SQLite database and shutting down...`);
   try {
@@ -218,7 +182,6 @@ function handleShutdown(signal) {
 
 process.on('SIGINT', () => handleShutdown('SIGINT'));
 process.on('SIGTERM', () => handleShutdown('SIGTERM'));
-
 process.on('unhandledRejection', (reason) => {
   console.error('[Production Daemon] Unhandled Promise Rejection:', reason);
 });
