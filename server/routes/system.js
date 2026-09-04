@@ -18,6 +18,15 @@ const isMac = process.platform === 'darwin';
 const isWin = process.platform === 'win32';
 const detectedPlatform = isMac ? 'macos' : isWin ? 'windows' : 'unsupported';
 
+async function commandExists(command) {
+  try {
+    await execFileAsync(isWin ? 'where.exe' : 'sh', isWin ? [command] : ['-lc', `command -v ${command}`], { encoding: 'utf8', timeout: 3000, windowsHide: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 router.get('/sysinfo', async (_req, res) => {
   try {
     const [osInfo, cpu, mem, fsSize, currentLoad, cpuTempRaw, connectivity] = await Promise.all([
@@ -37,65 +46,107 @@ router.get('/sysinfo', async (_req, res) => {
     const freeDiskGB = primary?.size > 0 && Number.isFinite(primary.used) ? +((primary.size - primary.used) / 1024 ** 3).toFixed(1) : null;
     const totalMemory = Number(mem?.total); const activeMemory = Number(mem?.active);
     const processor = os.cpus()[0]?.model?.replace(/\s+/g, ' ').trim() || `${cpu?.manufacturer || ''} ${cpu?.brand || ''}`.trim() || null;
-    res.json({ platform: detectedPlatform, brand: isMac ? 'MacSuite' : isWin ? 'WinSuite' : 'Suite', hostName: os.hostname(), user: os.userInfo()?.username || null, os: `${osInfo.distro || (isMac ? 'macOS' : isWin ? 'Windows' : 'Unknown')} ${osInfo.release || ''}`.trim(), build: osInfo.build || null, arch: os.arch(), processor, cores: Number.isFinite(cpu?.cores) ? cpu.cores : os.cpus().length || null, ramGB: totalMemory > 0 ? Math.round(totalMemory / 1024 ** 3) : null, freeDiskGB, totalDiskGB, cpuUsage, cpuTemp, cpuTempFormatted: cpuTemp === null ? 'UNAVAILABLE' : `${cpuTemp}°C`, memoryUsage: totalMemory > 0 && Number.isFinite(activeMemory) ? Math.round(activeMemory / totalMemory * 100) : null, uptime: `${Math.floor(os.uptime() / 3600)}h ${Math.floor(os.uptime() % 3600 / 60)}m`, isOnline: connectivity.online, connectivity: { online: connectivity.online, method: connectivity.method, checkedAt: new Date(connectivity.checkedAt).toISOString() }, capabilities: { powershell: isWin ? 'available' : 'unsupported', sfc: isWin ? 'available' : 'unsupported', dism: isWin ? 'available' : 'unsupported', winget: isWin ? 'available' : 'unsupported', defender: isWin ? 'available' : 'unsupported', storageSense: isWin ? 'available' : 'unsupported', homebrew: isMac ? 'available' : 'unsupported', diskutil: isMac ? 'available' : 'unsupported', tmutil: isMac ? 'available' : 'unsupported', softwareupdate: isMac ? 'available' : 'unsupported', gatekeeper: isMac ? 'available' : 'unsupported', xprotect: isMac ? 'available' : 'unsupported', sip: isMac ? 'available' : 'unsupported' } });
+    res.json({ platform: detectedPlatform, brand: isMac ? 'MacSuite' : isWin ? 'WinSuite' : 'Suite', hostName: os.hostname(), user: os.userInfo()?.username || null, os: `${osInfo.distro || ''} ${osInfo.release || ''}`.trim() || null, build: osInfo.build || null, arch: os.arch(), processor, cores: Number.isFinite(cpu?.cores) ? cpu.cores : null, ramGB: totalMemory > 0 ? Math.round(totalMemory / 1024 ** 3) : null, freeDiskGB, totalDiskGB, cpuUsage, cpuTemp, cpuTempFormatted: cpuTemp === null ? 'UNAVAILABLE' : `${cpuTemp}°C`, memoryUsage: totalMemory > 0 && Number.isFinite(activeMemory) ? Math.round(activeMemory / totalMemory * 100) : null, uptime: Number.isFinite(os.uptime()) ? `${Math.floor(os.uptime() / 3600)}h ${Math.floor(os.uptime() % 3600 / 60)}m` : null, isOnline: connectivity.online, connectivity: { online: connectivity.online, method: connectivity.method, checkedAt: new Date(connectivity.checkedAt).toISOString() }, capabilities: null });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/capabilities', async (_req, res) => {
-  if (isWin) return res.json({ platform: detectedPlatform, capabilities: [
-    { id: 'win.ps', name: 'PowerShell 7/5.1', command: 'powershell', status: 'available', description: 'Windows management and automation' },
-    { id: 'win.sfc', name: 'System File Checker', command: 'sfc', status: 'available', description: 'Windows system file integrity' },
-    { id: 'win.dism', name: 'DISM', command: 'dism.exe', status: 'available', description: 'Windows component store servicing' },
-    { id: 'win.winget', name: 'WinGet', command: 'winget', status: 'optional', description: 'Windows package manager; may not be installed' },
-    { id: 'win.defender', name: 'Microsoft Defender', command: 'Update-MpSignature', status: 'available', description: 'Defender management interface' },
-    { id: 'win.restore', name: 'System Restore', command: 'Checkpoint-Computer', status: 'permission-required', description: 'Restore point creation requires elevation' },
-    { id: 'win.bitlocker', name: 'BitLocker', command: 'manage-bde', status: 'available', description: 'Volume encryption management' },
-  ] });
-  if (isMac) {
-    const brewPath = fs.existsSync('/opt/homebrew/bin/brew') ? '/opt/homebrew/bin/brew' : '/usr/local/bin/brew';
-    let brewVersion = null;
-    if (fs.existsSync(brewPath)) { try { const { stdout } = await execFileAsync(brewPath, ['--version'], { encoding: 'utf8', timeout: 4000 }); brewVersion = String(stdout).split('\n')[0].replace('Homebrew ', '').trim() || null; } catch {} }
-    return res.json({ platform: detectedPlatform, capabilities: [
-      { id: 'mac.brew', name: 'Homebrew', command: 'brew', status: brewVersion ? 'available' : 'not-installed', version: brewVersion, description: 'Homebrew package manager' },
-      { id: 'mac.diskutil', name: 'Disk Utility', command: 'diskutil', status: fs.existsSync('/usr/sbin/diskutil') ? 'available' : 'not-found', description: 'Disk and APFS management' },
-      { id: 'mac.tmutil', name: 'Time Machine', command: 'tmutil', status: fs.existsSync('/usr/bin/tmutil') ? 'available' : 'not-found', description: 'Time Machine management' },
-      { id: 'mac.swup', name: 'Software Update', command: 'softwareupdate', status: fs.existsSync('/usr/sbin/softwareupdate') ? 'available' : 'not-found', description: 'macOS software updates' },
-      { id: 'mac.spctl', name: 'Gatekeeper', command: 'spctl', status: fs.existsSync('/usr/sbin/spctl') ? 'available' : 'not-found', description: 'Code-signing policy assessment' },
-      { id: 'mac.sip', name: 'System Integrity Protection', command: 'csrutil', status: fs.existsSync('/usr/bin/csrutil') ? 'available' : 'not-found', description: 'SIP status management' },
-      { id: 'mac.fda', name: 'Full Disk Access', command: 'tccutil', status: 'permission-required', description: 'User-controlled TCC privacy permission' },
-    ] });
+  if (!isWin && !isMac) return res.json({ platform: detectedPlatform, capabilities: [] });
+  const definitions = isWin ? [
+    ['win.ps', 'PowerShell 7/5.1', 'powershell', 'Windows management and automation'],
+    ['win.sfc', 'System File Checker', 'sfc', 'Windows system file integrity'],
+    ['win.dism', 'DISM', 'dism.exe', 'Windows component store servicing'],
+    ['win.winget', 'WinGet', 'winget', 'Windows package manager'],
+    ['win.restore', 'System Restore', 'Checkpoint-Computer', 'Restore point creation'],
+    ['win.bitlocker', 'BitLocker', 'manage-bde', 'Volume encryption management'],
+  ] : [
+    ['mac.brew', 'Homebrew', 'brew', 'Homebrew package manager'],
+    ['mac.diskutil', 'Disk Utility', 'diskutil', 'Disk and APFS management'],
+    ['mac.tmutil', 'Time Machine', 'tmutil', 'Time Machine management'],
+    ['mac.swup', 'Software Update', 'softwareupdate', 'macOS software updates'],
+    ['mac.spctl', 'Gatekeeper', 'spctl', 'Code-signing policy assessment'],
+    ['mac.sip', 'System Integrity Protection', 'csrutil', 'SIP status management'],
+  ];
+  const capabilities = [];
+  for (const [id, name, command, description] of definitions) {
+    const available = await commandExists(command);
+    capabilities.push({ id, name, command, status: available ? 'available' : 'not-found', description });
   }
-  res.json({ platform: detectedPlatform, capabilities: [] });
+  capabilities.push(isMac
+    ? { id: 'mac.fda', name: 'Full Disk Access', command: 'TCC', status: 'not-checked', description: 'Permission state requires a runtime probe.' }
+    : { id: 'win.admin', name: 'Administrator', command: 'elevation probe', status: 'not-checked', description: 'Elevation is determined by the permissions endpoint.' });
+  res.json({ platform: detectedPlatform, capabilities });
 });
 
 router.get('/permissions', async (_req, res) => {
-  const probed = await probeRealPermissionState(); const state = createPermissionState(probed.granted); const matrix = buildPermissionMatrix(state, detectedPlatform, { mdmBlocked: probed.mdmBlocked }); const by = (a) => matrix.features.filter((f) => f.availability === a).map((f) => f.featureId);
-  res.json({ platform: detectedPlatform, contractVersion: '16.1.1', elevationLevel: probed.granted[PERMISSION.ADMIN] ? (isWin ? 'Administrator' : 'Root / Admin') : 'Standard User', isElevated: !!probed.granted[PERMISSION.ADMIN], elevationProbe: probed.evidence, permissionState: state, matrix: { counts: matrix.counts, coveragePct: matrix.coveragePct, available: by(AVAILABILITY.AVAILABLE), limited: by(AVAILABILITY.LIMITED), requiresPermission: by(AVAILABILITY.REQUIRES_PERMISSION), unsupported: by(AVAILABILITY.UNSUPPORTED), features: matrix.features }, grantInstructions: matrix.features.filter((f) => f.availability === AVAILABILITY.REQUIRES_PERMISSION).flatMap((f) => f.grantInstructions), honestyStatement: matrix.honestyStatement, capabilities: { canRunIntegrityChecks: !!probed.granted[PERMISSION.ADMIN], canModifyServices: !!probed.granted[PERMISSION.ADMIN], canCleanCaches: true, canTriggerUpdates: !!probed.granted[PERMISSION.ADMIN] } });
+  const probed = await probeRealPermissionState();
+  const state = createPermissionState(probed.granted);
+  const matrix = buildPermissionMatrix(state, detectedPlatform, { mdmBlocked: probed.mdmBlocked });
+  const by = (a) => matrix.features.filter((f) => f.availability === a).map((f) => f.featureId);
+  res.json({ platform: detectedPlatform, contractVersion: '16.1.1', elevationLevel: probed.granted[PERMISSION.ADMIN] === true ? (isWin ? 'Administrator' : 'Root / Admin') : 'UNKNOWN', isElevated: probed.granted[PERMISSION.ADMIN] ?? null, elevationProbe: probed.evidence, permissionState: state, matrix: { counts: matrix.counts, coveragePct: matrix.coveragePct, available: by(AVAILABILITY.AVAILABLE), limited: by(AVAILABILITY.LIMITED), requiresPermission: by(AVAILABILITY.REQUIRES_PERMISSION), unsupported: by(AVAILABILITY.UNSUPPORTED), features: matrix.features }, grantInstructions: matrix.features.filter((f) => f.availability === AVAILABILITY.REQUIRES_PERMISSION).flatMap((f) => f.grantInstructions), honestyStatement: matrix.honestyStatement, capabilities: { canRunIntegrityChecks: probed.granted[PERMISSION.ADMIN] ?? null, canModifyServices: probed.granted[PERMISSION.ADMIN] ?? null, canCleanCaches: null, canTriggerUpdates: probed.granted[PERMISSION.ADMIN] ?? null } });
 });
 
 async function probeRealPermissionState() {
-  const granted = {}; const evidence = []; let isAdmin = false; let method = ''; let observed = '';
-  if (isWin) { const p = await probeWindowsElevation(); isAdmin = !!p.isAdmin; method = p.method; observed = isAdmin ? 'Administrator context detected' : 'Not elevated'; }
-  else { const uid = typeof process.getuid === 'function' ? process.getuid() : null; isAdmin = uid === 0; method = 'process.getuid()'; observed = uid === null ? 'unavailable' : `uid=${uid}`; }
-  granted[PERMISSION.ADMIN] = isAdmin; evidence.push({ permission: PERMISSION.ADMIN, probe: method, observed, granted: isAdmin });
-  let fda = false; if (isMac) { try { const fsp = await import('fs/promises'); await fsp.readdir(`${os.homedir()}/Library/Application Support/com.apple.TCC`); fda = true; } catch {} }
-  granted[PERMISSION.FULL_DISK_ACCESS] = fda; evidence.push({ permission: PERMISSION.FULL_DISK_ACCESS, probe: 'TCC database readability', observed: isMac ? (fda ? 'readable' : 'not readable') : 'not applicable', granted: fda });
-  granted[PERMISSION.USER_APPROVED] = true; granted[PERMISSION.NETWORK] = true; granted[PERMISSION.DEVELOPER_TOOLS] = isMac ? true : !!process.env.DEVELOPER_DIR;
-  for (const p of [PERMISSION.ACCESSIBILITY, PERMISSION.SCREEN_RECORDING, PERMISSION.CAMERA, PERMISSION.MICROPHONE]) { granted[p] = false; evidence.push({ permission: p, probe: 'TCC state cannot be read without prompting', observed: 'undetermined', granted: false }); }
+  const granted = {}; const evidence = [];
+  if (isWin) {
+    try {
+      const p = await probeWindowsElevation();
+      granted[PERMISSION.ADMIN] = typeof p.isAdmin === 'boolean' ? p.isAdmin : null;
+      evidence.push({ permission: PERMISSION.ADMIN, probe: p.method || 'Windows elevation probe', observed: p.isAdmin === true ? 'Administrator context detected' : p.isAdmin === false ? 'Not elevated' : 'undetermined', granted: granted[PERMISSION.ADMIN] });
+    } catch { evidence.push({ permission: PERMISSION.ADMIN, probe: 'Windows elevation probe', observed: 'unavailable', granted: null }); }
+  } else if (isMac) {
+    const uid = typeof process.getuid === 'function' ? process.getuid() : null;
+    granted[PERMISSION.ADMIN] = uid === null ? null : uid === 0;
+    evidence.push({ permission: PERMISSION.ADMIN, probe: 'process.getuid()', observed: uid === null ? 'unavailable' : `uid=${uid}`, granted: granted[PERMISSION.ADMIN] });
+    try {
+      const fsp = await import('fs/promises');
+      await fsp.readdir(`${os.homedir()}/Library/Application Support/com.apple.TCC`);
+      granted[PERMISSION.FULL_DISK_ACCESS] = true;
+      evidence.push({ permission: PERMISSION.FULL_DISK_ACCESS, probe: 'TCC database readability', observed: 'readable', granted: true });
+    } catch {
+      granted[PERMISSION.FULL_DISK_ACCESS] = null;
+      evidence.push({ permission: PERMISSION.FULL_DISK_ACCESS, probe: 'TCC database readability', observed: 'undetermined', granted: null });
+    }
+  }
+  const connectivity = await checkConnectivity().catch(() => null);
+  if (connectivity) {
+    granted[PERMISSION.NETWORK] = connectivity.online === true;
+    evidence.push({ permission: PERMISSION.NETWORK, probe: connectivity.method || 'connectivity probe', observed: connectivity.online === true ? 'network reachable' : 'network unreachable', granted: granted[PERMISSION.NETWORK] });
+  }
   return { granted, evidence, mdmBlocked: [] };
 }
 
 router.get('/network/listening-ports', async (_req, res) => { try { const ports = isMac ? await getMacListeningPorts() : isWin ? await getWindowsListeningPorts() : []; res.json({ platform: detectedPlatform, count: ports.length, ports }); } catch (err) { res.status(500).json({ error: err.message }); } });
 router.get('/apps/inventory', async (_req, res) => { try { const apps = isMac ? await getMacInstalledApplicationsInventory() : isWin ? await getWindowsInstalledApps() : []; res.json({ platform: detectedPlatform, count: apps.length, apps }); } catch (err) { res.status(500).json({ error: err.message }); } });
-router.get('/apps/footprint/:appName', async (req, res) => { try { res.json(isMac ? await getMacAppFootprint(req.params.appName) : isWin ? await getWindowsAppFootprint(req.params.appName) : { platform: detectedPlatform, available: false }); } catch (err) { res.status(500).json({ error: err.message }); } });
-router.get('/developer/health', async (_req, res) => { try { res.json(isMac ? await getMacDeveloperEnvironmentHealth() : isWin ? await getWindowsDeveloperEnvironmentHealth() : { platform: detectedPlatform, available: false }); } catch (err) { res.status(500).json({ error: err.message }); } });
-router.get('/thermal', async (_req, res) => { try { res.json(isMac ? await getMacThermalState() : isWin ? await getWindowsThermalState() : { platform: detectedPlatform, available: false }); } catch (err) { res.status(500).json({ error: err.message }); } });
-router.get('/windows/wsl', async (_req, res) => { try { res.json(isWin ? await getWindowsWslHealth() : { platform: detectedPlatform, available: false, distros: [], note: 'WSL requires Windows.' }); } catch (err) { res.status(500).json({ error: err.message }); } });
-router.get('/windows/printer-queue', async (_req, res) => { try { res.json(isWin ? await getWindowsPrinterQueueDoctor() : { platform: detectedPlatform, available: false, printers: [], stuckJobs: [], hasStuckJobs: false }); } catch (err) { res.status(500).json({ error: err.message }); } });
-router.get('/update/history', async (_req, res) => { try { if (isMac) return res.json(await getMacUpdateHistory()); if (isWin) return res.json({ platform: detectedPlatform, history: [], count: 0, canonicalEndpoint: '/api/windows/v2/update/history' }); return res.json({ platform: detectedPlatform, history: [], count: 0, available: false }); } catch (err) { res.status(500).json({ error: err.message }); } });
-router.get('/update/failed', async (_req, res) => { try { if (isMac) return res.json(await getMacFailedUpdates()); if (isWin) return res.json({ platform: detectedPlatform, failedUpdates: [], count: 0, canonicalEndpoint: '/api/windows/v2/update/failed' }); return res.json({ platform: detectedPlatform, failedUpdates: [], count: 0, available: false }); } catch (err) { res.status(500).json({ error: err.message }); } });
-router.get('/services/deps', async (_req, res) => { try { if (isMac) return res.json(await getMacServiceDependencies()); if (isWin) return res.json({ platform: detectedPlatform, services: [], count: 0, canonicalEndpoint: '/api/windows/v2/services/deps' }); return res.json({ platform: detectedPlatform, services: [], count: 0, available: false }); } catch (err) { res.status(500).json({ error: err.message }); } });
-router.get('/health-score', async (_req, res) => { try { const [mem, load, disks] = await Promise.all([si.mem().catch(() => null), si.currentLoad().catch(() => null), si.fsSize().catch(() => [])]); const scores = []; if (load && Number.isFinite(load.currentLoad)) { const v = Math.round(load.currentLoad); scores.push({ name: 'CPU', value: Math.max(0, 100 - v), detail: `${v}% load` }); } if (mem?.total > 0 && Number.isFinite(mem.active)) { const v = Math.round(mem.active / mem.total * 100); scores.push({ name: 'Memory', value: Math.max(0, 100 - v), detail: `${v}% in use` }); } const primary = disks.find((f) => f.mount === '/' || f.mount === '/System/Volumes/Data' || /^C:/i.test(f.mount)) || disks[0]; if (primary?.size > 0 && Number.isFinite(primary.used)) { const v = Math.round(primary.used / primary.size * 100); scores.push({ name: 'Disk', value: Math.max(0, 100 - v), detail: `${v}% full` }); } const score = scores.length ? Math.round(scores.reduce((a, b) => a + b.value, 0) / scores.length) : null; res.json({ score, grade: score === null ? 'N/A' : score >= 80 ? 'Excellent' : score >= 60 ? 'Good' : score >= 40 ? 'Fair' : 'Poor', components: scores, platform: detectedPlatform, timestamp: new Date().toISOString(), measurement: scores.length ? 'observed' : 'unavailable' }); } catch (err) { res.status(500).json({ error: err.message }); } });
-router.get('/recent-downloads', async (_req, res) => { try { const dir = path.join(os.homedir(), 'Downloads'); if (!fs.existsSync(dir)) return res.json({ platform: detectedPlatform, files: [], count: 0, available: false }); const files = fs.readdirSync(dir, { withFileTypes: true }).filter((e) => e.isFile()).map((e) => { try { const s = fs.statSync(path.join(dir, e.name)); return { name: e.name, sizeMB: Math.round(s.size / 1024 / 1024 * 10) / 10, modifiedAt: s.mtime.toISOString(), ext: path.extname(e.name).toLowerCase() }; } catch { return null; } }).filter(Boolean).sort((a, b) => new Date(b.modifiedAt) - new Date(a.modifiedAt)).slice(0, 30); res.json({ platform: detectedPlatform, files, count: files.length, path: dir, measurement: 'observed' }); } catch (err) { res.status(500).json({ error: err.message }); } });
+router.get('/apps/footprint/:appName', async (req, res) => { try { if (!isMac && !isWin) return res.json({ platform: detectedPlatform, availability: AVAILABILITY.UNSUPPORTED }); res.json(isMac ? await getMacAppFootprint(req.params.appName) : await getWindowsAppFootprint(req.params.appName)); } catch (err) { res.status(500).json({ error: err.message }); } });
+router.get('/developer/health', async (_req, res) => { try { if (!isMac && !isWin) return res.json({ platform: detectedPlatform, availability: AVAILABILITY.UNSUPPORTED }); res.json(isMac ? await getMacDeveloperEnvironmentHealth() : await getWindowsDeveloperEnvironmentHealth()); } catch (err) { res.status(500).json({ error: err.message }); } });
+router.get('/thermal', async (_req, res) => { try { if (!isMac && !isWin) return res.json({ platform: detectedPlatform, availability: AVAILABILITY.UNSUPPORTED }); res.json(isMac ? await getMacThermalState() : await getWindowsThermalState()); } catch (err) { res.status(500).json({ error: err.message }); } });
+router.get('/windows/wsl', async (_req, res) => { try { if (!isWin) return res.json({ platform: detectedPlatform, availability: AVAILABILITY.UNSUPPORTED }); res.json(await getWindowsWslHealth()); } catch (err) { res.status(500).json({ error: err.message }); } });
+router.get('/windows/printer-queue', async (_req, res) => { try { if (!isWin) return res.json({ platform: detectedPlatform, availability: AVAILABILITY.UNSUPPORTED }); res.json(await getWindowsPrinterQueueDoctor()); } catch (err) { res.status(500).json({ error: err.message }); } });
+router.get('/update/history', async (_req, res) => { try { if (isMac) return res.json(await getMacUpdateHistory()); if (isWin) return res.json({ platform: detectedPlatform, availability: AVAILABILITY.UNSUPPORTED, canonicalEndpoint: '/api/windows/v2/update/history' }); return res.json({ platform: detectedPlatform, availability: AVAILABILITY.UNSUPPORTED }); } catch (err) { res.status(500).json({ error: err.message }); } });
+router.get('/update/failed', async (_req, res) => { try { if (isMac) return res.json(await getMacFailedUpdates()); if (isWin) return res.json({ platform: detectedPlatform, availability: AVAILABILITY.UNSUPPORTED, canonicalEndpoint: '/api/windows/v2/update/failed' }); return res.json({ platform: detectedPlatform, availability: AVAILABILITY.UNSUPPORTED }); } catch (err) { res.status(500).json({ error: err.message }); } });
+router.get('/services/deps', async (_req, res) => { try { if (isMac) return res.json(await getMacServiceDependencies()); if (isWin) return res.json({ platform: detectedPlatform, availability: AVAILABILITY.UNSUPPORTED, canonicalEndpoint: '/api/windows/v2/services/deps' }); return res.json({ platform: detectedPlatform, availability: AVAILABILITY.UNSUPPORTED }); } catch (err) { res.status(500).json({ error: err.message }); } });
+
+router.get('/health-score', async (_req, res) => {
+  try {
+    const [mem, load, disks] = await Promise.all([si.mem().catch(() => null), si.currentLoad().catch(() => null), si.fsSize().catch(() => [])]);
+    const scores = [];
+    if (load && Number.isFinite(load.currentLoad)) { const v = Math.round(load.currentLoad); scores.push({ name: 'CPU', value: Math.max(0, 100 - v), detail: `${v}% load` }); }
+    if (mem?.total > 0 && Number.isFinite(mem.active)) { const v = Math.round(mem.active / mem.total * 100); scores.push({ name: 'Memory', value: Math.max(0, 100 - v), detail: `${v}% in use` }); }
+    const primary = disks.find((f) => f.mount === '/' || f.mount === '/System/Volumes/Data' || /^C:/i.test(f.mount)) || disks[0];
+    if (primary?.size > 0 && Number.isFinite(primary.used)) { const v = Math.round(primary.used / primary.size * 100); scores.push({ name: 'Disk', value: Math.max(0, 100 - v), detail: `${v}% full` }); }
+    const healthScore = scores.length ? Math.round(scores.reduce((a, s) => a + s.value, 0) / scores.length) : null;
+    res.json({ platform: detectedPlatform, healthScore, qualified: scores.length > 0, components: scores, sampledAt: new Date().toISOString() });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/recent-downloads', async (_req, res) => {
+  try {
+    const dir = path.join(os.homedir(), 'Downloads');
+    if (!fs.existsSync(dir)) return res.json({ platform: detectedPlatform, availability: AVAILABILITY.UNAVAILABLE, reason: 'Downloads directory is unavailable.' });
+    const entries = fs.readdirSync(dir).map((name) => { try { const full = path.join(dir, name); const stat = fs.statSync(full); return { name, size: stat.size, modifiedAt: stat.mtime.toISOString() }; } catch { return null; } }).filter(Boolean).sort((a, b) => Date.parse(b.modifiedAt) - Date.parse(a.modifiedAt)).slice(0, 20);
+    res.json({ platform: detectedPlatform, count: entries.length, downloads: entries });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 export default router;
