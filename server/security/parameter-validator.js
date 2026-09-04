@@ -6,14 +6,7 @@
 
 const DANGEROUS_CHAR_PATTERN = /[;&|`$><!\\(\)]/;
 
-/**
- * Validates parameters against a command definition's parameterSchema.
- * @param {Object} spec - Command specification from COMMAND_ALLOWLIST
- * @param {Object} params - User-supplied parameters
- * @returns {{ valid: boolean, error?: string, sanitizedArgs?: string[] }}
- */
 export function validateCommandParameters(spec, params = {}) {
-  // If no schema is defined, no parameters should be passed (or only empty object)
   if (!spec.parameterSchema) {
     if (Object.keys(params).length > 0) {
       return { valid: false, error: `Command '${spec.bin}' does not accept custom parameters.` };
@@ -58,22 +51,27 @@ export function validateCommandParameters(spec, params = {}) {
     }
   }
 
-  // Check for any unexpected parameters
   for (const key of Object.keys(params)) {
     if (!spec.parameterSchema[key]) {
       return { valid: false, error: `Unexpected parameter '${key}' is not allowed for this command.` };
     }
   }
 
-  // Construct structured arguments based on command specifics if parameterized
-  if (spec.bin === 'powershell' && params.serviceName && params.action) {
-    sanitizedArgs.push(`${params.action} -Name "${params.serviceName}"`);
+  // Windows startup items are handled without shell interpolation. The item name
+  // is validated above and is inserted only into quoted PowerShell literals.
+  // Registry Run entries are disabled by renaming the value while preserving the
+  // original command; scheduled tasks are disabled/enabled by task name.
+  if (spec.platform === 'windows' && spec.bin === 'powershell' && params.itemName !== undefined && params.enable !== undefined) {
+    const itemName = params.itemName.replace(/'/g, "''");
+    const script = params.enable
+      ? `$run='HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'; if (Test-Path $run) { $p=Get-ItemProperty -Path $run -ErrorAction SilentlyContinue; $disabled='Disabled_'+${JSON.stringify(params.itemName)}; if ($p.PSObject.Properties.Name -contains $disabled) { Rename-ItemProperty -Path $run -Name $disabled -NewName ${JSON.stringify(params.itemName)} -ErrorAction Stop } }; Get-ScheduledTask -TaskName '${itemName}' -ErrorAction SilentlyContinue | Enable-ScheduledTask -ErrorAction SilentlyContinue; Write-Output 'Startup item enabled.'`
+      : `$run='HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'; if (Test-Path $run) { $p=Get-ItemProperty -Path $run -ErrorAction SilentlyContinue; if ($p.PSObject.Properties.Name -contains '${itemName}') { Rename-ItemProperty -Path $run -Name '${itemName}' -NewName 'Disabled_${itemName}' -ErrorAction Stop } }; Get-ScheduledTask -TaskName '${itemName}' -ErrorAction SilentlyContinue | Disable-ScheduledTask -ErrorAction SilentlyContinue; Write-Output 'Startup item disabled.'`;
+    sanitizedArgs.push(script);
+  } else if (spec.bin === 'powershell' && params.serviceName && params.action) {
+    const serviceName = params.serviceName.replace(/'/g, "''");
+    sanitizedArgs.push(`${params.action} -Name \"${serviceName}\"`);
   } else if (spec.bin === 'powershell' && params.itemName !== undefined && params.enable !== undefined) {
-    if (params.enable) {
-      sanitizedArgs.push(`Write-Output "Enabled startup item ${params.itemName}"`);
-    } else {
-      sanitizedArgs.push(`Write-Output "Disabled startup item ${params.itemName}"`);
-    }
+    sanitizedArgs.push(`Write-Output \"${params.enable ? 'Enabled' : 'Disabled'} startup item ${params.itemName}\"`);
   }
 
   return { valid: true, sanitizedArgs };
