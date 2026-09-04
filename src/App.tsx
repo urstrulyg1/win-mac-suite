@@ -106,12 +106,12 @@ function MainApp() {
     os: '',
     build: '',
     processor: '',
-    ramGB: 0,
-    freeDiskGB: 0,
-    totalDiskGB: 0,
-    isOnline: true,
-    cpuUsage: 0,
-    memoryUsage: 0,
+    ramGB: null,
+    freeDiskGB: null,
+    totalDiskGB: null,
+    isOnline: null,
+    cpuUsage: null,
+    memoryUsage: null,
     uptime: '',
   });
   const [backendOnline, setBackendOnline] = useState(false);
@@ -145,19 +145,19 @@ function MainApp() {
         if (cancelled) return;
         setBackendOnline(true);
         setRealSysInfo({
-          hostName: (data.hostName as string) || 'Local Computer',
-          user: (data.user as string) || 'User',
-          os: (data.os as string) || 'OS',
+          hostName: typeof data.hostName === 'string' ? data.hostName : '',
+          user: typeof data.user === 'string' ? data.user : '',
+          os: typeof data.os === 'string' ? data.os : '',
           build: (data.build as string) || '',
-          processor: (data.processor as string) || 'CPU',
-          ramGB: (data.ramGB as number) || 0,
-          freeDiskGB: (data.freeDiskGB as number) || 0,
-          totalDiskGB: (data.totalDiskGB as number) || 0,
-          isOnline: (data.isOnline as boolean) ?? true,
-          cpuUsage: (data.cpuUsage as number) ?? 0,
+          processor: typeof data.processor === 'string' ? data.processor : '',
+          ramGB: typeof data.ramGB === 'number' ? data.ramGB : null,
+          freeDiskGB: typeof data.freeDiskGB === 'number' ? data.freeDiskGB : null,
+          totalDiskGB: typeof data.totalDiskGB === 'number' ? data.totalDiskGB : null,
+          isOnline: typeof data.isOnline === 'boolean' ? data.isOnline : null,
+          cpuUsage: typeof data.cpuUsage === 'number' ? data.cpuUsage : null,
           cpuTemp: (data.cpuTemp as number | null) ?? undefined,
           cpuTempFormatted: (data.cpuTempFormatted as string) || 'UNAVAILABLE',
-          memoryUsage: (data.memoryUsage as number) ?? 0,
+          memoryUsage: typeof data.memoryUsage === 'number' ? data.memoryUsage : null,
           uptime: (data.uptime as string) || '',
         });
       } catch {
@@ -277,13 +277,9 @@ function MainApp() {
     reportsApi.generate({
       title: `${config.productName} Maintenance Run (${mode} Mode)`,
       reportType: 'maintenance-run',
-      summary: `Completed ${finalSummary.passedSections} of ${finalSummary.totalSections} phases. Reclaimed ${finalSummary.spaceReclaimed >= 1024 ? `${(finalSummary.spaceReclaimed / 1024).toFixed(1)} GB` : `${finalSummary.spaceReclaimed} MB`} disk space.`,
+      summary: `Completed ${finalSummary.passedSections} of ${finalSummary.totalSections} phases. Disk space reclaimed: ${finalSummary.spaceReclaimed == null ? 'NOT_MEASURED' : finalSummary.spaceReclaimed >= 1024 ? `${(finalSummary.spaceReclaimed / 1024).toFixed(1)} GB` : `${finalSummary.spaceReclaimed} MB`}.`,
     }).catch(() => null);
 
-    setRealSysInfo((prev) => ({
-      ...prev,
-      freeDiskGB: +(prev.freeDiskGB + (finalSummary.spaceReclaimed / 1024)).toFixed(1),
-    }));
     setIsRunning(false);
     setCurrentSectionName('');
 
@@ -586,12 +582,12 @@ export default function App() {
     os: '',
     build: '',
     processor: '',
-    ramGB: 0,
-    freeDiskGB: 0,
-    totalDiskGB: 0,
-    isOnline: true,
-    cpuUsage: 0,
-    memoryUsage: 0,
+    ramGB: null,
+    freeDiskGB: null,
+    totalDiskGB: null,
+    isOnline: null,
+    cpuUsage: null,
+    memoryUsage: null,
     uptime: '',
   });
 
@@ -607,12 +603,12 @@ export default function App() {
           os: (data.os as string) || '',
           build: (data.build as string) || '',
           processor: (data.processor as string) || '',
-          ramGB: (data.ramGB as number) || 0,
-          freeDiskGB: (data.freeDiskGB as number) || 0,
-          totalDiskGB: (data.totalDiskGB as number) || 0,
-          isOnline: (data.isOnline as boolean) ?? true,
-          cpuUsage: (data.cpuUsage as number) ?? 0,
-          memoryUsage: (data.memoryUsage as number) ?? 0,
+          ramGB: typeof data.ramGB === 'number' ? data.ramGB : null,
+          freeDiskGB: typeof data.freeDiskGB === 'number' ? data.freeDiskGB : null,
+          totalDiskGB: typeof data.totalDiskGB === 'number' ? data.totalDiskGB : null,
+          isOnline: typeof data.isOnline === 'boolean' ? data.isOnline : null,
+          cpuUsage: typeof data.cpuUsage === 'number' ? data.cpuUsage : null,
+          memoryUsage: typeof data.memoryUsage === 'number' ? data.memoryUsage : null,
           uptime: (data.uptime as string) || '',
         });
       }
