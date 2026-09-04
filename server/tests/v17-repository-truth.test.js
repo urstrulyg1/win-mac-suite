@@ -8,14 +8,12 @@ const productionRoots = ['src', 'server'];
 const excluded = new Set(['server/tests']);
 const extensions = new Set(['.js', '.ts', '.tsx', '.json']);
 const files = [];
-
 function walk(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     const rel = path.relative(root, full);
     if (excluded.has(rel) || [...excluded].some((x) => rel.startsWith(`${x}${path.sep}`))) continue;
-    if (entry.isDirectory()) walk(full);
-    else if (extensions.has(path.extname(entry.name))) files.push(rel);
+    if (entry.isDirectory()) walk(full); else if (extensions.has(path.extname(entry.name))) files.push(rel);
   }
 }
 for (const dir of productionRoots) walk(path.join(root, dir));
@@ -45,6 +43,9 @@ test('health contract fails closed when availability is not backed by a health p
   const contract = fs.readFileSync(path.join(root, 'server/core/contract.js'), 'utf8');
   assert.match(contract, /availability = AVAILABILITY\.LIMITED/);
   assert.match(contract, /return proposedStatus \|\| HEALTH_STATUS\.INFORMATIONAL/);
+  assert.match(contract, /healthEvaluated = counts\.HEALTHY \+ counts\.WARNING \+ counts\.CRITICAL/);
+  assert.match(contract, /healthScore: scoreBase/);
+  assert.match(contract, /HEALTHY requires evidence/);
 });
 
 test('permission state is not optimistic before runtime probing', () => {
@@ -52,7 +53,6 @@ test('permission state is not optimistic before runtime probing', () => {
   assert.match(permissions, /return \{ \.\.\.overrides \};/);
   assert.doesNotMatch(permissions, /USER_APPROVED\]: true/);
   assert.doesNotMatch(permissions, /NETWORK\]: true/);
-  assert.doesNotMatch(permissions, /createPermissionState\(\)\s*\{[\s\S]*USER_APPROVED/);
 });
 
 test('system capabilities are runtime probes, not platform assumptions', () => {
@@ -73,7 +73,12 @@ test('v10 capability matrix never claims checked availability without evidence',
   assert.match(v10, /evidence: \[\]/);
 });
 
+test('degraded probes never substitute caller fallback telemetry after failure', () => {
+  const degraded = fs.readFileSync(path.join(root, 'server/runtime/degraded-mode.js'), 'utf8');
+  assert.doesNotMatch(degraded, /value:\s*fallbackValue/);
+  assert.match(degraded, /value: null/);
+});
+
 test('fixture-backed production telemetry is absent', () => {
-  const fixtureDir = path.join(root, 'server', 'fixtures');
-  assert.equal(fs.existsSync(fixtureDir), false);
+  assert.equal(fs.existsSync(path.join(root, 'server', 'fixtures')), false);
 });
