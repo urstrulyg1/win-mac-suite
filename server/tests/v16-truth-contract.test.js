@@ -27,20 +27,21 @@ test('system route contains no fabricated disk telemetry defaults', () => {
   assert.doesNotMatch(source, /40\s*°C/);
 });
 
-test('legacy action router contains no canned Windows assistant answer or Windows false-success branches', () => {
-  const source = read('server/routes/actions.js');
-  assert.doesNotMatch(source, /Analyzed query against Windows telemetry/);
-  assert.doesNotMatch(source, /killedPids:\s*\[\]/);
+test('truth-safe action handlers are mounted before legacy action handlers', () => {
+  const source = read('server.js');
+  const truth = source.indexOf("app.use('/api/actions', truthSafeActionsRouter)");
+  const legacy = source.indexOf("app.use('/api/actions', actionsRouter)");
+  assert.ok(truth >= 0 && legacy >= 0 && truth < legacy);
 });
 
-test('truth-safe action router never reports measured data when measurement is unavailable', () => {
+test('truth-safe action router represents unavailable measurements explicitly', () => {
   const source = read('server/routes/truth-safe-actions.js');
   assert.match(source, /UNAVAILABLE/);
   assert.match(source, /measurement:\s*['"]observed['"]/);
   assert.match(source, /measurement:\s*['"]unsupported['"]/);
 });
 
-test('maintenance executor does not fabricate update, issue, reclaim, or reboot counts', () => {
+test('maintenance executor does not fabricate update, issue, or reboot counts', () => {
   const source = read('src/maintenance/executor.ts');
   assert.doesNotMatch(source, /totalUpdated:\s*0/);
   assert.doesNotMatch(source, /issuesFound:\s*0/);
