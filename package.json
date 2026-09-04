@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "server": "node server.js",
     "start": "concurrently \"npm run server\" \"npm run dev\"",
-    "test": "node server/tests/v8-safety-and-correlation.test.js && node server/tests/v9-comprehensive-suite.test.js && node server/tests/v10-validation-and-trust.test.js && node server/tests/v10-path-security.test.js && node server/tests/v10-intelligence.test.js && node server/tests/v10-production-audit.test.js && node server/tests/v11-platform-bugs.test.js && node server/tests/v11-cross-platform.test.js",
+    "test": "node server/tests/v8-safety-and-correlation.test.js && node server/tests/v9-comprehensive-suite.test.js && node server/tests/v10-validation-and-trust.test.js && node server/tests/v10-path-security.test.js && node server/tests/v10-intelligence.test.js && node server/tests/v10-production-audit.test.js && node server/tests/v11-platform-bugs.test.js && node server/tests/v11-cross-platform.test.js && node server/tests/v16-truth-contract.test.js",
     "test:v10": "node server/tests/v10-validation-and-trust.test.js",
     "test:security": "node server/tests/v10-path-security.test.js",
     "test:intelligence": "node server/tests/v10-intelligence.test.js",
@@ -31,11 +31,11 @@
     "@types/node": "22.19.17",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
-    "@vitejs/plugin-react": "5.1.1",
-    "concurrently": "^10.0.5",
+    "@tailwindcss/vite": "4.1.17",
     "tailwindcss": "4.1.17",
     "typescript": "5.9.3",
     "vite": "^7.3.6",
-    "vite-plugin-singlefile": "2.3.0"
+    "vite-plugin-singlefile": "2.3.0",
+    "concurrently": "^10.0.5"
   }
 }
