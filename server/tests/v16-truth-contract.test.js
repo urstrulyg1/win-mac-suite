@@ -74,8 +74,10 @@ test('known fabricated telemetry values are absent from production source', () =
 test('truth-safe action router never reports measured data when measurement is unavailable', () => {
   const source = read('server/routes/truth-safe-actions.js');
   assert.match(source, /UNAVAILABLE/);
-  assert.match(source, /measurement:\s*['"]observed['"]/);
-  assert.match(source, /measurement:\s*['"]unsupported['"]/);
+  assert.match(source, /measurement:\s*['"]OBSERVED['"]/i);
+  assert.match(source, /measurement:\s*['"]UNSUPPORTED['"]/i);
+  assert.match(source, /reclaimable:\s*null/);
+  assert.match(source, /NOT_MEASURED/);
 });
 
 test('maintenance executor derives results only from observed backend execution', () => {

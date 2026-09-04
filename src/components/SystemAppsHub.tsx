@@ -181,7 +181,7 @@ export default function SystemAppsHub() {
                 {isMac ? 'Homebrew Package Environment' : 'Windows Package Manager Catalogs'}
               </h3>
               <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-[10px]">
-                {packageInfo?.status || 'Synchronized'}
+                {packageInfo?.status ?? 'UNAVAILABLE'}
               </span>
             </div>
 
@@ -244,7 +244,7 @@ export default function SystemAppsHub() {
                     badge: `${packageInfo?.outdatedCount ?? 0} Pending`,
                     subtitle: 'Outdated package check against Homebrew API catalog.',
                     details: [
-                      { label: 'Upgrade Status', value: packageInfo?.status || 'Synchronized' },
+                      { label: 'Upgrade Status', value: packageInfo?.status ?? 'UNAVAILABLE' },
                       { label: 'Pending Updates', value: packageInfo?.outdatedCount ?? 0 },
                     ],
                     command: 'brew outdated',
@@ -278,16 +278,16 @@ export default function SystemAppsHub() {
               <button
                 onClick={() =>
                   setInspectItem({
-                    title: hardwareInfo?.chip || 'Apple M1 Processor',
+                    title: hardwareInfo?.chip ?? 'UNAVAILABLE',
                     category: 'Central Processing Unit',
-                    badge: `${hardwareInfo?.cores || 8} Cores`,
+                    badge: hardwareInfo?.cores != null ? `${hardwareInfo.cores} Cores` : 'UNAVAILABLE',
                     subtitle: 'Apple Silicon System-on-Chip unified compute engine.',
                     details: [
-                      { label: 'Processor Name', value: hardwareInfo?.chip || 'Apple M1' },
-                      { label: 'Architecture', value: hardwareInfo?.arch || 'arm64' },
-                      { label: 'Total Cores', value: hardwareInfo?.cores || 8 },
-                      { label: 'Physical Cores', value: hardwareInfo?.physicalCores || 8 },
-                      { label: 'Clock Speed', value: hardwareInfo?.speed || '3.2 GHz' },
+                      { label: 'Processor Name', value: hardwareInfo?.chip ?? 'UNAVAILABLE' },
+                      { label: 'Architecture', value: hardwareInfo?.arch ?? 'UNAVAILABLE' },
+                      { label: 'Total Cores', value: hardwareInfo?.cores ?? 'UNAVAILABLE' },
+                      { label: 'Physical Cores', value: hardwareInfo?.physicalCores ?? 'UNAVAILABLE' },
+                      { label: 'Clock Speed', value: hardwareInfo?.speed ?? 'UNAVAILABLE' },
                     ],
                     command: 'sysctl -n machdep.cpu.brand_string',
                   })
@@ -297,10 +297,10 @@ export default function SystemAppsHub() {
               >
                 <span className="text-[10px] uppercase font-bold" style={{ color: 'var(--color-ink-4)' }}>Processor Chip</span>
                 <p className="text-base font-extrabold truncate" style={{ color: 'var(--color-ink)' }}>
-                  {hardwareInfo?.chip || 'Apple M1'}
+                  {hardwareInfo?.chip ?? 'UNAVAILABLE'}
                 </p>
                 <span className="text-xs font-mono" style={{ color: 'var(--color-ink-3)' }}>
-                  {hardwareInfo?.cores || 8} Cores ({hardwareInfo?.arch || 'arm64'}) · Inspect
+                  {hardwareInfo?.cores ?? 'UNAVAILABLE'} Cores ({hardwareInfo?.arch ?? 'UNAVAILABLE'}) · Inspect
                 </span>
               </button>
 
@@ -309,10 +309,10 @@ export default function SystemAppsHub() {
                   setInspectItem({
                     title: 'Unified Memory Architecture',
                     category: 'System RAM',
-                    badge: `${hardwareInfo?.ramGB || 8} GB LPDDR`,
+                    badge: hardwareInfo?.ramGB != null ? `${hardwareInfo.ramGB} GB` : 'UNAVAILABLE',
                     subtitle: 'High-bandwidth, low-latency unified memory pool.',
                     details: [
-                      { label: 'Memory Capacity', value: `${hardwareInfo?.ramGB || 8} GB` },
+                      { label: 'Memory Capacity', value: hardwareInfo?.ramGB != null ? `${hardwareInfo.ramGB} GB` : 'UNAVAILABLE' },
                       { label: 'Architecture', value: 'Unified Unified Pool (CPU & GPU Shared)' },
                     ],
                     command: 'sysctl -n hw.memsize',
@@ -323,7 +323,7 @@ export default function SystemAppsHub() {
               >
                 <span className="text-[10px] uppercase font-bold" style={{ color: 'var(--color-ink-4)' }}>Unified Memory</span>
                 <p className="text-base font-extrabold truncate" style={{ color: 'var(--color-ink)' }}>
-                  {hardwareInfo?.ramGB || 8} GB LPDDR
+                  {hardwareInfo?.ramGB != null ? `${hardwareInfo.ramGB} GB` : 'UNAVAILABLE'}
                 </p>
                 <span className="text-xs" style={{ color: 'var(--color-ink-3)' }}>Unified Architecture · Inspect</span>
               </button>
@@ -331,12 +331,12 @@ export default function SystemAppsHub() {
               <button
                 onClick={() =>
                   setInspectItem({
-                    title: hardwareInfo?.gpu || 'Apple Silicon GPU Engine',
+                    title: hardwareInfo?.gpu ?? 'UNAVAILABLE',
                     category: 'Graphics Subsystem',
                     badge: 'Metal Active',
                     subtitle: 'Integrated GPU with Metal hardware acceleration.',
                     details: [
-                      { label: 'GPU Controller', value: hardwareInfo?.gpu || 'Apple M1 GPU' },
+                      { label: 'GPU Controller', value: hardwareInfo?.gpu ?? 'UNAVAILABLE' },
                       { label: 'API Support', value: 'Apple Metal 3 / OpenGL' },
                     ],
                     command: 'system_profiler SPDisplaysDataType',
@@ -347,7 +347,7 @@ export default function SystemAppsHub() {
               >
                 <span className="text-[10px] uppercase font-bold" style={{ color: 'var(--color-ink-4)' }}>Graphics Engine</span>
                 <p className="text-base font-extrabold truncate" style={{ color: 'var(--color-ink)' }}>
-                  {hardwareInfo?.gpu || 'Apple M1 GPU'}
+                  {hardwareInfo?.gpu ?? 'UNAVAILABLE'}
                 </p>
                 <span className="text-xs" style={{ color: 'var(--color-ink-3)' }}>Metal Hardware Acceleration · Inspect</span>
               </button>
@@ -355,12 +355,12 @@ export default function SystemAppsHub() {
               <button
                 onClick={() =>
                   setInspectItem({
-                    title: hardwareInfo?.os || 'macOS Operating System',
+                    title: hardwareInfo?.os ?? 'UNAVAILABLE',
                     category: 'System Platform',
                     badge: 'Sealed Snapshot',
                     subtitle: 'Cryptographically signed and sealed system volume.',
                     details: [
-                      { label: 'OS Distribution', value: hardwareInfo?.os || 'macOS' },
+                      { label: 'OS Distribution', value: hardwareInfo?.os ?? 'UNAVAILABLE' },
                       { label: 'Root Volume', value: 'Signed System Volume (SSV)' },
                     ],
                     command: 'sw_vers',
@@ -371,7 +371,7 @@ export default function SystemAppsHub() {
               >
                 <span className="text-[10px] uppercase font-bold" style={{ color: 'var(--color-ink-4)' }}>Operating System</span>
                 <p className="text-base font-extrabold truncate" style={{ color: 'var(--color-ink)' }}>
-                  {hardwareInfo?.os || 'macOS'}
+                  {hardwareInfo?.os ?? 'UNAVAILABLE'}
                 </p>
                 <span className="text-xs" style={{ color: 'var(--color-ink-3)' }}>Sealed System Volume · Inspect</span>
               </button>

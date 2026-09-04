@@ -105,19 +105,19 @@ export default function AppleServicesHub() {
                 setInspectItem({
                   title: 'macOS Software Update Health',
                   category: 'System Software Integrity',
-                  badge: updateData?.updateState || 'Checked',
-                  subtitle: updateData?.diagnosisVerdict || 'System update status probed via macOS softwareupdate CLI.',
-                  dataSource: updateData?.dataSource || '/usr/sbin/softwareupdate -l',
+                  badge: updateData?.updateState ?? 'UNAVAILABLE',
+                  subtitle: updateData?.diagnosisVerdict ?? 'UNAVAILABLE: update probe has not returned data.',
+                  dataSource: updateData?.dataSource ?? 'UNAVAILABLE',
                   freshness: 'Recently Updated',
-                  evidenceQuality: updateData?.evidenceQuality || 'Observed',
+                  evidenceQuality: updateData?.evidenceQuality ?? 'Unavailable',
                   explanation: 'Evaluates compatibility, pending security updates, and required APFS storage headroom for staging.',
                   statusReason: updateData?.diagnosisVerdict,
                   details: [
-                    { label: 'Installed Version', value: updateData?.currentVersion || 'macOS' },
-                    { label: 'Latest Compatible / Target', value: updateData?.latestCompatible || 'Up to Date' },
+                    { label: 'Installed Version', value: updateData?.currentVersion ?? 'UNAVAILABLE' },
+                    { label: 'Latest Compatible / Target', value: updateData?.latestCompatible ?? 'UNAVAILABLE' },
                     { label: 'Update Available', value: updateData?.hasUpdateAvailable ? 'Yes' : 'No' },
-                    { label: 'Required Staging Disk', value: `${updateData?.requiredFreeDiskGB || 0} GB` },
-                    { label: 'Available Free Disk', value: `${updateData?.availableFreeDiskGB || 0} GB` },
+                    { label: 'Required Staging Disk', value: updateData?.requiredFreeDiskGB != null ? `${updateData.requiredFreeDiskGB} GB` : 'UNAVAILABLE' },
+                    { label: 'Available Free Disk', value: updateData?.availableFreeDiskGB != null ? `${updateData.availableFreeDiskGB} GB` : 'UNAVAILABLE' },
                     { label: 'Staging Headroom', value: updateData?.hasSufficientSpace ? 'Sufficient ✓' : 'Constrained' },
                   ],
                   command: '/usr/sbin/softwareupdate -l',
@@ -133,15 +133,15 @@ export default function AppleServicesHub() {
                     macOS UPDATE &amp; UPGRADE HEALTH (Click to inspect)
                   </span>
                   <h3 className="text-base font-extrabold" style={{ color: 'var(--color-ink)' }}>
-                    Current: {updateData?.currentVersion || 'macOS'} →{' '}
+                    Current: {updateData?.currentVersion ?? 'UNAVAILABLE'} →{' '}
                     {updateData?.hasUpdateAvailable
                       ? `Target: ${updateData.latestCompatible}`
                       : 'No updates available ✓'}
                   </h3>
-                  <p className="text-xs text-slate-300 mt-1">{updateData?.diagnosisVerdict || 'Software update probe complete.'}</p>
+                  <p className="text-xs text-slate-300 mt-1">{updateData?.diagnosisVerdict ?? 'UNAVAILABLE: update probe has not returned data.'}</p>
                 </div>
                 <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25 text-xs font-bold shrink-0">
-                  {updateData?.updateState || 'Ready'}
+                  {updateData?.updateState ?? 'UNAVAILABLE'}
                 </span>
               </div>
             </div>
@@ -152,20 +152,20 @@ export default function AppleServicesHub() {
                   setInspectItem({
                     title: 'Required Update Staging Space',
                     category: 'Storage Capacity',
-                    badge: `${updateData?.requiredFreeDiskGB ?? 0} GB`,
+                    badge: updateData?.requiredFreeDiskGB != null ? `${updateData.requiredFreeDiskGB} GB` : 'UNAVAILABLE',
                     subtitle: 'Minimum free storage required for macOS installer package expansion and APFS snapshot delta.',
                     dataSource: 'Apple Software Update Requirements Matrix',
                     evidenceQuality: 'Observed',
                     details: [
-                      { label: 'Required Disk Space', value: `${updateData?.requiredFreeDiskGB ?? 0} GB` },
-                      { label: 'Available Free Space', value: `${updateData?.availableFreeDiskGB ?? 0} GB` },
+                      { label: 'Required Disk Space', value: updateData?.requiredFreeDiskGB != null ? `${updateData.requiredFreeDiskGB} GB` : 'UNAVAILABLE' },
+                      { label: 'Available Free Space', value: updateData?.availableFreeDiskGB != null ? `${updateData.availableFreeDiskGB} GB` : 'UNAVAILABLE' },
                     ],
                   })
                 }
                 className="card card-hover p-4 text-center space-y-1 cursor-pointer"
               >
                 <span className="text-[10px] uppercase font-bold text-slate-400">Required Space</span>
-                <p className="text-lg font-mono font-extrabold text-blue-400">{updateData?.requiredFreeDiskGB ?? 0} GB</p>
+                <p className="text-lg font-mono font-extrabold text-blue-400">{updateData?.requiredFreeDiskGB != null ? `${updateData.requiredFreeDiskGB} GB` : 'UNAVAILABLE'}</p>
               </div>
 
               <div
@@ -173,12 +173,12 @@ export default function AppleServicesHub() {
                   setInspectItem({
                     title: 'Available Free Disk Space',
                     category: 'Storage Capacity',
-                    badge: `${updateData?.availableFreeDiskGB ?? 0} GB`,
+                    badge: updateData?.availableFreeDiskGB != null ? `${updateData.availableFreeDiskGB} GB` : 'UNAVAILABLE',
                     subtitle: 'Current unallocated APFS volume storage capacity on the system data container.',
                     dataSource: 'systeminformation.fsSize()',
                     evidenceQuality: 'Observed',
                     details: [
-                      { label: 'Available Free Space', value: `${updateData?.availableFreeDiskGB ?? 0} GB` },
+                      { label: 'Available Free Space', value: updateData?.availableFreeDiskGB != null ? `${updateData.availableFreeDiskGB} GB` : 'UNAVAILABLE' },
                       { label: 'Staging Status', value: updateData?.hasSufficientSpace ? 'Sufficient' : 'Low Disk Space' },
                     ],
                   })
@@ -186,7 +186,7 @@ export default function AppleServicesHub() {
                 className="card card-hover p-4 text-center space-y-1 cursor-pointer"
               >
                 <span className="text-[10px] uppercase font-bold text-slate-400">Available Free Space</span>
-                <p className="text-lg font-mono font-extrabold text-emerald-400">{updateData?.availableFreeDiskGB ?? 0} GB</p>
+                <p className="text-lg font-mono font-extrabold text-emerald-400">{updateData?.availableFreeDiskGB != null ? `${updateData.availableFreeDiskGB} GB` : 'UNAVAILABLE'}</p>
               </div>
 
               <div
@@ -194,19 +194,19 @@ export default function AppleServicesHub() {
                   setInspectItem({
                     title: 'Pending System Restart',
                     category: 'Kernel Staging',
-                    badge: updateData?.pendingRestart ? 'Restart Pending' : 'None',
+                    badge: updateData?.pendingRestart === true ? 'Restart Pending' : updateData?.pendingRestart === false ? 'None' : 'UNAVAILABLE',
                     subtitle: 'Detects if a previously staged update payload requires a system reboot to apply.',
                     dataSource: '/var/db/.AppleSetupDone + macOS update state',
                     evidenceQuality: 'Observed',
                     details: [
-                      { label: 'Reboot Required', value: updateData?.pendingRestart ? 'Yes' : 'No' },
+                      { label: 'Reboot Required', value: updateData?.pendingRestart === true ? 'Yes' : updateData?.pendingRestart === false ? 'No' : 'UNAVAILABLE' },
                     ],
                   })
                 }
                 className="card card-hover p-4 text-center space-y-1 cursor-pointer"
               >
                 <span className="text-[10px] uppercase font-bold text-slate-400">Pending Restart</span>
-                <p className="text-lg font-mono font-extrabold text-slate-300">{updateData?.pendingRestart ? 'Yes' : 'No'}</p>
+                <p className="text-lg font-mono font-extrabold text-slate-300">{updateData?.pendingRestart === true ? 'Yes' : updateData?.pendingRestart === false ? 'No' : 'UNAVAILABLE'}</p>
               </div>
 
               <div
@@ -214,19 +214,19 @@ export default function AppleServicesHub() {
                   setInspectItem({
                     title: 'Stuck Download Detector',
                     category: 'Daemon Health',
-                    badge: updateData?.stuckUpdateDetected ? 'Warning' : 'Healthy',
+                    badge: updateData?.stuckUpdateDetected === true ? 'Warning' : updateData?.stuckUpdateDetected === false ? 'Healthy' : 'UNAVAILABLE',
                     subtitle: 'Verifies whether Software Update transfer daemons are stalled or hung.',
                     dataSource: 'softwareupdate daemon IPC',
                     evidenceQuality: 'Observed',
                     details: [
-                      { label: 'Stuck Download State', value: updateData?.stuckUpdateDetected ? 'Warning Detected' : 'Clean / None ✓' },
+                      { label: 'Stuck Download State', value: updateData?.stuckUpdateDetected === true ? 'Warning Detected' : updateData?.stuckUpdateDetected === false ? 'Clean / None' : 'UNAVAILABLE' },
                     ],
                   })
                 }
                 className="card card-hover p-4 text-center space-y-1 cursor-pointer"
               >
                 <span className="text-[10px] uppercase font-bold text-slate-400">Stuck Download</span>
-                <p className="text-lg font-mono font-extrabold text-emerald-400">{updateData?.stuckUpdateDetected ? 'Warning' : 'None ✓'}</p>
+                <p className="text-lg font-mono font-extrabold text-emerald-400">{updateData?.stuckUpdateDetected === true ? 'Warning' : updateData?.stuckUpdateDetected === false ? 'None' : 'UNAVAILABLE'}</p>
               </div>
             </div>
           </motion.div>
@@ -239,14 +239,14 @@ export default function AppleServicesHub() {
                 setInspectItem({
                   title: 'Time Machine Backup Doctor',
                   category: 'Disaster Recovery',
-                  badge: tmData?.status || 'Probed',
-                  subtitle: tmData?.verdict || 'Time Machine configuration and destination status.',
-                  dataSource: tmData?.dataSource || '/usr/bin/tmutil destinationinfo',
-                  evidenceQuality: tmData?.evidenceQuality || 'Observed',
+                  badge: tmData?.status ?? 'UNAVAILABLE',
+                  subtitle: tmData?.verdict ?? 'UNAVAILABLE: Time Machine probe has not returned data.',
+                  dataSource: tmData?.dataSource ?? 'UNAVAILABLE',
+                  evidenceQuality: tmData?.evidenceQuality ?? 'Unavailable',
                   details: [
-                    { label: 'Configured Destination', value: tmData?.backupDestination || 'None' },
-                    { label: 'Last Successful Snapshot', value: tmData?.lastSuccessfulBackup || 'None' },
-                    { label: 'Operational Status', value: tmData?.status || 'Probed' },
+                    { label: 'Configured Destination', value: tmData?.backupDestination ?? 'UNAVAILABLE' },
+                    { label: 'Last Successful Snapshot', value: tmData?.lastSuccessfulBackup ?? 'UNAVAILABLE' },
+                    { label: 'Operational Status', value: tmData?.status ?? 'UNAVAILABLE' },
                   ],
                   command: '/usr/bin/tmutil destinationinfo',
                   rawTelemetry: tmData,
@@ -259,10 +259,10 @@ export default function AppleServicesHub() {
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
                   Time Machine Backup Health
                 </h3>
-                <p className="text-xs text-slate-400">{tmData?.verdict || 'Inspected via tmutil.'}</p>
+                <p className="text-xs text-slate-400">{tmData?.verdict ?? 'UNAVAILABLE: Time Machine probe has not returned data.'}</p>
               </div>
               <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-xs font-bold">
-                {tmData?.status || 'Probed'}
+                {tmData?.status ?? 'UNAVAILABLE'}
               </span>
             </div>
 
@@ -277,8 +277,8 @@ export default function AppleServicesHub() {
                     dataSource: '/usr/bin/tmutil destinationinfo',
                     evidenceQuality: 'Observed',
                     details: [
-                      { label: 'Target Name', value: tmData?.backupDestination || 'None' },
-                      { label: 'Latest Backup Path', value: tmData?.lastSuccessfulBackup || 'None' },
+                      { label: 'Target Name', value: tmData?.backupDestination ?? 'UNAVAILABLE' },
+                      { label: 'Latest Backup Path', value: tmData?.lastSuccessfulBackup ?? 'UNAVAILABLE' },
                     ],
                   })
                 }
@@ -286,8 +286,8 @@ export default function AppleServicesHub() {
                 style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
               >
                 <p className="font-bold" style={{ color: 'var(--color-ink)' }}>Backup Target</p>
-                <p className="font-mono text-slate-400">{tmData?.backupDestination || 'No destination configured'}</p>
-                <p className="text-slate-300">Last Successful: <strong>{tmData?.lastSuccessfulBackup || 'None'}</strong></p>
+                <p className="font-mono text-slate-400">{tmData?.backupDestination ?? 'UNAVAILABLE'}</p>
+                <p className="text-slate-300">Last Successful: <strong>{tmData?.lastSuccessfulBackup ?? 'UNAVAILABLE'}</strong></p>
               </div>
 
               <div
@@ -328,12 +328,12 @@ export default function AppleServicesHub() {
                   title: 'iCloud & CloudDocs Doctor',
                   category: 'Cloud Storage & Sync',
                   badge: icloudData?.accountConfigured ? 'Configured' : 'Inactive',
-                  subtitle: icloudData?.verdict || 'iCloud local cache repository inspection.',
-                  dataSource: icloudData?.dataSource || '~/Library/Mobile Documents',
-                  evidenceQuality: icloudData?.evidenceQuality || 'Observed',
+                  subtitle: icloudData?.verdict ?? 'UNAVAILABLE: iCloud probe has not returned data.',
+                  dataSource: icloudData?.dataSource ?? 'UNAVAILABLE',
+                  evidenceQuality: icloudData?.evidenceQuality ?? 'Unavailable',
                   details: [
                     { label: 'Local CloudDocs Repository', value: icloudData?.accountConfigured ? 'Present on disk' : 'Not Found' },
-                    { label: 'iCloud Drive Sync', value: icloudData?.icloudDriveSync || 'Inactive' },
+                    { label: 'iCloud Drive Sync', value: icloudData?.icloudDriveSync ?? 'UNAVAILABLE' },
                     { label: 'Cloud Daemon (bird / cloudd)', value: icloudData?.cloudDaemonActive ? 'Active' : 'Idle' },
                   ],
                   rawTelemetry: icloudData,
@@ -346,7 +346,7 @@ export default function AppleServicesHub() {
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
                   iCloud &amp; Apple Account Sync Status
                 </h3>
-                <p className="text-xs text-slate-400">{icloudData?.verdict || 'Probed via local Mobile Documents state.'}</p>
+                <p className="text-xs text-slate-400">{icloudData?.verdict ?? 'UNAVAILABLE: iCloud probe has not returned data.'}</p>
               </div>
               <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-xs font-bold">
                 {icloudData?.accountConfigured ? 'Configured' : 'Inactive'}
@@ -359,12 +359,12 @@ export default function AppleServicesHub() {
                   setInspectItem({
                     title: 'iCloud Drive Local Sync',
                     category: 'Filesystem Sync',
-                    badge: icloudData?.icloudDriveSync || 'Probed',
+                    badge: icloudData?.icloudDriveSync ?? 'UNAVAILABLE',
                     subtitle: 'Status of ~/Library/Mobile Documents/com~apple~CloudDocs repository.',
                     dataSource: 'fs.existsSync(CloudDocs)',
                     evidenceQuality: 'Observed',
                     details: [
-                      { label: 'Sync State', value: icloudData?.icloudDriveSync || 'Inactive' },
+                      { label: 'Sync State', value: icloudData?.icloudDriveSync ?? 'UNAVAILABLE' },
                     ],
                   })
                 }
@@ -372,7 +372,7 @@ export default function AppleServicesHub() {
                 style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
               >
                 <span className="text-[10px] uppercase font-bold text-slate-400">iCloud Drive</span>
-                <p className="text-xs font-bold text-emerald-400 mt-1">{icloudData?.icloudDriveSync || 'Inactive'}</p>
+                <p className="text-xs font-bold text-emerald-400 mt-1">{icloudData?.icloudDriveSync ?? 'UNAVAILABLE'}</p>
               </div>
 
               <div
@@ -401,12 +401,12 @@ export default function AppleServicesHub() {
                   setInspectItem({
                     title: 'Desktop & Documents Sync',
                     category: 'Apple Account Sync',
-                    badge: icloudData?.desktopDocumentsSync || 'Probed',
+                    badge: icloudData?.desktopDocumentsSync ?? 'UNAVAILABLE',
                     subtitle: 'Detects whether Desktop and Documents are mirrored to iCloud.',
                     dataSource: 'iCloud Drive Configuration',
                     evidenceQuality: 'Observed',
                     details: [
-                      { label: 'Desktop Sync', value: icloudData?.desktopDocumentsSync || 'Inactive' },
+                      { label: 'Desktop Sync', value: icloudData?.desktopDocumentsSync ?? 'UNAVAILABLE' },
                     ],
                   })
                 }
@@ -414,7 +414,7 @@ export default function AppleServicesHub() {
                 style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
               >
                 <span className="text-[10px] uppercase font-bold text-slate-400">Desktop &amp; Docs</span>
-                <p className="text-xs font-bold text-emerald-400 mt-1">{icloudData?.desktopDocumentsSync || 'Inactive'}</p>
+                <p className="text-xs font-bold text-emerald-400 mt-1">{icloudData?.desktopDocumentsSync ?? 'UNAVAILABLE'}</p>
               </div>
             </div>
           </motion.div>

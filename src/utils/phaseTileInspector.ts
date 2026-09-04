@@ -27,7 +27,7 @@ const TILE_DATABASE: Record<string, (val: string | number, sec: Section) => Tile
     category: 'CLI Package Environments',
     subtitle: 'Local Homebrew core repository formulas, bottles, and dependency tree index',
     explanation: 'Homebrew formulae manage open-source command-line binaries, utilities, and compilers. Synchronization updates the local Git tap index against github.com/Homebrew/homebrew-core.',
-    statusReason: `Formula index is currently ${String(val).toLowerCase()}. Local formulas match the latest commit hash on origin/master.`,
+    statusReason: `Formula index is currently ${String(val).toLowerCase()}.`,
     command: 'brew update --dry-run && brew outdated --formula',
     dataSource: 'brew CLI · homebrew/core tap (/opt/homebrew)',
     requiredPermissions: ['Standard User'],
@@ -35,19 +35,16 @@ const TILE_DATABASE: Record<string, (val: string | number, sec: Section) => Tile
       { label: 'Tap Repository', value: 'homebrew/core', isCode: true },
       { label: 'Installation Prefix', value: '/opt/homebrew (Apple Silicon) or /usr/local (Intel)' },
       { label: 'Index Synchronization', value: String(val) },
-      { label: 'Outdated Formulae', value: '0 pending' },
-      { label: 'Security Advisories', value: 'None reported' },
+      { label: 'Outdated Formulae', value: 'UNAVAILABLE' },
+      { label: 'Security Advisories', value: 'UNAVAILABLE' },
     ],
-    output: `==> Updating Homebrew...
-Already up-to-date.
-==> Checking for outdated formulae...
-0 outdated formulae found. Everything is synchronized.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'homebrew',
       type: 'formulae',
       state: val,
       tap: 'homebrew/core',
-      lastSync: new Date().toISOString(),
     },
   }),
 
@@ -56,7 +53,7 @@ Already up-to-date.
     category: 'Application Packages',
     subtitle: 'Native macOS GUI desktop applications and binaries distributed via Homebrew Cask',
     explanation: 'Homebrew Cask delivers pre-compiled macOS .app bundles and installers directly into /Applications, managing updates alongside CLI tools.',
-    statusReason: `All installed GUI casks have been ${String(val).toLowerCase()} against upstream publisher release checksums.`,
+    statusReason: `All installed GUI casks have been ${String(val).toLowerCase()}.`,
     command: 'brew outdated --cask --greedy',
     dataSource: 'brew cask CLI · homebrew/cask tap',
     requiredPermissions: ['Standard User'],
@@ -64,18 +61,15 @@ Already up-to-date.
       { label: 'Cask Repository', value: 'homebrew/cask', isCode: true },
       { label: 'Target Directory', value: '/Applications' },
       { label: 'Audit Status', value: String(val) },
-      { label: 'Auto-Update Mode', value: 'Greedy version verification enabled' },
-      { label: 'Signature Integrity', value: 'Apple Developer ID Notarized' },
+      { label: 'Auto-Update Mode', value: 'UNAVAILABLE' },
+      { label: 'Signature Integrity', value: 'UNAVAILABLE' },
     ],
-    output: `==> Auditing installed Cask applications...
-Inspecting /Applications...
-All casks match latest upstream hashes (SHA256 verified).
-No orphaned cask bundles detected.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'cask',
       state: val,
-      managedCount: 14,
-      integrity: 'verified',
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -84,7 +78,7 @@ No orphaned cask bundles detected.`,
     category: 'Development Environments',
     subtitle: 'Python 3 site-packages repository and user library dependencies',
     explanation: 'Audits user and global Python 3 site-packages directories for outdated modules, broken dependencies, and known PyPI security vulnerabilities.',
-    statusReason: `Python 3 package dependencies are ${String(val).toLowerCase()} with zero known security advisories or dependency collisions.`,
+    statusReason: `Python 3 package dependencies are ${String(val).toLowerCase()}.`,
     command: 'python3 -m pip list --outdated --format=json',
     dataSource: 'pip3 CLI · PyPI Index',
     requiredPermissions: ['Standard User'],
@@ -92,16 +86,13 @@ No orphaned cask bundles detected.`,
       { label: 'Python Runtime', value: 'Python 3.12+ (Darwin ARM64)', isCode: true },
       { label: 'User Site-Packages', value: '~/Library/Python/3.12/lib/python/site-packages' },
       { label: 'Dependency Parity', value: String(val) },
-      { label: 'Known Vulnerabilities', value: '0 CVEs' },
+      { label: 'Known Vulnerabilities', value: 'UNAVAILABLE' },
     ],
-    output: `Package    Version Latest Type
----------- ------- ------ -----
-All 42 installed packages are up to date with PyPI index.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'pip3',
-      pythonVersion: '3.12.7',
       state: val,
-      outdatedCount: 0,
     },
   }),
 
@@ -110,7 +101,7 @@ All 42 installed packages are up to date with PyPI index.`,
     category: 'Development Environments',
     subtitle: 'Globally installed Node Package Manager command-line tools and utilities',
     explanation: 'Scans the Node.js global prefix for outdated utility packages (e.g. TypeScript, ESLint, Vite) and checks integrity against npmjs.org registry.',
-    statusReason: `Global NPM tools have been ${String(val).toLowerCase()} against official registry manifests.`,
+    statusReason: `Global NPM tools have been ${String(val).toLowerCase()}.`,
     command: 'npm outdated -g --depth=0',
     dataSource: 'npm CLI · registry.npmjs.org',
     requiredPermissions: ['Standard User'],
@@ -118,14 +109,14 @@ All 42 installed packages are up to date with PyPI index.`,
       { label: 'Node Runtime', value: 'Node.js LTS (v20+ / v22+)', isCode: true },
       { label: 'Global Prefix', value: '/opt/homebrew/lib/node_modules or ~/.npm-global' },
       { label: 'Verification State', value: String(val) },
-      { label: 'Audit Vulnerabilities', value: '0 vulnerabilities' },
+      { label: 'Audit Vulnerabilities', value: 'UNAVAILABLE' },
     ],
-    output: `Package Current Wanted Latest Location Depended by
-All global NPM packages match latest published versions.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'npm',
       state: val,
-      globalToolsCount: 18,
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -135,7 +126,7 @@ All global NPM packages match latest published versions.`,
     category: 'Security & Threat Defense',
     subtitle: 'Built-in macOS signature-based antivirus and YARA malware detection engine',
     explanation: 'XProtect is Apple’s built-in malware analysis engine that continuously checks executable binaries, app bundles, and launch items against known malicious hashes and YARA rules.',
-    statusReason: `Running XProtect definition version ${val}, matching Apple Security response servers.`,
+    statusReason: `Running XProtect definition version ${val}.`,
     command: 'system_profiler SPInstallHistoryDataType | grep -A 4 "XProtectPayloads"',
     dataSource: 'Apple CoreServices · /Library/Apple/System/Library/CoreServices/XProtect.bundle',
     requiredPermissions: ['Read-only (Standard)'],
@@ -144,18 +135,14 @@ All global NPM packages match latest published versions.`,
       { label: 'Signature Format', value: 'Apple YARA Ruleset + Mach-O Hash Manifest' },
       { label: 'Config Engine', value: 'CoreXProtect.bundle' },
       { label: 'Inspection Mode', value: 'Real-time on-execution & background' },
-      { label: 'Apple Security Sync', value: 'Verified Current' },
+      { label: 'Apple Security Sync', value: 'UNAVAILABLE' },
     ],
-    output: `XProtectPayloads:
-  Version: ${val}
-  Source: Apple
-  Install Date: Verified Today
-  Status: Active Protection Enabled`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'xprotect',
       version: val,
-      yaraRulesCount: 14820,
-      active: true,
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -164,7 +151,7 @@ All global NPM packages match latest published versions.`,
     category: 'Security & Threat Defense',
     subtitle: 'Background remediation scanner actively hunting and isolating malware payloads',
     explanation: 'XProtect Remediator executes scheduled, opportunistic background scans to detect, isolate, and remove malware families (e.g. DubRobber, Pirrit, CloudMensis) from userland.',
-    statusReason: `The remediator service is ${String(val).toLowerCase()} and running background anomaly probes with zero active threat signatures detected.`,
+    statusReason: `The remediator service is ${String(val).toLowerCase()}.`,
     command: 'launchctl list | grep com.apple.XProtect.PluginService',
     dataSource: 'launchd · com.apple.XProtect.PluginService',
     requiredPermissions: ['System Background Daemon'],
@@ -173,16 +160,15 @@ All global NPM packages match latest published versions.`,
       { label: 'Service Identifier', value: 'com.apple.XProtect.PluginService', isCode: true },
       { label: 'Scan Strategy', value: 'Opportunistic on idle & sleep wake' },
       { label: 'Quarantine Action', value: 'Automatic Isolation & Telemetry' },
-      { label: 'Infections Detected', value: '0 (Clean)' },
+      { label: 'Infections Detected', value: 'UNAVAILABLE' },
     ],
-    output: `com.apple.XProtect.PluginService: RUNNING (PID active)
-Last background scan completed successfully.
-Detected threats: 0. System remediation: Nominal.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'remediator',
       service: 'com.apple.XProtect.PluginService',
       state: val,
-      threatsDetected: 0,
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -191,22 +177,22 @@ Detected threats: 0. System remediation: Nominal.`,
     category: 'Security & Threat Defense',
     subtitle: 'System policy enforcement verifying Developer ID code-signatures and notarization tickets',
     explanation: 'Gatekeeper ensures only trusted, code-signed, and Apple-notarized software is permitted to execute, preventing unverified or modified binaries from launching.',
-    statusReason: `Gatekeeper policy assessment is ${String(val).toLowerCase()}. All launched applications must have valid Developer ID signatures.`,
+    statusReason: `Gatekeeper policy assessment is ${String(val).toLowerCase()}.`,
     command: 'spctl --status',
     dataSource: 'spctl / SystemPolicyConfiguration · /var/db/SystemPolicyConfiguration/ExecPolicy',
     requiredPermissions: ['System Policy Subsystem'],
     details: [
       { label: 'Assessment Status', value: String(val), isCode: true },
       { label: 'Enforcement Level', value: 'App Store and identified developers' },
-      { label: 'Notarization Check', value: 'Cloud Ticket Staple Verification Active' },
+      { label: 'Notarization Check', value: 'UNAVAILABLE' },
       { label: 'Quarantine Flagging', value: 'Enabled (com.apple.quarantine attribute)' },
     ],
-    output: `assessments enabled
-Gatekeeper is actively enforcing Developer ID notarization requirements.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'gatekeeper',
       policy: val,
-      assessmentsEnabled: true,
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -216,22 +202,22 @@ Gatekeeper is actively enforcing Developer ID notarization requirements.`,
     category: 'Operating System Updates',
     subtitle: 'Official Apple seed catalog and Content Delivery Network (CDN) channel configuration',
     explanation: 'Software Update connects to Apple CDN endpoints to discover critical system security updates, point releases, and firmware patches for Apple Silicon and Intel Macs.',
-    statusReason: `Configured to receive updates from ${val}. No unauthorized or custom SUS override catalogs detected.`,
+    statusReason: `Configured to receive updates from ${val}.`,
     command: 'defaults read /Library/Preferences/com.apple.SoftwareUpdate CatalogURL 2>/dev/null || echo "Apple Production Catalog (Default)"',
     dataSource: 'SoftwareUpdate daemon · swscan.apple.com',
     requiredPermissions: ['Root / System Preferences'],
     details: [
       { label: 'Catalog Channel', value: String(val) },
       { label: 'Host Endpoint', value: 'swscan.apple.com (Apple Production CDN)', isCode: true },
-      { label: 'Managed Fleet Policy', value: 'Standard Production Ring' },
-      { label: 'HTTPS Certificate', value: 'Apple Root CA Validated' },
+      { label: 'Managed Fleet Policy', value: 'UNAVAILABLE' },
+      { label: 'HTTPS Certificate', value: 'UNAVAILABLE' },
     ],
-    output: `SoftwareUpdate Catalog: Default Production Channel (https://swscan.apple.com)
-No custom CatalogURL override active. Apple production signatures enforced.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'softwareupdate',
       catalog: val,
-      channel: 'production',
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -240,7 +226,7 @@ No custom CatalogURL override active. Apple production signatures enforced.`,
     category: 'Operating System Updates',
     subtitle: 'In-memory live kernel, WebKit, and system security hotfixes applied without reboots',
     explanation: 'Rapid Security Responses deliver high-priority security fixes between minor OS releases, hardening WebKit, Safari, and core cryptographic libraries immediately.',
-    statusReason: `Rapid Security Responses are ${String(val).toLowerCase()} and fully applied to the runtime kernel.`,
+    statusReason: `Rapid Security Responses are ${String(val).toLowerCase()}.`,
     command: 'sw_vers -productVersionExtra',
     dataSource: 'Darwin Kernel Subsystem · /System/Cryptexes/OS',
     requiredPermissions: ['Root / System'],
@@ -248,15 +234,13 @@ No custom CatalogURL override active. Apple production signatures enforced.`,
       { label: 'RSR Status', value: String(val) },
       { label: 'Cryptex System Mount', value: '/System/Cryptexes/OS (Signed DMG)' },
       { label: 'Rollback Capability', value: 'Supported via Recovery / Settings' },
-      { label: 'Kernel Hotpatch Level', value: 'Current' },
+      { label: 'Kernel Hotpatch Level', value: 'UNAVAILABLE' },
     ],
-    output: `ProductVersion: macOS Sequoia (Darwin 24.x)
-Rapid Security Response: Active & Verified
-Cryptex OS overlay: Valid cryptographic seal.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'rsr',
       state: val,
-      active: true,
     },
   }),
 
@@ -265,23 +249,22 @@ Cryptex OS overlay: Valid cryptographic seal.`,
     category: 'Operating System Updates',
     subtitle: 'System kernel, Darwin subsystem, Signed System Volume (SSV), and core security patches',
     explanation: 'Verifies whether all published macOS operating system patches, kernel updates, and firmware security mitigations have been deployed to the local installation.',
-    statusReason: `Core operating system build is ${String(val).toLowerCase()} with zero pending mandatory security patches.`,
+    statusReason: `Core operating system build is ${String(val).toLowerCase()}.`,
     command: 'softwareupdate -l --include-config-data',
     dataSource: 'softwareupdate CLI · Apple Software Distribution Service',
     requiredPermissions: ['Root / Admin (softwareupdate)'],
     details: [
       { label: 'System Patch Status', value: String(val) },
-      { label: 'Signed System Volume', value: 'Cryptographically Sealed (APFS SSV)' },
-      { label: 'Pending Security Updates', value: '0 mandatory updates' },
-      { label: 'Firmware / Bootloader', value: 'Apple Silicon iBoot Up-To-Date' },
+      { label: 'Signed System Volume', value: 'UNAVAILABLE' },
+      { label: 'Pending Security Updates', value: 'UNAVAILABLE' },
+      { label: 'Firmware / Bootloader', value: 'UNAVAILABLE' },
     ],
-    output: `Software Update Tool
-Finding available software
-No new software available. Core system is up-to-date.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'core_system',
       state: val,
-      pendingCount: 0,
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -291,7 +274,7 @@ No new software available. Core system is up-to-date.`,
     category: 'App Store Ecosystem',
     subtitle: 'App Store agent connection and Apple ID receipt verification worker',
     explanation: 'Communicates with the Mac App Store agent to query purchased application licenses, check cloud receipts, and schedule automatic app updates.',
-    statusReason: `App Store agent connection is ${String(val).toLowerCase()} and synchronized with Apple ID services.`,
+    statusReason: `App Store agent connection is ${String(val).toLowerCase()}.`,
     command: 'mas account',
     dataSource: 'mas CLI · appstoreagent daemon',
     requiredPermissions: ['Standard User'],
@@ -299,14 +282,14 @@ No new software available. Core system is up-to-date.`,
       { label: 'Store Worker State', value: String(val) },
       { label: 'Daemon Service', value: 'com.apple.appstoreagent', isCode: true },
       { label: 'Storefront', value: 'Apple ID App Store' },
-      { label: 'Sandbox Isolation', value: 'Enforced for all MAS applications' },
+      { label: 'Sandbox Isolation', value: 'UNAVAILABLE' },
     ],
-    output: `Connected to Apple ID Storefront.
-appstoreagent daemon is responding to receipt validation queries.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'mas',
       state: val,
-      connected: true,
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -315,23 +298,22 @@ appstoreagent daemon is responding to receipt validation queries.`,
     category: 'App Store Ecosystem',
     subtitle: 'Cryptographic receipts stored in /Applications/*.app/_MASReceipt/receipt',
     explanation: 'Validates cryptographic receipt signatures on installed Mac App Store apps, ensuring apps are intact, untampered, and licensed.',
-    statusReason: `All application receipts are ${String(val).toLowerCase()} and verified against Apple root certificates.`,
+    statusReason: `All application receipts are ${String(val).toLowerCase()}.`,
     command: 'mas outdated',
     dataSource: 'mas CLI · /Applications directory',
     requiredPermissions: ['Standard User'],
     details: [
       { label: 'Receipt Status', value: String(val) },
       { label: 'Cryptographic Hash', value: 'SHA256 with Apple FairPlay DRM' },
-      { label: 'Outdated Store Apps', value: '0 pending' },
-      { label: 'Receipt Integrity', value: '100% valid signatures' },
+      { label: 'Outdated Store Apps', value: 'UNAVAILABLE' },
+      { label: 'Receipt Integrity', value: 'UNAVAILABLE' },
     ],
-    output: `Inspecting /Applications/_MASReceipt...
-All 16 App Store application receipts are cryptographically valid.
-0 outdated applications found.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'app_receipts',
       state: val,
-      validReceipts: 16,
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -341,26 +323,22 @@ All 16 App Store application receipts are cryptographically valid.
     category: 'Hardware & Diagnostics',
     subtitle: 'SMC / PMU hardware temperature sensors and dynamic fan speed curves',
     explanation: 'Monitors real-time thermal pressure levels across CPU performance cores, efficiency cores, GPU clusters, and Apple Neural Engine (ANE).',
-    statusReason: `Thermal pressure state is ${val}. Zero thermal throttling active; full performance headroom available.`,
+    statusReason: `Thermal pressure state is ${val}.`,
     command: 'sudo powermetrics -n 1 --samplers thermal | grep "Thermal pressure"',
     dataSource: 'IOKit / PMU · Apple Silicon Power Management',
     requiredPermissions: ['Admin / powermetrics'],
     details: [
       { label: 'Pressure Level', value: String(val), isCode: true },
-      { label: 'Throttling Factor', value: 'None (100% clock multiplier)' },
-      { label: 'Die Temperatures', value: 'Nominal (42°C - 55°C range)' },
-      { label: 'Cooling State', value: 'Passive / Low RPM Silent' },
+      { label: 'Throttling Factor', value: 'UNAVAILABLE' },
+      { label: 'Die Temperatures', value: 'UNAVAILABLE' },
+      { label: 'Cooling State', value: 'UNAVAILABLE' },
     ],
-    output: `*** Thermal Pressure Sensor Telemetry ***
-Current thermal pressure level: Nominal (Green)
-CPU Performance Cluster Throttle: 0%
-GPU Cluster Throttle: 0%
-Thermal headroom: 45°C remaining before mitigation.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'thermal',
       level: val,
-      throttling: false,
-      headroomDegC: 45,
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -369,25 +347,23 @@ Thermal headroom: 45°C remaining before mitigation.`,
     category: 'Hardware & Diagnostics',
     subtitle: 'Smart battery controller cycle count, charge capacity, and degradation index',
     explanation: 'Inspects battery state of health (SoH), maximum charge capacity vs design capacity, cycle count, and power delivery circuitry.',
-    statusReason: `Battery condition is ${val}. Charge retention and internal resistance are optimal.`,
+    statusReason: `Battery condition is ${val}.`,
     command: 'pmset -g batt',
     dataSource: 'AppleSmartBatteryManager · IOKit',
     requiredPermissions: ['Read-only (Standard)'],
     details: [
       { label: 'Condition Status', value: String(val), isCode: true },
-      { label: 'Health Percentage', value: '100% Maximum Capacity' },
-      { label: 'Cycle Count', value: 'Nominal (< 150 cycles)' },
-      { label: 'Power Source', value: 'AC Attached / Fully Charged' },
-      { label: 'Charging State', value: 'Optimized Battery Charging Enabled' },
+      { label: 'Health Percentage', value: 'UNAVAILABLE' },
+      { label: 'Cycle Count', value: 'UNAVAILABLE' },
+      { label: 'Power Source', value: 'UNAVAILABLE' },
+      { label: 'Charging State', value: 'UNAVAILABLE' },
     ],
-    output: `Now drawing from 'AC Power'
- -InternalBattery-0 (id=1234567)  100%; charged; 0:00 remaining present: true
- Battery Health: Normal (100% design capacity, condition: Normal)`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'battery',
       condition: val,
-      healthPct: 100,
-      state: 'Normal',
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -396,25 +372,22 @@ Thermal headroom: 45°C remaining before mitigation.`,
     category: 'Hardware & Diagnostics',
     subtitle: 'Hardware bus enumeration across Thunderbolt, PCIe, USB4, and NVMe controllers',
     explanation: 'Traverses the kernel IOKit registry tree to detect disconnected hardware buses, PCIe link errors, USB power renegotiations, or hardware exceptions.',
-    statusReason: `IOKit device scan is ${String(val).toLowerCase()} with zero kernel hardware faults recorded in dmesg.`,
+    statusReason: `IOKit device scan is ${String(val).toLowerCase()}.`,
     command: 'ioreg -l -p IOService -w 0 | grep -i "error"',
     dataSource: 'Darwin IOKit Subsystem · AppleARMPE / ApplePCIe',
     requiredPermissions: ['Standard User'],
     details: [
       { label: 'Registry Scan Result', value: String(val) },
       { label: 'Buses Audited', value: 'Thunderbolt 4, USB4, PCIe Gen4, NVMe, Wi-Fi 6E' },
-      { label: 'Bus Controller Faults', value: '0 hardware exceptions' },
-      { label: 'Driver Link Status', value: 'All kernel extensions matched and loaded' },
+      { label: 'Bus Controller Faults', value: 'UNAVAILABLE' },
+      { label: 'Driver Link Status', value: 'UNAVAILABLE' },
     ],
-    output: `IOKit Device Enumeration:
-Scanned 428 registered IOKit service objects.
-PCIe link widths: x4 Gen4 (NVMe), x4 Gen4 (GPU).
-0 device driver link warnings found.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'iokit',
       state: val,
-      scannedNodes: 428,
-      faults: 0,
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -424,19 +397,18 @@ PCIe link widths: x4 Gen4 (NVMe), x4 Gen4 (GPU).
     category: 'Startup & Background Daemons',
     subtitle: 'Root services in /Library/LaunchDaemons managed by launchd (PID 1)',
     explanation: 'System-level daemons execute before user login and run as root to provide essential system-wide background services and hardware drivers.',
-    statusReason: `System daemons are ${String(val).toLowerCase()} and verified for code signing and valid launch specifications.`,
+    statusReason: `System daemons are ${String(val).toLowerCase()}.`,
     command: 'sudo launchctl list | grep -v "com.apple"',
     dataSource: 'launchd · /Library/LaunchDaemons',
     requiredPermissions: ['Root / Admin'],
     details: [
       { label: 'Registry State', value: String(val) },
       { label: 'Target Directory', value: '/Library/LaunchDaemons', isCode: true },
-      { label: 'Signature Check', value: 'All non-Apple plists verified' },
-      { label: 'Orphaned Plists', value: '0 detected' },
+      { label: 'Signature Check', value: 'UNAVAILABLE' },
+      { label: 'Orphaned Plists', value: 'UNAVAILABLE' },
     ],
-    output: `Auditing /Library/LaunchDaemons...
-Verified plist property lists and binary signatures.
-All daemons adhere to modern macOS Background Task Management standards.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'launchdaemons',
       state: val,
@@ -449,23 +421,22 @@ All daemons adhere to modern macOS Background Task Management standards.`,
     category: 'Startup & Background Daemons',
     subtitle: 'User services in ~/Library/LaunchAgents and /Library/LaunchAgents',
     explanation: 'Launch agents run in the context of the logged-in user to start background helper tools, menu bar items, and synchronization workers.',
-    statusReason: `User agents are ${String(val).toLowerCase()} and functioning normally without excessive crash respawns.`,
+    statusReason: `User agents are ${String(val).toLowerCase()}.`,
     command: 'launchctl list | head -n 30',
     dataSource: 'launchd · ~/Library/LaunchAgents',
     requiredPermissions: ['Standard User'],
     details: [
       { label: 'Agent Status', value: String(val) },
       { label: 'User Directory', value: '~/Library/LaunchAgents', isCode: true },
-      { label: 'Stale Entries', value: '0 orphaned agents' },
-      { label: 'Respawn Loop Check', value: 'Clean (no throttling daemons)' },
+      { label: 'Stale Entries', value: 'UNAVAILABLE' },
+      { label: 'Respawn Loop Check', value: 'UNAVAILABLE' },
     ],
-    output: `Inspecting active user agents in ~/Library/LaunchAgents...
-All launch agents are properly bound to valid application bundles.
-0 respawn-loop anomalies detected.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'launchagents',
       state: val,
-      respawnErrors: 0,
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -474,24 +445,22 @@ All launch agents are properly bound to valid application bundles.
     category: 'Startup & Background Daemons',
     subtitle: 'Background Task Management (BTM) registered login items and helper tools',
     explanation: 'Audits applications authorized by the user to launch automatically at login or run background helper extensions via the modern BTM daemon.',
-    statusReason: `Login items registry is ${String(val).toLowerCase()} with zero unauthorized or uninstalled background residue.`,
+    statusReason: `Login items registry is ${String(val).toLowerCase()}.`,
     command: 'sfltool dumpbtm',
     dataSource: 'backgroundtaskmanagementd · ~/Library/Application Support/com.apple.backgroundtaskmanagementd',
     requiredPermissions: ['Standard User'],
     details: [
       { label: 'Registry Cleanliness', value: String(val) },
       { label: 'BTM Engine', value: 'backgroundtaskmanagementd' },
-      { label: 'Orphaned App Residue', value: '0 leftover items' },
-      { label: 'Login Impact', value: 'Low (< 0.2s added login latency)' },
+      { label: 'Orphaned App Residue', value: 'UNAVAILABLE' },
+      { label: 'Login Impact', value: 'UNAVAILABLE' },
     ],
-    output: `sfltool dumpbtm:
-Scanning BTM registered login items and open-at-login applications...
-All registered items correspond to currently installed applications.
-Background task footprint is minimal.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'login_items',
       state: val,
-      btmClean: true,
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -501,31 +470,23 @@ Background task footprint is minimal.`,
     category: 'Filesystem & Integrity',
     subtitle: 'Root APFS container, B-Trees, checkpoint map, and block allocation bitmaps',
     explanation: 'Performs a comprehensive First Aid verification of the APFS volume superblock, checkpoint map, space manager, and volume group linkage.',
-    statusReason: `APFS container structures are ${String(val).toLowerCase()} with zero superblock or tree inconsistencies.`,
+    statusReason: `APFS container structures are ${String(val).toLowerCase()}.`,
     command: 'diskutil verifyVolume /',
     dataSource: 'diskutil / apfs.util · Darwin Kernel',
     requiredPermissions: ['Admin / Root'],
     details: [
       { label: 'Container Health', value: String(val), isCode: true },
-      { label: 'APFS Superblock', value: 'Valid and consistent' },
-      { label: 'Checkpoint Map', value: 'Verified checkpoints (Clean)' },
-      { label: 'Space Manager (SM)', value: 'Block allocation bitmap accurate' },
-      { label: 'Volume Group Link', value: 'System / Data volume pairing valid' },
+      { label: 'APFS Superblock', value: 'UNAVAILABLE' },
+      { label: 'Checkpoint Map', value: 'UNAVAILABLE' },
+      { label: 'Space Manager (SM)', value: 'UNAVAILABLE' },
+      { label: 'Volume Group Link', value: 'UNAVAILABLE' },
     ],
-    output: `Started file system verification on disk3s1 (Data)
-Verifying storage system
-Using live mode.
-Performing fsck_apfs -n -x -l /dev/disk3s1
-Checking the container superblock.
-Checking the checkpoint map.
-Checking the space manager.
-Checking the object map.
-The volume /dev/disk3s1 appears to be OK.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'apfs_container',
       state: val,
-      fsckExitCode: 0,
-      healthy: true,
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -534,29 +495,23 @@ The volume /dev/disk3s1 appears to be OK.`,
     category: 'Filesystem & Integrity',
     subtitle: 'Kernel-level security enforcing read-only root and protected filesystem paths',
     explanation: 'SIP prevents unauthorized modification of critical operating system files, NVRAM variables, and kernel extensions even by root administrative users.',
-    statusReason: `System Integrity Protection is ${val}. Kernel security policies and sealed volumes are active.`,
+    statusReason: `System Integrity Protection is ${val}.`,
     command: 'csrutil status',
     dataSource: 'Darwin Kernel CSR Subsystem · Apple Mobile File Integrity (AMFI)',
     requiredPermissions: ['System Security Subsystem'],
     details: [
       { label: 'SIP Status', value: String(val), isCode: true },
-      { label: 'Filesystem Restrictions', value: 'Enforced' },
-      { label: 'NVRAM Protection', value: 'Enforced' },
-      { label: 'DTrace / Debug Restrictions', value: 'Enforced' },
-      { label: 'Kernel Extension Restrictions', value: 'Enforced (Apple signed only)' },
+      { label: 'Filesystem Restrictions', value: 'UNAVAILABLE' },
+      { label: 'NVRAM Protection', value: 'UNAVAILABLE' },
+      { label: 'DTrace / Debug Restrictions', value: 'UNAVAILABLE' },
+      { label: 'Kernel Extension Restrictions', value: 'UNAVAILABLE' },
     ],
-    output: `System Integrity Protection status: enabled.
-Configuration:
-  Apple Internal: disabled
-  Kext Signing: enabled
-  Filesystem Protections: enabled
-  Debugging Restrictions: enabled
-  DTrace Restrictions: enabled
-  NVRAM Protections: enabled`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'sip',
       status: val,
-      enabled: true,
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -565,26 +520,22 @@ Configuration:
     category: 'Filesystem & Integrity',
     subtitle: 'Translation table mapping logical object IDs to physical disk block offsets',
     explanation: 'Verifies the APFS object map B-Tree to ensure every file inode, extent record, snapshot identifier, and extended attribute points to valid disk blocks.',
-    statusReason: `APFS Object Map is ${String(val).toLowerCase()} with zero dangling inodes or orphaned extent records.`,
+    statusReason: `APFS Object Map is ${String(val).toLowerCase()}.`,
     command: 'fsck_apfs -n -l /dev/disk3s1',
     dataSource: 'fsck_apfs · APFS File System Driver',
     requiredPermissions: ['Admin / Root'],
     details: [
       { label: 'Object Map State', value: String(val) },
-      { label: 'B-Tree Inodes', value: '1,842,910 valid entries' },
-      { label: 'Extents Records', value: 'Consistent (No overlapping extents)' },
-      { label: 'Snapshots Tree', value: 'Valid snapshot identifiers' },
+      { label: 'B-Tree Inodes', value: 'UNAVAILABLE' },
+      { label: 'Extents Records', value: 'UNAVAILABLE' },
+      { label: 'Snapshots Tree', value: 'UNAVAILABLE' },
     ],
-    output: `fsck_apfs:
-Checking the object map.
-Checking the inode tree.
-Checking the extended attributes tree.
-Checking the extent ref tree.
-Object map verified: 0 corruptions found.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'object_map',
       state: val,
-      corruptions: 0,
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -594,23 +545,22 @@ Object map verified: 0 corruptions found.`,
     category: 'Storage & Cache Cleanup',
     subtitle: 'Per-app staging files, rendering buffers, and transient data in ~/Library/Caches',
     explanation: 'Safely removes stale WebKit cached assets, expired application temporary data, and staging buffers to recover disk storage without affecting user settings.',
-    statusReason: `User caches have been ${String(val).toLowerCase()} safely. All persistent preferences and accounts are preserved.`,
+    statusReason: `User caches have been ${String(val).toLowerCase()} safely.`,
     command: 'du -sh ~/Library/Caches && find ~/Library/Caches -name "*.tmp" -delete',
     dataSource: 'macOS File Manager · ~/Library/Caches',
     requiredPermissions: ['Standard User'],
     details: [
       { label: 'Cache Action', value: String(val) },
       { label: 'Target Directory', value: '~/Library/Caches', isCode: true },
-      { label: 'Reclaimed Space', value: '~1.4 GB recovered' },
+      { label: 'Reclaimed Space', value: 'UNAVAILABLE' },
       { label: 'Safety Level', value: 'Safe (Non-destructive to app data)' },
     ],
-    output: `Analyzing ~/Library/Caches...
-Purged expired web engine caches, stale compilation artifacts, and transient temp buffers.
-Reclaimed: 1.4 GB.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'user_caches',
       state: val,
-      reclaimedBytes: 1503238553,
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -626,17 +576,15 @@ Reclaimed: 1.4 GB.`,
     details: [
       { label: 'Cleanup Status', value: String(val) },
       { label: 'Cache Location', value: '~/Library/Caches/Homebrew', isCode: true },
-      { label: 'Space Reclaimed', value: '~900 MB recovered' },
-      { label: 'Active Packages Affected', value: '0 (Installed binaries untouched)' },
+      { label: 'Space Reclaimed', value: 'UNAVAILABLE' },
+      { label: 'Active Packages Affected', value: 'UNAVAILABLE' },
     ],
-    output: `==> Running brew cleanup...
-Removing: /Users/user/Library/Caches/Homebrew/downloads...
-Removed 28 outdated bottle archives.
-Reclaimed ~900 MB of disk space.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'brew_cache',
       state: val,
-      reclaimedBytes: 943718400,
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -651,17 +599,16 @@ Reclaimed ~900 MB of disk space.`,
     requiredPermissions: ['Standard User'],
     details: [
       { label: 'Cache Reset', value: String(val) },
-      { label: 'Daemon State', value: 'com.apple.quicklook.ThumbnailsAgent restarted' },
-      { label: 'Finder Thumbnail Database', value: 'Rebuilt smoothly on demand' },
-      { label: 'UI Responsiveness', value: 'Optimized' },
+      { label: 'Daemon State', value: 'UNAVAILABLE' },
+      { label: 'Finder Thumbnail Database', value: 'UNAVAILABLE' },
+      { label: 'UI Responsiveness', value: 'UNAVAILABLE' },
     ],
-    output: `qlmanage: resetting cache
-qlmanage: resetting quicklookd
-Thumbnail cache successfully flushed and reset.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'quicklook',
       state: val,
-      reset: true,
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -678,17 +625,15 @@ Thumbnail cache successfully flushed and reset.`,
     details: [
       { label: 'Snapshot State', value: String(val) },
       { label: 'Storage Pool', value: 'Local APFS Boot Container' },
-      { label: 'Space Recovered', value: '~3.1 GB released' },
-      { label: 'Recent Recovery Points', value: 'Preserved' },
+      { label: 'Space Recovered', value: 'UNAVAILABLE' },
+      { label: 'Recent Recovery Points', value: 'UNAVAILABLE' },
     ],
-    output: `tmutil: Querying local APFS snapshots for /
-Thinned dated local snapshot records:
-com.apple.TimeMachine.2026-08-18-120000.local
-Released 3.1 GB to unallocated APFS pool.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'tm_snapshots',
       state: val,
-      reclaimedGB: 3.1,
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -704,16 +649,15 @@ Released 3.1 GB to unallocated APFS pool.`,
     details: [
       { label: 'Purgeable Blocks', value: String(val) },
       { label: 'System Allocator', value: 'APFS Dynamic Space Manager' },
-      { label: 'Available Free Space', value: 'Increased and confirmed' },
-      { label: 'File Health', value: '100% integrity maintained' },
+      { label: 'Available Free Space', value: 'UNAVAILABLE' },
+      { label: 'File Health', value: 'UNAVAILABLE' },
     ],
-    output: `Reclaiming APFS purgeable space...
-Freed purgeable asset blocks across APFS container.
-Storage capacity refreshed in Finder and APFS driver.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'purgeable_space',
       state: val,
-      reclaimed: true,
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -722,25 +666,22 @@ Storage capacity refreshed in Finder and APFS driver.`,
     category: 'Storage Optimization & Snapshots',
     subtitle: 'Signed System Volume (SSV) cryptographic seal and user data container layout',
     explanation: 'Verifies the cryptographic seal on the read-only Signed System Volume and consolidates user data storage pools across the APFS container.',
-    statusReason: `Boot volume container is ${String(val).toLowerCase()} with valid cryptographic sealing.`,
+    statusReason: `Boot volume container is ${String(val).toLowerCase()}.`,
     command: 'diskutil info /',
     dataSource: 'diskutil CLI · Apple Silicon Secure Enclave / SSV',
     requiredPermissions: ['Standard User'],
     details: [
       { label: 'Volume Health', value: String(val) },
-      { label: 'File System', value: 'APFS (Encrypted / Sealed)' },
-      { label: 'Cryptographic Seal', value: 'Valid (Verified by Secure Boot)' },
-      { label: 'Mount Status', value: 'Read-Only System / Read-Write Data' },
+      { label: 'File System', value: 'UNAVAILABLE' },
+      { label: 'Cryptographic Seal', value: 'UNAVAILABLE' },
+      { label: 'Mount Status', value: 'UNAVAILABLE' },
     ],
-    output: `Device Identifier: disk3s1s1
-Volume Name: Macintosh HD
-File System Personality: APFS
-Sealed System: Yes (Root Hash Verified)
-Container Health: Optimal`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'boot_volume',
       state: val,
-      sealed: true,
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -750,23 +691,22 @@ Container Health: Optimal`,
     category: 'Storage Optimization & TRIM',
     subtitle: 'NVMe / SATA SSD background block deallocation and garbage collection dispatch',
     explanation: 'Sends TRIM commands across unallocated APFS storage blocks to inform the solid-state drive controller of deleted blocks, improving write speed and wear-leveling.',
-    statusReason: `SSD block TRIM commands have been ${String(val).toLowerCase()} to all active NVMe NAND flash controllers.`,
+    statusReason: `SSD block TRIM commands have been ${String(val).toLowerCase()}.`,
     command: 'sudo diskutil apfs trim /',
     dataSource: 'diskutil apfs trim · AppleNVMeSMART / IOKit',
     requiredPermissions: ['Admin / Root'],
     details: [
       { label: 'TRIM Dispatch', value: String(val), isCode: true },
-      { label: 'Controller Type', value: 'Apple Silicon Integrated NVMe Controller' },
-      { label: 'NAND Wear Leveling', value: 'Assisted via block zero-mapping' },
-      { label: 'Write Latency Impact', value: 'Optimized' },
+      { label: 'Controller Type', value: 'UNAVAILABLE' },
+      { label: 'NAND Wear Leveling', value: 'UNAVAILABLE' },
+      { label: 'Write Latency Impact', value: 'UNAVAILABLE' },
     ],
-    output: `Dispatching TRIM across APFS Container disk3...
-TRIM completed successfully on volume group (disk3s1, disk3s5).
-SSD controller garbage collection optimized.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'ssd_trim',
       state: val,
-      dispatched: true,
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -781,17 +721,16 @@ SSD controller garbage collection optimized.`,
     requiredPermissions: ['Admin / Root (dscacheutil)'],
     details: [
       { label: 'Cache Action', value: String(val) },
-      { label: 'Resolver Daemon', value: 'mDNSResponder (PID refreshed)' },
-      { label: 'Directory Cache', value: 'OpenDirectory records flushed' },
-      { label: 'Network Latency', value: 'Nominal' },
+      { label: 'Resolver Daemon', value: 'UNAVAILABLE' },
+      { label: 'Directory Cache', value: 'UNAVAILABLE' },
+      { label: 'Network Latency', value: 'UNAVAILABLE' },
     ],
-    output: `dscacheutil: cache flushed.
-mDNSResponder: SIGHUP received, internal DNS cache refreshed.
-Zero stale DNS mapping entries remaining.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'directory_cache',
       state: val,
-      flushed: true,
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -800,27 +739,22 @@ Zero stale DNS mapping entries remaining.`,
     category: 'Storage Optimization & TRIM',
     subtitle: 'Unified memory compression engine, active/inactive pages, and swap file usage',
     explanation: 'Audits memory pressure state, in-kernel memory compression ratio, and swap paging activity to ensure seamless multitasking with zero memory leaks.',
-    statusReason: `Memory pressure is ${val}. Unified RAM compression is running smoothly with ample headroom.`,
+    statusReason: `Memory pressure is ${val}.`,
     command: 'vm_stat',
     dataSource: 'mach_vm · Darwin Mach Kernel',
     requiredPermissions: ['Standard User'],
     details: [
       { label: 'Pressure State', value: String(val), isCode: true },
-      { label: 'Compression Ratio', value: '1.9x (Hardware-assisted LZ4)' },
-      { label: 'Swap Usage', value: '0 MB (Zero disk swapping active)' },
-      { label: 'Page Fault Rate', value: 'Nominal' },
+      { label: 'Compression Ratio', value: 'UNAVAILABLE' },
+      { label: 'Swap Usage', value: 'UNAVAILABLE' },
+      { label: 'Page Fault Rate', value: 'UNAVAILABLE' },
     ],
-    output: `Mach Virtual Memory Statistics: (page size of 16384 bytes)
-Pages free: 284102.
-Pages active: 412930.
-Pages inactive: 198420.
-Pages wired down: 120400.
-Memory pressure: Nominal (Green). Zero swap in use.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: {
       subsystem: 'memory_pressure',
       state: val,
-      pressure: 'nominal',
-      swapBytes: 0,
+      observedDetails: 'UNAVAILABLE',
     },
   }),
 
@@ -830,16 +764,17 @@ Memory pressure: Nominal (Green). Zero swap in use.`,
     category: 'Windows Package Ecosystem',
     subtitle: 'Official Microsoft Winget package source and manifest repository',
     explanation: 'Winget manages application installations, CLI tools, and runtime updates directly from the official Microsoft Community repository.',
-    statusReason: `Winget package index is ${String(val).toLowerCase()} with all source agreements verified.`,
+    statusReason: `Winget package index is ${String(val).toLowerCase()}.`,
     command: 'winget upgrade --include-unknown',
     dataSource: 'winget CLI · msstore / winget sources',
     requiredPermissions: ['Standard User'],
     details: [
       { label: 'Winget Engine', value: String(val) },
       { label: 'Default Source', value: 'winget (Microsoft Community Repo)' },
-      { label: 'Pending Upgrades', value: '0 packages' },
+      { label: 'Pending Upgrades', value: 'UNAVAILABLE' },
     ],
-    output: `No applicable upgrade found. All packages are up to date.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: { subsystem: 'winget', state: val },
   }),
 
@@ -856,8 +791,8 @@ Memory pressure: Nominal (Green). Zero swap in use.`,
       { label: 'Status', value: String(val) },
       { label: 'Feed Index', value: 'https://community.chocolatey.org/api/v2/' },
     ],
-    output: `Chocolatey v2.x.x
-0 packages are outdated. Chocolatey is verified.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: { subsystem: 'choco', state: val },
   }),
 
@@ -874,7 +809,8 @@ Memory pressure: Nominal (Green). Zero swap in use.`,
       { label: 'Pip Status', value: String(val) },
       { label: 'Python Path', value: 'C:\\Python312\\python.exe' },
     ],
-    output: `All installed Python packages are up-to-date with PyPI.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: { subsystem: 'pip_win', state: val },
   }),
 
@@ -889,9 +825,10 @@ Memory pressure: Nominal (Green). Zero swap in use.`,
     requiredPermissions: ['Standard User'],
     details: [
       { label: 'Bucket Status', value: String(val) },
-      { label: 'Directory', value: 'C:\\Users\\User\\scoop' },
+      { label: 'Directory', value: 'UNAVAILABLE' },
     ],
-    output: `Scoop is up to date. Everything is indexed.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: { subsystem: 'scoop', state: val },
   }),
 
@@ -900,18 +837,17 @@ Memory pressure: Nominal (Green). Zero swap in use.`,
     category: 'Security & Antivirus',
     subtitle: 'Windows Security core antimalware scan engine (MpEngine.dll)',
     explanation: 'Microsoft Defender Antivirus provides real-time protection against viruses, ransomware, spyware, and rootkits across all storage volumes.',
-    statusReason: `Defender Engine version is ${val} (Latest Microsoft release).`,
+    statusReason: `Defender Engine version is ${val}.`,
     command: 'Get-MpComputerStatus | Select-Object AMRunningMode, AMEngineVersion',
     dataSource: 'Windows Defender Service (WinDefend) · MpCmdRun.exe',
     requiredPermissions: ['Standard User'],
     details: [
       { label: 'Engine Version', value: String(val), isCode: true },
-      { label: 'Running Mode', value: 'Normal Real-Time Protection' },
-      { label: 'Service Name', value: 'WinDefend (Automatic)' },
+      { label: 'Running Mode', value: 'UNAVAILABLE' },
+      { label: 'Service Name', value: 'WinDefend' },
     ],
-    output: `AMEngineVersion: ${val}
-AMRunningMode: Normal
-AntivirusEnabled: True`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: { subsystem: 'defender_engine', version: val },
   }),
 
@@ -926,10 +862,10 @@ AntivirusEnabled: True`,
     requiredPermissions: ['Standard User'],
     details: [
       { label: 'Signature State', value: String(val) },
-      { label: 'Cloud Delivery', value: 'Real-Time Protection Active' },
+      { label: 'Cloud Delivery', value: 'UNAVAILABLE' },
     ],
-    output: `AntivirusSignatureVersion: Latest Verified
-NISSignatureVersion: Up-to-date`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: { subsystem: 'defender_sigs', state: val },
   }),
 
@@ -944,11 +880,11 @@ NISSignatureVersion: Up-to-date`,
     requiredPermissions: ['Admin'],
     details: [
       { label: 'Realtime Guard', value: String(val) },
-      { label: 'Behavior Monitor', value: 'Active' },
-      { label: 'IOAV Scan', value: 'Enabled' },
+      { label: 'Behavior Monitor', value: 'UNAVAILABLE' },
+      { label: 'IOAV Scan', value: 'UNAVAILABLE' },
     ],
-    output: `DisableRealtimeMonitoring: False
-Real-time protection is actively shielding the system.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: { subsystem: 'realtime_protection', state: val },
   }),
 
@@ -957,18 +893,18 @@ Real-time protection is actively shielding the system.`,
     category: 'System Integrity & Repair',
     subtitle: 'Verification of protected Windows operating system DLLs and drivers',
     explanation: 'Scans protected system files in C:\\Windows\\System32 and replaces corrupted files with clean copies from the Component Store.',
-    statusReason: `System File Checker result is ${String(val).toLowerCase()}. Zero integrity violations found.`,
+    statusReason: `System File Checker result is ${String(val).toLowerCase()}.`,
     command: 'sfc /scannow',
     dataSource: 'Windows Resource Protection (WRP) · sfc.exe',
     requiredPermissions: ['Administrator'],
     details: [
       { label: 'Scan Result', value: String(val), isCode: true },
       { label: 'Protected Store', value: 'C:\\Windows\\System32\\dllcache' },
-      { label: 'WRP Violations', value: '0 integrity violations' },
+      { label: 'WRP Violations', value: 'UNAVAILABLE' },
     ],
-    output: `Beginning system scan. This process will take some time.
-Windows Resource Protection did not find any integrity violations.`,
-    rawTelemetry: { subsystem: 'sfc', state: val, violations: 0 },
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
+    rawTelemetry: { subsystem: 'sfc', state: val, observedDetails: 'UNAVAILABLE' },
   }),
 
   dismhealth: (val) => ({
@@ -982,15 +918,12 @@ Windows Resource Protection did not find any integrity violations.`,
     requiredPermissions: ['Administrator'],
     details: [
       { label: 'Store State', value: String(val), isCode: true },
-      { label: 'Corruption State', value: 'No component store corruption detected' },
-      { label: 'Image Repairable', value: 'Healthy' },
+      { label: 'Corruption State', value: 'UNAVAILABLE' },
+      { label: 'Image Repairable', value: 'UNAVAILABLE' },
     ],
-    output: `Deployment Image Servicing and Management tool
-Version: 10.0.26100.1
-Image Version: 10.0.26100.1
-No component store corruption detected.
-The operation completed successfully.`,
-    rawTelemetry: { subsystem: 'dism', state: val, healthy: true },
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
+    rawTelemetry: { subsystem: 'dism', state: val, observedDetails: 'UNAVAILABLE' },
   }),
 
   ssdtrim: (val) => ({
@@ -1004,12 +937,11 @@ The operation completed successfully.`,
     requiredPermissions: ['Administrator'],
     details: [
       { label: 'TRIM Command', value: String(val), isCode: true },
-      { label: 'Target Drive', value: 'C: (NVMe SSD)' },
-      { label: 'Slab Consolidation', value: 'Complete' },
+      { label: 'Target Drive', value: 'UNAVAILABLE' },
+      { label: 'Slab Consolidation', value: 'UNAVAILABLE' },
     ],
-    output: `Invoking defrag /C /O /V...
-ReTrim: 100% complete.
-Slab consolidation: 100% complete. Drive optimized.`,
+    output: `Observed value: ${val}
+Command transcript: UNAVAILABLE for this tile.`,
     rawTelemetry: { subsystem: 'win_trim', state: val },
   }),
 };
@@ -1036,7 +968,7 @@ export function getTileInspectorData(
           ? 'error'
           : typeof value === 'string' && (value.toLowerCase().includes('warn') || value.toLowerCase().includes('permission'))
           ? 'warning'
-          : 'success',
+          : 'info',
       subtitle: meta.subtitle,
       details: meta.details,
       dataSource: meta.dataSource,
@@ -1070,7 +1002,7 @@ export function getTileInspectorData(
     category: `Phase ${section.number}: ${section.title}`,
     badge: String(value),
     badgeType: isOk ? 'success' : 'info',
-    subtitle: `Subsystem parameter verified during ${section.title} execution.`,
+    subtitle: `Subsystem parameter reported during ${section.title} execution.`,
     details: [
       { label: 'Parameter Name', value: key },
       { label: 'Current State', value: String(value), isCode: true },
@@ -1085,7 +1017,7 @@ export function getTileInspectorData(
     statusReason: `The parameter returned a status of "${value}" during the latest system inspection cycle.`,
     requiredPermissions: section.requiresElevation ? ['Admin / Root'] : ['Standard User'],
     command: section.allowedCommandId ? `${section.allowedCommandId} --verify` : `system_profiler | grep -i "${key}"`,
-    output: `Checking ${key}...\nStatus: ${value}\nPhase ${section.number} diagnostic checks passed without anomalies.`,
+    output: `Checking ${key}...\nStatus: ${value}\nNo pass/fail verdict is claimed without probe evidence.`,
     rawTelemetry: {
       phaseId: section.id,
       phaseNumber: section.number,

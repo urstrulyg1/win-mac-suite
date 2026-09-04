@@ -103,7 +103,7 @@ export default function CrashHangDoctor() {
                     "WHY DID THIS APP CRASH?" CORRELATION ENGINE
                   </span>
                   <h3 className="text-base font-extrabold" style={{ color: 'var(--color-ink)' }}>
-                    {crashData?.whyDidAppCrashVerdict || 'No application crashes or kernel panics detected. System stability is nominal.'}
+                    {crashData?.whyDidAppCrashVerdict ?? 'UNAVAILABLE: crash probe has not returned data.'}
                   </h3>
                 </div>
               </div>
@@ -169,7 +169,7 @@ export default function CrashHangDoctor() {
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400">System Stability Score</span>
                   <h3 className="text-base font-extrabold" style={{ color: 'var(--color-ink)' }}>
-                    {stabilityData?.verdict || 'System kernel is exceptionally stable.'}
+                    {stabilityData?.verdict ?? 'UNAVAILABLE: stability probe has not returned data.'}
                   </h3>
                 </div>
               </div>
@@ -178,11 +178,11 @@ export default function CrashHangDoctor() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="card p-4 text-center space-y-1">
                 <span className="text-[10px] uppercase font-bold text-slate-400">Kernel Panics</span>
-                <p className="text-xl font-mono font-extrabold text-emerald-400">{stabilityData?.kernelPanics || 0}</p>
+                <p className="text-xl font-mono font-extrabold text-emerald-400">{stabilityData?.kernelPanics ?? 'UNAVAILABLE'}</p>
               </div>
               <div className="card p-4 text-center space-y-1">
                 <span className="text-[10px] uppercase font-bold text-slate-400">Unexpected Shutdowns</span>
-                <p className="text-xl font-mono font-extrabold text-emerald-400">{stabilityData?.unexpectedShutdowns || 0}</p>
+                <p className="text-xl font-mono font-extrabold text-emerald-400">{stabilityData?.unexpectedShutdowns ?? 'UNAVAILABLE'}</p>
               </div>
               <div className="card p-4 text-center space-y-1">
                 <span className="text-[10px] uppercase font-bold text-slate-400">App Crashes</span>

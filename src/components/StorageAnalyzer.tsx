@@ -13,10 +13,14 @@ export default function StorageAnalyzer({ systemInfo, onClean }: Props) {
   const { isMac } = usePlatform();
   const [inspectItem, setInspectItem] = useState<InspectorData | null>(null);
 
-  const totalDisk = systemInfo.totalDiskGB || 500;
-  const freeDisk = systemInfo.freeDiskGB || 150;
-  const usedDisk = +(totalDisk - freeDisk).toFixed(1);
-  const usedPct = Math.round((usedDisk / totalDisk) * 100);
+  const totalDisk = systemInfo.totalDiskGB;
+  const freeDisk = systemInfo.freeDiskGB;
+  // Null is not zero: without measured disk capacity no totals, shares, or
+  // reclaimable amounts may be shown. Category shares below are illustrative
+  // typical-distribution estimates, never device measurements.
+  const diskKnown = typeof totalDisk === 'number' && typeof freeDisk === 'number';
+  const usedDisk = diskKnown ? +(totalDisk - freeDisk).toFixed(1) : 0;
+  const usedPct = diskKnown && totalDisk > 0 ? Math.round((usedDisk / totalDisk) * 100) : 0;
 
   // Dynamic storage distribution
   const categories = isMac ? [
@@ -78,15 +82,23 @@ export default function StorageAnalyzer({ systemInfo, onClean }: Props) {
           <div>
             <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>System Boot Volume</h3>
             <p className="text-xs font-medium" style={{ color: 'var(--color-ink-4)' }}>
-              {usedDisk} GB used of {totalDisk} GB ({usedPct}% Allocated)
+              {diskKnown
+                ? `${usedDisk} GB used of ${totalDisk} GB (${usedPct}% Allocated)`
+                : 'Disk capacity UNAVAILABLE — capacity has not been measured on this device.'}
             </p>
           </div>
           <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-xs">
-            <CheckCircle2 size={11} /> {freeDisk} GB Free
+            <CheckCircle2 size={11} /> {diskKnown ? `${freeDisk} GB Free` : 'UNAVAILABLE'}
           </span>
         </div>
+        {!diskKnown && (
+          <p className="text-xs" style={{ color: 'var(--color-ink-3)' }}>
+            Category breakdown and reclaimable estimates are withheld until disk capacity is measured. No guessed numbers are shown.
+          </p>
+        )}
 
-        {/* Multi-segment Progress Bar */}
+        {/* Multi-segment Progress Bar — illustrative typical-distribution shares, not measurements */}
+        {diskKnown && (
         <div className="h-4 rounded-full overflow-hidden flex bg-slate-800/40 p-0.5 border cursor-pointer" style={{ borderColor: 'var(--color-line)' }}>
           {categories.map((c) => (
             <button
@@ -95,11 +107,11 @@ export default function StorageAnalyzer({ systemInfo, onClean }: Props) {
                 setInspectItem({
                   title: c.name,
                   category: 'Storage Partition Category',
-                  badge: `${c.sizeGB} GB Allocated`,
+                  badge: `~${c.sizeGB} GB illustrative share`,
                   subtitle: c.desc,
                   details: [
                     { label: 'Category Name', value: c.name },
-                    { label: 'Allocated Storage', value: `${c.sizeGB} GB (${Math.round((c.sizeGB / totalDisk) * 100)}% of total)` },
+                    { label: 'Illustrative Share (estimated, not measured)', value: `~${c.sizeGB} GB (~${Math.round((c.sizeGB / totalDisk) * 100)}% typical share of used space)` },
                     { label: 'Filesystem Path', value: c.path, isCode: true },
                     { label: 'Cleanup Recommendation', value: c.isCandidate ? 'Safe candidate for routine cache purge' : 'System protected volume' },
                   ],
@@ -117,10 +129,17 @@ export default function StorageAnalyzer({ systemInfo, onClean }: Props) {
                 backgroundColor: c.color,
               }}
               className="h-full first:rounded-l-full last:rounded-r-full transition-all hover:opacity-85"
-              title={`${c.name}: ${c.sizeGB} GB — Click to inspect`}
+              title={`${c.name}: ~${c.sizeGB} GB illustrative share — Click to inspect`}
             />
           ))}
         </div>
+        )}
+
+        {diskKnown && (
+        <>
+        <p className="text-[11px]" style={{ color: 'var(--color-ink-4)' }}>
+          Category sizes are illustrative typical-distribution shares (~, estimated from used space), not measured on this device. Only the totals above are measured.
+        </p>
 
         {/* Reclaimable Banner */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border" style={{ backgroundColor: 'rgba(245,158,11,0.08)', borderColor: 'rgba(245,158,11,0.22)' }}>
@@ -130,12 +149,12 @@ export default function StorageAnalyzer({ systemInfo, onClean }: Props) {
             </div>
             <div>
               <p className="text-sm font-bold text-amber-500">
-                ~{candidateTotalGB} GB of Reclaimable Storage Identified
+                ~{candidateTotalGB} GB of Reclaimable Storage Estimated (not measured)
               </p>
               <p className="text-xs text-amber-600/80 dark:text-amber-400/80">
                 {isMac
-                  ? 'Safe to reclaim via cache purging and local Time Machine snapshot thinning.'
-                  : 'Safe to reclaim via Component Store and Windows temporary cache cleanup.'}
+                  ? 'Estimate only: purgeable caches and local Time Machine snapshots. Run a cleanup to measure actual reclaim.'
+                  : 'Estimate only: Component Store and Windows temporary caches. Run a cleanup to measure actual reclaim.'}
               </p>
             </div>
           </div>
@@ -147,9 +166,12 @@ export default function StorageAnalyzer({ systemInfo, onClean }: Props) {
             <ArrowRight size={12} />
           </button>
         </div>
+        </>
+        )}
       </div>
 
       {/* Categories Grid */}
+      {diskKnown && (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {categories.map((cat) => (
           <button
@@ -158,11 +180,11 @@ export default function StorageAnalyzer({ systemInfo, onClean }: Props) {
               setInspectItem({
                 title: cat.name,
                 category: 'Storage Partition Category',
-                badge: `${cat.sizeGB} GB Allocated`,
+                badge: `~${cat.sizeGB} GB illustrative share`,
                 subtitle: cat.desc,
                 details: [
                   { label: 'Category Name', value: cat.name },
-                  { label: 'Allocated Storage', value: `${cat.sizeGB} GB` },
+                  { label: 'Illustrative Share (estimated, not measured)', value: `~${cat.sizeGB} GB` },
                   { label: 'Filesystem Path', value: cat.path, isCode: true },
                   { label: 'Cleanup Impact', value: cat.isCandidate ? 'Purgeable non-essential caches' : 'System files / installed programs' },
                 ],
@@ -183,7 +205,7 @@ export default function StorageAnalyzer({ systemInfo, onClean }: Props) {
                 <h4 className="text-sm font-bold" style={{ color: 'var(--color-ink)' }}>{cat.name}</h4>
               </div>
               <span className="font-mono text-sm font-extrabold" style={{ color: 'var(--color-ink)' }}>
-                {cat.sizeGB} GB
+                ~{cat.sizeGB} GB
               </span>
             </div>
             <p className="text-xs" style={{ color: 'var(--color-ink-3)' }}>
@@ -206,6 +228,7 @@ export default function StorageAnalyzer({ systemInfo, onClean }: Props) {
           </button>
         ))}
       </div>
+      )}
     </div>
   );
 }

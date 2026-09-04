@@ -91,10 +91,11 @@ router.post('/ask-assistant', async (req, res) => {
       : {
           query,
           topic: 'Windows System Intelligence',
-          answer: `Analyzed query against Windows telemetry: CPU and Memory resources are nominal.`,
+          answer: 'UNAVAILABLE: no Windows telemetry probe runs in this endpoint, so no diagnostic verdict is claimed. Open Health Diagnostics to run real probes.',
           actionLabel: 'Open Health Diagnostics',
           targetTab: 'diagnostics',
-          recommendation: 'Run regular maintenance to keep Windows systems updated.',
+          recommendation: 'Run Health Diagnostics first; advice requires observed telemetry.',
+          evidenceQuality: 'Unavailable',
         };
 
     logAuditEntry({
@@ -103,7 +104,7 @@ router.post('/ask-assistant', async (req, res) => {
       risk: 'safe',
       permissionLevel: 'Standard User',
       result: 'success',
-      durationSeconds: 0.1,
+      durationSeconds: null,
       changesMade: ['Read-only diagnostic query answered.'],
     });
 
@@ -114,7 +115,7 @@ router.post('/ask-assistant', async (req, res) => {
 });
 
 // ── POST /api/actions/cleanup-plan (Safe Cleanup Engine: Preview & Risk Plan) ─
-// Sizes are measured from disk; categories with no detectable content report 0 MB.
+// Sizes are measured from disk; categories with no detectable content report null (null is not zero).
 router.post('/cleanup-plan', async (_req, res) => {
   const isDarwin = process.platform === 'darwin';
   const home = os.homedir();
@@ -420,7 +421,7 @@ router.post('/remove-quarantine', async (req, res) => {
       risk: 'moderate',
       permissionLevel: 'Standard User',
       result: 'success',
-      durationSeconds: 0.3,
+      durationSeconds: null,
       changesMade: [`Removed com.apple.quarantine attribute from ${target}`],
     });
 
@@ -1388,7 +1389,9 @@ router.post('/kill-port', validateRequest('POST /api/actions/kill-port'), async 
     },
     assertVerified: (before, after) => before.isBound === true && after.isBound === false,
     execute: async () => {
-      const result = isMac ? await killPortProcess(port) : { success: true, killedPids: [] };
+      // No fabricated success: this legacy path probes macOS listeners only.
+      if (!isMac) throw new Error('Port termination via this endpoint is supported on macOS only.');
+      const result = await killPortProcess(port);
       if (!result.success && result.error) throw new Error(result.error);
       return { killedPids: result.killedPids || [], port: Number(port) };
     },
@@ -1452,7 +1455,7 @@ router.post('/cancel', (_req, res) => {
       risk: 'safe',
       permissionLevel: 'Standard User',
       result: 'cancelled',
-      durationSeconds: 0.1,
+      durationSeconds: null,
       changesMade: ['Active child process terminated.'],
     });
   }

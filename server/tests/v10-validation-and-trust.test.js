@@ -132,7 +132,7 @@ export async function runV10Tests() {
 
   await test('P0 #1: unavailable subsystems reduce coverage instead of inflating the score', () => {
     const rollup = aggregateReports([
-      createSubsystemReport({ subsystem: 'a', availability: AVAILABILITY.AVAILABLE, status: HEALTH_STATUS.HEALTHY }),
+      createSubsystemReport({ subsystem: 'a', availability: AVAILABILITY.AVAILABLE, status: HEALTH_STATUS.HEALTHY, evidence: [{ probe: 'test-probe', observed: true }] }),
       createSubsystemReport({ subsystem: 'b', availability: AVAILABILITY.REQUIRES_PERMISSION }),
       createSubsystemReport({ subsystem: 'c', availability: AVAILABILITY.FAILED }),
     ]);

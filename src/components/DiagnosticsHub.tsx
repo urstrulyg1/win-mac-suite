@@ -161,12 +161,12 @@ export default function DiagnosticsHub({ systemInfo: _systemInfo, onStartAction:
                       OVERNIGHT SLEEP DRAIN &amp; WAKE DIAGNOSIS
                     </span>
                     <h3 className="text-base font-extrabold" style={{ color: 'var(--color-ink)' }}>
-                      {batteryIntelligence?.sleepDrainVerdict || 'Overnight sleep drain was 4% (Nominal).'}
+                      {batteryIntelligence?.sleepDrainVerdict ?? 'UNAVAILABLE: sleep-drain probe has not returned data.'}
                     </h3>
                   </div>
                 </div>
                 <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-xs font-bold font-mono">
-                  Condition: {batteryIntelligence?.healthPct || 96}% Maximum Capacity
+                  Condition: {batteryIntelligence?.healthPct ?? 'UNAVAILABLE'}{batteryIntelligence?.healthPct != null ? '% Maximum Capacity' : ' Maximum Capacity: UNAVAILABLE'}
                 </span>
               </div>
             </div>
@@ -228,7 +228,7 @@ export default function DiagnosticsHub({ systemInfo: _systemInfo, onStartAction:
                 </div>
               ) : (
                 <p className="text-xs text-slate-400">
-                  {isMac ? 'Zero rogue sleep blockers. Mac will enter deep sleep on idle.' : 'Zero rogue sleep blockers. System will enter low-power sleep on idle.'}
+                  {powerAssertions == null ? 'UNAVAILABLE: power-assertion probe has not returned data.' : (isMac ? 'No sleep blockers observed in the latest probe.' : 'No sleep blockers observed in the latest probe.')}
                 </p>
               )}
             </div>
@@ -265,7 +265,7 @@ export default function DiagnosticsHub({ systemInfo: _systemInfo, onStartAction:
             <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
               Spotlight Metadata Indexing Engine
             </h3>
-            <p className="text-xs text-slate-400">Volume: {spotlightInfo?.volume || '/System/Volumes/Data'} · Status: {spotlightInfo?.statusText || 'Indexing active'}</p>
+            <p className="text-xs text-slate-400">Volume: {spotlightInfo?.volume ?? 'UNAVAILABLE'} · Status: {spotlightInfo?.statusText ?? 'UNAVAILABLE'}</p>
           </motion.div>
         )}
       </AnimatePresence>

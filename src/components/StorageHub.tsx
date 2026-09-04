@@ -229,10 +229,10 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
                   <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
                     Storage Timeline &amp; Growth Intelligence
                   </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">{systemDataInfo?.growthSummary || 'Storage growth tracker'}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{systemDataInfo?.growthSummary ?? 'UNAVAILABLE: growth probe has not returned data.'}</p>
                 </div>
                 <span className="pill bg-red-500/10 text-red-500 border-red-500/25 text-xs font-bold">
-                  30-Day Delta: {systemDataInfo?.growth30d || '+18.4 GB'}
+                  30-Day Delta: {systemDataInfo?.growth30d ?? 'UNAVAILABLE'}
                 </span>
               </div>
 
@@ -251,10 +251,10 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
             <div className="card p-6 space-y-4">
               <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
                 <h3 className="text-sm font-bold" style={{ color: 'var(--color-ink)' }}>
-                  Exact Breakdown of {systemDataInfo?.totalSystemDataGB || 0} GB System Data
+                  Exact Breakdown of {systemDataInfo?.totalSystemDataGB != null ? `${systemDataInfo.totalSystemDataGB} GB` : 'UNAVAILABLE'} System Data
                 </h3>
                 <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-xs font-bold">
-                  Safe Reclaimable: ~{systemDataInfo?.potentialRecoveryGB || 0} GB
+                  Safe Reclaimable: {systemDataInfo?.potentialRecoveryGB != null ? `~${systemDataInfo.potentialRecoveryGB} GB (estimated)` : 'UNAVAILABLE'}
                 </span>
               </div>
 
@@ -265,7 +265,7 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
                     onClick={() =>
                       setInspectItem({
                         title: cat.name,
-                        category: cat.category || 'System Data Category',
+                        category: cat.category ?? 'UNAVAILABLE',
                         badge: `${cat.sizeGB} GB`,
                         subtitle: cat.description,
                         details: [
@@ -402,7 +402,7 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
             <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
-                  iPhone &amp; iPad Local Backups ({iosBackups?.totalSizeGB || 0} GB Total)
+                  iPhone &amp; iPad Local Backups ({iosBackups?.totalSizeGB != null ? `${iosBackups.totalSizeGB} GB Total` : 'UNAVAILABLE'})
                 </h3>
                 <p className="text-xs text-slate-400">Local device images stored in MobileSync.</p>
               </div>
@@ -496,10 +496,10 @@ export default function StorageHub({ systemInfo, onClean }: Props) {
                   <div key={idx} className="py-3 flex items-center justify-between text-xs">
                     <div>
                       <span className="font-mono font-bold" style={{ color: 'var(--color-ink)' }}>{s.id}</span>
-                      <p className="text-[10px] text-slate-500">Snapshot Date: {s.date || 'Current'}</p>
+                      <p className="text-[10px] text-slate-500">Snapshot Date: {s.date ?? 'UNAVAILABLE'}</p>
                     </div>
                     <span className="pill text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/25">
-                      {s.size || 'Local Snapshot'}
+                      {s.size ?? 'Size: UNAVAILABLE'}
                     </span>
                   </div>
                 ))}

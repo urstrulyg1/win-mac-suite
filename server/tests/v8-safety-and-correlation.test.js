@@ -42,7 +42,7 @@ function runCorrelationTests() {
   });
   assert.ok(observed.findings.length > 0);
   assert.ok(observed.incidents.length > 0);
-  assert.ok(observed.findings[0].evidence.some((e) => e.observedValue === '82%'));
+  assert.ok(observed.findings[0].evidence.some((e) => e.displayValue === '82%' || e.value === '82%' || e.observedValue === '82%'));
 
   const missing = CorrelationEngine.correlate({ memoryUsagePct: 82 });
   assert.equal(missing.findings.length, 0);

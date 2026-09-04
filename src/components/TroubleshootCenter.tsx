@@ -148,7 +148,7 @@ export default function TroubleshootCenter({ onNavigateTab }: Props) {
                     Live Diagnostics Stream
                   </span>
                   <h3 className="text-lg font-bold mt-0.5" style={{ color: 'var(--color-ink)' }}>
-                    {diagnosisData?.title || 'System Diagnosis'}
+                    {diagnosisData?.title ?? 'UNAVAILABLE'}
                   </h3>
                 </div>
                 <button
@@ -165,7 +165,7 @@ export default function TroubleshootCenter({ onNavigateTab }: Props) {
               <div className="p-4 rounded-2xl border space-y-2" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
                 <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-ink-4)' }}>Investigation Summary</p>
                 <p className="text-xs font-mono leading-relaxed" style={{ color: 'var(--color-ink-2)' }}>
-                  {diagnosisData?.diagnosis || 'Probing kernel subsystems, power assertions, and active sockets...'}
+                  {diagnosisData?.diagnosis ?? 'UNAVAILABLE: diagnostic probe has not returned data.'}
                 </p>
               </div>
 

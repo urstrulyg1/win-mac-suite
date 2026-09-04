@@ -111,11 +111,11 @@ router.get('/diagnostics', async (_req, res) => {
       gatewayLatencyMs,
       packetLossPct: null,
       activeAdapter: {
-        name: activeIface?.iface || 'en0',
-        type: activeIface?.type || 'wireless',
-        ip: activeIface?.ip4 || '',
+        name: activeIface?.iface || null,
+        type: activeIface?.type || null,
+        ip: activeIface?.ip4 || null,
         speed: activeIface?.speed || null,
-        mac: activeIface?.mac || '',
+        mac: activeIface?.mac || null,
       },
     });
   } catch (err) {

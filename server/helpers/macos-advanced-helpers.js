@@ -87,8 +87,8 @@ export async function getMacUpdateDoctor() {
     requiredFreeDiskGB: requiredDiskGB,
     availableFreeDiskGB: freeDiskGB,
     hasSufficientSpace: hasSpace,
-    pendingRestart: false,
-    stuckUpdateDetected: false,
+    pendingRestart: null,
+    stuckUpdateDetected: null,
     updateState: isUpToDate ? 'Up to Date ✓' : (hasSpace ? 'Ready for Download' : 'Space Constrained'),
     diagnosisVerdict: isUpToDate
       ? `Your Mac is running ${currentVersion}. No updates currently pending.`
@@ -100,6 +100,14 @@ export async function getMacUpdateDoctor() {
 
 // ── 2. Disk Health & Filesystem Doctor ──────────────────────────────────────
 export async function getMacDiskHealth() {
+  if (process.platform !== 'darwin') {
+    return {
+      dataSource: null, evidenceQuality: 'Unsupported', filesystem: null, container: null,
+      volumeName: null, totalDiskGB: null, freeDiskGB: null, filesystemIntegrity: null,
+      smartStatus: null, smartDisclosure: 'Disk health probing requires macOS (diskutil).',
+      firstAidGuidance: null, readWriteStatistics: null, diskFullRiskPrediction: null,
+    };
+  }
   const [fsSize, diskutilOut] = await Promise.all([
     si.fsSize(),
     runSafe('/usr/sbin/diskutil', ['info', '/'], 4000),
@@ -109,12 +117,12 @@ export async function getMacDiskHealth() {
     ? fsSize.find(f => f.mount === '/System/Volumes/Data' || f.mount === '/')
     : null;
 
-  const totalGB = primary ? Math.round(primary.size / 1024 / 1024 / 1024) : 0;
-  const freeGB = primary ? +((primary.size - primary.used) / 1024 / 1024 / 1024).toFixed(1) : 0;
+  const totalGB = primary ? Math.round(primary.size / 1024 / 1024 / 1024) : null;
+  const freeGB = primary ? +((primary.size - primary.used) / 1024 / 1024 / 1024).toFixed(1) : null;
 
-  let volumeName = 'Macintosh HD';
-  let smartStatus = 'Verified (Probed via diskutil)';
-  let apfsContainer = '/';
+  let volumeName = null;
+  let smartStatus = null;
+  let apfsContainer = null;
 
   if (diskutilOut) {
     const volMatch = diskutilOut.match(/Volume Name:\s+([^\n]+)/);
@@ -294,9 +302,9 @@ export async function getMacICloudDiagnostics() {
     dataSource: '~/Library/Mobile Documents + process query (bird, cloudd)',
     evidenceQuality: 'Observed',
     accountConfigured: exists,
-    icloudDriveSync: exists ? 'Synchronized' : 'Not Configured / Inactive',
+    icloudDriveSync: exists ? 'Observed' : null,
     cloudDaemonActive: birdRunning || clouddRunning,
-    desktopDocumentsSync: exists ? 'Active' : 'Disabled',
+    desktopDocumentsSync: exists ? 'Observed' : null,
     verdict: exists
       ? `iCloud Drive local repository verified. Sync daemons (${[birdRunning && 'bird', clouddRunning && 'cloudd'].filter(Boolean).join(', ') || 'idle'}) active.`
       : 'Local iCloud Drive repository is not initialized.',
@@ -326,10 +334,10 @@ export async function getMacAudioDoctor() {
   const psOut = await runSafe('/bin/ps', ['-axco', 'command'], 3000);
   const coreAudioRunning = (psOut || '').includes('coreaudiod');
 
-  // Best-effort device name from system_profiler
-  let defaultOutputDevice = 'Built-in Output';
-  let defaultInputDevice = 'Built-in Microphone';
-  let sampleRate = '48000 Hz';
+  // Best-effort device names from system_profiler — null until actually observed.
+  let defaultOutputDevice = null;
+  let defaultInputDevice = null;
+  let sampleRate = null;
   try {
     const profOut = await runSafe('/usr/sbin/system_profiler', ['SPAudioDataType'], 5000);
     if (profOut) {

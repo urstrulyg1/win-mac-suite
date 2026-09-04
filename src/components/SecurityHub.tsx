@@ -177,7 +177,7 @@ export default function SecurityHub() {
                   {isMac ? '13 TCC System Permission Categories' : 'Windows System Permission Categories'}
                 </h3>
                 <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-xs font-bold">
-                  Privacy Score: {privacyAuditor?.privacyScore || 92}/100
+                  Privacy Score: {privacyAuditor?.privacyScore ?? 'UNAVAILABLE'}/100
                 </span>
               </div>
 
@@ -236,7 +236,7 @@ export default function SecurityHub() {
                     Diagnostic Report for {appCompat?.appName || selectedApp}
                   </h4>
                   <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-[10px]">
-                    {appCompat?.gatekeeperStatus || 'Verified'}
+                    {appCompat?.gatekeeperStatus ?? 'UNAVAILABLE'}
                   </span>
                 </div>
                 <p className="text-xs text-slate-300">{appCompat?.diagnosisVerdict}</p>
@@ -244,7 +244,7 @@ export default function SecurityHub() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
                   <div className="p-2.5 rounded-lg border text-center" style={{ borderColor: 'var(--color-line)' }}>
                     <span className="text-[9px] uppercase font-bold text-slate-400">Architecture</span>
-                    <p className="text-xs font-mono font-bold text-blue-500 mt-0.5">{appCompat?.architecture || 'Universal'}</p>
+                    <p className="text-xs font-mono font-bold text-blue-500 mt-0.5">{appCompat?.architecture ?? 'UNAVAILABLE'}</p>
                   </div>
                   <div className="p-2.5 rounded-lg border text-center" style={{ borderColor: 'var(--color-line)' }}>
                     <span className="text-[9px] uppercase font-bold text-slate-400">Code Signed</span>

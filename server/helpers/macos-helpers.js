@@ -199,7 +199,7 @@ export async function getMacSystemDataBreakdown() {
     {
       id: 'logs-crashes',
       name: 'Crash Reports & Unified Diagnostic Logs',
-      sizeGB: +(Math.max(logsMB / 1024, 0.4)).toFixed(1),
+      sizeGB: Number.isFinite(logsMB) ? +(logsMB / 1024).toFixed(1) : null,
       path: '~/Library/Logs, /var/log',
       category: 'Diagnostics',
       description: 'Historical diagnostic logs, kernel panic reports, and daemon stderr dumps.',
@@ -213,25 +213,16 @@ export async function getMacSystemDataBreakdown() {
   const totalSystemDataGB = +categories.reduce((s, c) => s + c.sizeGB, 0).toFixed(1);
   const potentialRecoveryGB = +categories.filter(c => c.safeToPurge).reduce((s, c) => s + c.sizeGB, 0).toFixed(1);
 
-  // Storage timeline data (past 30 days growth analysis)
-  const timeline = [
-    { day: '30d ago', systemDataGB: Math.max(12, +(totalSystemDataGB - 18.4).toFixed(1)), event: 'macOS Update Installed' },
-    { day: '21d ago', systemDataGB: Math.max(15, +(totalSystemDataGB - 12.2).toFixed(1)), event: 'Xcode Simulator Downloaded' },
-    { day: '14d ago', systemDataGB: Math.max(18, +(totalSystemDataGB - 7.6).toFixed(1)), event: 'Docker Image Builds' },
-    { day: '7d ago',  systemDataGB: Math.max(22, +(totalSystemDataGB - 3.1).toFixed(1)), event: 'Time Machine Delta Extents' },
-    { day: 'Today',   systemDataGB: totalSystemDataGB, event: 'Current Live State' },
-  ];
-
-  const growth30d = +(totalSystemDataGB - timeline[0].systemDataGB).toFixed(1);
-
+  // No historical samples are retained on-host, so no 30-day timeline or growth
+  // figure can be reported. Only the live measurement is returned.
   return {
     platform: 'macos',
     totalSystemDataGB,
     potentialRecoveryGB,
-    growth30d: growth30d > 0 ? `+${growth30d} GB` : '0 GB',
-    growthSummary: `System Data increased by ${growth30d} GB during the last 30 days, primarily driven by Xcode builds, APFS snapshots, and package caches.`,
+    growth30d: null,
+    growthSummary: 'UNAVAILABLE: no retained historical measurements to compute growth.',
     categories,
-    timeline,
+    timeline: [{ day: 'Today', systemDataGB: totalSystemDataGB, event: 'Current live measurement' }],
   };
 }
 
@@ -252,25 +243,26 @@ export async function getMacDockerStorage() {
       if (items.length > 0) {
         return {
           active: true,
-          imagesSize: items.find(i => i.Type === 'Images')?.Size || '14.2 GB',
-          containersSize: items.find(i => i.Type === 'Containers')?.Size || '2.1 GB',
-          volumesSize: items.find(i => i.Type === 'Local Volumes')?.Size || '6.8 GB',
-          buildCacheSize: items.find(i => i.Type === 'Build Cache')?.Size || '9.4 GB',
-          reclaimableSize: '18.5 GB',
+          imagesSize: items.find(i => i.Type === 'Images')?.Size ?? null,
+          containersSize: items.find(i => i.Type === 'Containers')?.Size ?? null,
+          volumesSize: items.find(i => i.Type === 'Local Volumes')?.Size ?? null,
+          buildCacheSize: items.find(i => i.Type === 'Build Cache')?.Size ?? null,
+          reclaimableSize: null,
           breakdown: items,
         };
       }
     }
   } catch {}
 
+  // Docker daemon did not return data: sizes stay null (null is not zero).
   return {
     active: false,
-    imagesSize: '12.4 GB',
-    containersSize: '1.8 GB',
-    volumesSize: '5.2 GB',
-    buildCacheSize: '8.7 GB',
-    reclaimableSize: '14.6 GB',
-    note: 'Docker Engine daemon detected on disk.',
+    imagesSize: null,
+    containersSize: null,
+    volumesSize: null,
+    buildCacheSize: null,
+    reclaimableSize: null,
+    note: 'UNAVAILABLE: Docker Engine did not return storage data.',
   };
 }
 
@@ -366,7 +358,7 @@ export async function getMacAppRelationshipMap(appName) {
       type: 'Application Binary',
       label: 'Main App Bundle (.app)',
       path: appPath,
-      sizeMB: appSizeMB || 180,
+      sizeMB: appSizeMB || null,
       safety: 'Definitely',
       badgeColor: 'emerald',
       removable: true,
@@ -375,7 +367,7 @@ export async function getMacAppRelationshipMap(appName) {
       type: 'Application Support',
       label: 'App State & Data Directory',
       path: `~/Library/Application Support/${appName}`,
-      sizeMB: 240,
+      sizeMB: null,
       safety: 'Definitely',
       badgeColor: 'emerald',
       removable: true,
@@ -384,7 +376,7 @@ export async function getMacAppRelationshipMap(appName) {
       type: 'Containers',
       label: 'App Sandbox Container',
       path: `~/Library/Containers/com.${cleanName}`,
-      sizeMB: 110,
+      sizeMB: null,
       safety: 'Definitely',
       badgeColor: 'emerald',
       removable: true,
@@ -393,7 +385,7 @@ export async function getMacAppRelationshipMap(appName) {
       type: 'Group Containers',
       label: 'Shared Group Sandboxes',
       path: `~/Library/Group Containers/group.com.${cleanName}`,
-      sizeMB: 85,
+      sizeMB: null,
       safety: 'Shared/Unsafe',
       badgeColor: 'red',
       removable: false,
@@ -403,7 +395,7 @@ export async function getMacAppRelationshipMap(appName) {
       type: 'Preferences',
       label: 'Property List Settings (.plist)',
       path: `~/Library/Preferences/com.${cleanName}.plist`,
-      sizeMB: 1,
+      sizeMB: null,
       safety: 'Definitely',
       badgeColor: 'emerald',
       removable: true,
@@ -412,7 +404,7 @@ export async function getMacAppRelationshipMap(appName) {
       type: 'Caches',
       label: 'Offline Buffers & Cache',
       path: `~/Library/Caches/com.${cleanName}`,
-      sizeMB: 420,
+      sizeMB: null,
       safety: 'Definitely',
       badgeColor: 'emerald',
       removable: true,
@@ -421,7 +413,7 @@ export async function getMacAppRelationshipMap(appName) {
       type: 'Logs',
       label: 'App Diagnostic Logs',
       path: `~/Library/Logs/${appName}`,
-      sizeMB: 12,
+      sizeMB: null,
       safety: 'Definitely',
       badgeColor: 'emerald',
       removable: true,
@@ -439,7 +431,7 @@ export async function getMacAppRelationshipMap(appName) {
       type: 'LaunchAgents',
       label: 'User Background Launch Agent',
       path: `~/Library/LaunchAgents/com.${cleanName}.helper.plist`,
-      sizeMB: 1,
+      sizeMB: null,
       safety: 'Definitely',
       badgeColor: 'emerald',
       removable: true,
@@ -641,7 +633,7 @@ export async function getMacPerformanceDiagnosis() {
   ]);
 
   const memUsagePct = Math.round((mem.active / mem.total) * 100);
-  const cpuUsagePct = Math.round(load.currentLoad || 14);
+  const cpuUsagePct = Number.isFinite(load.currentLoad) ? Math.round(load.currentLoad) : null;
   const swapGB = +((mem.swapused / 1024 / 1024 / 1024).toFixed(1));
 
   const subsystems = [
@@ -699,15 +691,16 @@ export async function getMacPerformanceDiagnosis() {
 
 export async function getMacThermalDeep() {
   const [load, cpu] = await Promise.all([
-    si.currentLoad().catch(() => ({ currentLoad: 12 })),
-    si.cpu().catch(() => ({ manufacturer: 'Apple', brand: 'Silicon' })),
+    si.currentLoad().catch(() => null),
+    si.cpu().catch(() => null),
   ]);
 
   const loadAvg = os.loadavg();
-  const cores = os.cpus().length || 8;
-  const load1m = +(loadAvg[0] || 1.8).toFixed(2);
-  const load5m = +(loadAvg[1] || 1.6).toFixed(2);
-  const load15m = +(loadAvg[2] || 1.4).toFixed(2);
+  const osCores = os.cpus().length;
+  const cores = Number.isFinite(osCores) && osCores > 0 ? osCores : null;
+  const load1m = Number.isFinite(loadAvg[0]) ? +loadAvg[0].toFixed(2) : null;
+  const load5m = Number.isFinite(loadAvg[1]) ? +loadAvg[1].toFixed(2) : null;
+  const load15m = Number.isFinite(loadAvg[2]) ? +loadAvg[2].toFixed(2) : null;
 
   const rawTherm = await runSafeCommand('/usr/bin/pmset', ['-g', 'therm'], 3000);
   const rawLower = (rawTherm || '').toLowerCase();
@@ -719,12 +712,12 @@ export async function getMacThermalDeep() {
   if (isThrottled || hasWarning) {
     thermalLevel = 'Throttled';
     thermalBadge = 'Throttled (Red)';
-  } else if (load1m / cores > 0.8) {
+  } else if (load1m != null && cores != null && cores > 0 && load1m / cores > 0.8) {
     thermalLevel = 'Moderate Load';
     thermalBadge = 'Moderate (Yellow)';
   }
 
-  const currentCpuUtil = Math.round(load.currentLoad || 14);
+  const currentCpuUtil = load && Number.isFinite(load.currentLoad) ? Math.round(load.currentLoad) : null;
 
   return {
     thermalLevel,
@@ -735,11 +728,11 @@ export async function getMacThermalDeep() {
     loadAverage1m: load1m,
     loadAverage5m: load5m,
     loadAverage15m: load15m,
-    chipArchitecture: `${cpu.manufacturer || 'Apple'} ${cpu.brand || 'Silicon'} (${cores} Cores, ${os.arch()})`,
-    gpuActivity: 'Nominal (Integrated Metal Engine)',
+    chipArchitecture: cpu && (cpu.manufacturer || cpu.brand) ? `${cpu.manufacturer || ''} ${cpu.brand || ''}`.trim() + (cores != null ? ` (${cores} Cores, ${os.arch()})` : '') : null,
+    gpuActivity: null,
     rootCauseReasoning: isThrottled
       ? 'Thermal throttling is active due to sustained high thermal load. System clock rates are temporarily modulated.'
-      : `Apple Silicon thermals are nominal across ${cores} cores (${currentCpuUtil}% load). Zero CPU frequency throttling recorded.`,
+      : (currentCpuUtil === null ? 'UNAVAILABLE: CPU utilization was not measured.' : `Observed ${currentCpuUtil}% load across ${cores} cores with no throttling signal detected.`),
   };
 }
 
@@ -796,7 +789,7 @@ export async function getMacBluetoothAirDropDoctor() {
     const ctrl = btJson?.SPBluetoothDataType?.[0] || {};
     const ctrlInfo = ctrl.controller_state || ctrl['controller_properties'] || {};
     const state = ctrlInfo?.controller_state || ctrlInfo?.['device_state'] || '';
-    controllerStatus = state || 'Powered On';
+    controllerStatus = state || 'Unknown';
 
     const connected = ctrl['device_connected'] || ctrl['devices_connected'] || [];
     const notConnected = ctrl['device_not_connected'] || ctrl['devices_not_connected'] || [];
@@ -881,8 +874,8 @@ export async function getMacWifiIntelligence() {
   if (!currentSsid && active?.ssid) currentSsid = active.ssid;
   if (!signalStrengthDbm && active?.ssid) signalStrengthDbm = null;
 
-  // Reliability heuristic based on RSSI
-  let reliabilityScore = 90;
+  // Reliability heuristic based on RSSI — null when the signal was never measured (null is not zero).
+  let reliabilityScore = null;
   if (signalStrengthDbm !== null) {
     if (signalStrengthDbm > -50) reliabilityScore = 99;
     else if (signalStrengthDbm > -65) reliabilityScore = 90;
@@ -891,8 +884,8 @@ export async function getMacWifiIntelligence() {
   }
 
   return {
-    currentSsid: currentSsid || (active ? 'Connected (SSID unavailable without airport)' : 'Not connected'),
-    interfaceName: active?.iface || 'en0',
+    currentSsid: currentSsid || null,
+    interfaceName: active?.iface || null,
     ipAddress: active?.ip4 || null,
     signalStrengthDbm,
     channel,
@@ -1047,8 +1040,8 @@ export async function getMacDeveloperEnvironmentDoctor() {
     { name: 'Python 3', installed: !!pyV, version: pyV.replace('Python ', '') || 'Not Found', path: pythonPath || '/usr/bin/python3', arch: os.arch(), pathHealthy: true, multipleInstalls: true, note: 'System Python + Homebrew Python detected' },
     { name: 'Go Runtime', installed: !!goV, version: goV ? goV.split(' ')[2] : 'Not Found', path: '/opt/homebrew/bin/go', arch: os.arch(), pathHealthy: true, multipleInstalls: false },
     { name: 'Rust & Cargo', installed: !!rustV, version: rustV ? rustV.split(' ')[1] : 'Not Found', path: '~/.cargo/bin/rustc', arch: os.arch(), pathHealthy: true, multipleInstalls: false },
-    { name: 'Homebrew', installed: !!brewV, version: brewV ? brewV.split('\n')[0] : 'Not Found', path: '/opt/homebrew/bin/brew', arch: 'arm64', pathHealthy: true, multipleInstalls: false },
-    { name: 'Docker CLI', installed: !!dockerV, version: dockerV ? dockerV.split(' ')[2] : 'Not Found', path: '/usr/local/bin/docker', arch: 'Universal', pathHealthy: true, multipleInstalls: false },
+    { name: 'Homebrew', installed: !!brewV, version: brewV ? brewV.split('\n')[0] : null, path: '/opt/homebrew/bin/brew', arch: brewV ? os.arch() : null, pathHealthy: !!brewV, multipleInstalls: false },
+    { name: 'Docker CLI', installed: !!dockerV, version: dockerV ? dockerV.split(' ')[2] : null, path: '/usr/local/bin/docker', arch: dockerV ? os.arch() : null, pathHealthy: !!dockerV, multipleInstalls: false },
     { name: 'Git SCM', installed: !!gitV, version: gitV ? gitV.replace('git version ', '') : 'Not Found', path: '/usr/bin/git', arch: os.arch(), pathHealthy: true, multipleInstalls: false },
   ];
 
@@ -1517,10 +1510,8 @@ export async function getMacDeveloperArtifacts() {
     }
   }
 
-  return artifacts.length > 0 ? artifacts : [
-    { id: '1', name: 'Homebrew Cache', path: '~/Library/Caches/Homebrew', sizeMB: 500 },
-    { id: '2', name: 'npm Global Cache', path: '~/.npm', sizeMB: 120 },
-  ];
+  // Empty means empty: no invented cache sizes when the scan finds nothing.
+  return artifacts;
 }
 
 export async function getMacLargeFiles() {
@@ -1630,19 +1621,26 @@ export async function getMacHardwareStatus() {
 
   const gpuName = Array.isArray(graphics.controllers) && graphics.controllers.length > 0
     ? graphics.controllers[0].model
-    : `${cpu.manufacturer || 'Apple'} Integrated Graphics`;
+    : null;
+
+  const chipName = cpu.manufacturer || cpu.brand
+    ? `${cpu.manufacturer || ''} ${cpu.brand || ''}`.trim()
+    : null;
+  const osName = osInfo.distro || osInfo.release
+    ? `${osInfo.distro || ''} ${osInfo.release || ''} (${osInfo.build || ''})`.trim()
+    : null;
 
   return {
     platform: 'macos',
-    chip: `${cpu.manufacturer || 'Apple'} ${cpu.brand || 'Silicon'}`,
+    chip: chipName,
     arch: os.arch(),
-    cores: cpu.cores || 8,
-    physicalCores: cpu.physicalCores || cpu.cores || 8,
-    speed: `${cpu.speed || 3.2} GHz`,
-    ramGB: Math.round(mem.total / 1024 / 1024 / 1024),
+    cores: cpu.cores || null,
+    physicalCores: cpu.physicalCores || cpu.cores || null,
+    speed: cpu.speed ? `${cpu.speed} GHz` : null,
+    ramGB: Number.isFinite(mem.total) ? Math.round(mem.total / 1024 / 1024 / 1024) : null,
     gpu: gpuName,
-    thermalState: 'Nominal',
-    os: `${osInfo.distro || 'macOS'} ${osInfo.release || ''} (${osInfo.build || ''})`,
+    thermalState: null,
+    os: osName,
   };
 }
 
@@ -1744,10 +1742,8 @@ export async function getMacListeningPorts() {
     }
     return ports.sort((a, b) => a.port - b.port);
   } catch {
-    return [
-      { id: 'port-1', process: 'node', pid: process.pid, user: os.userInfo()?.username || 'user', port: 3131, address: '127.0.0.1:3131', protocol: 'TCP', status: 'LISTEN' },
-      { id: 'port-2', process: 'vite', pid: process.pid + 1, user: os.userInfo()?.username || 'user', port: 5173, address: '127.0.0.1:5173', protocol: 'TCP', status: 'LISTEN' },
-    ];
+    // No fabricated ports: an unreadable listener table is an empty observation, not two invented entries.
+    return [];
   }
 }
 
@@ -1766,12 +1762,13 @@ export async function getMacThermalState() {
       detail: out.trim() || `Apple Silicon thermal pressure nominal across ${cores} cores (Load 1m: ${load1m}). Zero CPU throttling active.`,
     };
   } catch {
+    // Probe failed: thermal state is unknown, never assumed nominal.
     return {
-      state: 'Nominal',
-      pressureLevel: 'Nominal (Green)',
-      cores: os.cpus().length,
-      load1m: os.loadavg()[0].toFixed(2),
-      detail: 'Thermal pressure nominal.',
+      state: 'Unknown',
+      pressureLevel: 'Unknown',
+      cores: null,
+      load1m: null,
+      detail: 'UNAVAILABLE: thermal probe could not run.',
     };
   }
 }
@@ -1873,7 +1870,7 @@ export async function getMacTroubleshootGuide(issueId) {
       title: 'Wi-Fi / Airport / Hotel Captive Portal Not Opening',
       diagnosis: 'Checking DNS resolution cache and captive portal trigger...',
       findings: [
-        { label: 'DNS Resolver State', value: 'Operational', healthy: true },
+        { label: 'DNS Resolver State', value: 'UNAVAILABLE', healthy: false },
       ],
       actions: [
         { id: 'flush-dns', label: 'Flush DNS & Trigger Captive Portal', endpoint: 'run-phase', parameters: { commandId: 'mac.flushdns' }, primary: true },

@@ -107,25 +107,25 @@ router.get('/diagnostics/correlation-incidents', async (_req, res) => {
       si.processes().catch(() => ({ list: [] })),
     ]);
 
-    const memUsagePct = mem.total > 0 ? Math.round((mem.active / mem.total) * 100) : 0;
-    const swapUsedGB = +(( mem.swapused || 0) / 1024 / 1024 / 1024).toFixed(2);
+    const memUsagePct = mem.total > 0 ? Math.round((mem.active / mem.total) * 100) : null;
+    const swapUsedGB = Number.isFinite(mem.swapused) ? +(mem.swapused / 1024 / 1024 / 1024).toFixed(2) : null;
 
     const primary = Array.isArray(fsSize)
       ? fsSize.find(f => f.mount === '/System/Volumes/Data' || f.mount === '/') || fsSize[0]
       : null;
-    const freeDiskGB = primary ? +((primary.size - primary.used) / 1024 / 1024 / 1024).toFixed(1) : 0;
-    const usedDiskGB = primary ? Math.round(primary.used / 1024 / 1024 / 1024) : 0;
+    const freeDiskGB = primary ? +((primary.size - primary.used) / 1024 / 1024 / 1024).toFixed(1) : null;
+    const usedDiskGB = primary ? Math.round(primary.used / 1024 / 1024 / 1024) : null;
 
     // Detect real Docker & Chrome memory from process list
     const procList = (processes && Array.isArray(processes.list)) ? processes.list : [];
     const dockerProc = procList.find(p => p && /docker/i.test(p.name));
     const dockerActive = !!dockerProc;
-    const dockerCpuPct = dockerProc ? (dockerProc.cpu || 0) : 0;
+    const dockerCpuPct = dockerProc && Number.isFinite(dockerProc.cpu) ? dockerProc.cpu : null;
     const chromeProcs = procList.filter(p => p && /chrome/i.test(p.name));
     const chromeTotalMem = chromeProcs.reduce((s, p) => s + (p.mem || 0), 0);
-    const chromeMemoryMB = mem.total > 0
+    const chromeMemoryMB = mem.total > 0 && chromeProcs.length > 0
       ? Math.round((chromeTotalMem / 100) * (mem.total / 1024 / 1024))
-      : 0;
+      : null;
 
     const results = CorrelationEngine.correlate({
       memoryUsagePct: memUsagePct,
@@ -133,7 +133,7 @@ router.get('/diagnostics/correlation-incidents', async (_req, res) => {
       dockerActive,
       dockerCpuPct,
       chromeMemoryMB,
-      thermalLevel: 'Nominal',
+      thermalLevel: null,
       systemDataGB: usedDiskGB,
       freeDiskGB,
     });
@@ -163,8 +163,8 @@ router.get('/diagnostics/predictive-forecast', async (req, res) => {
       : null;
     const freeDiskGB = primary
       ? +((primary.size - primary.used) / 1024 / 1024 / 1024).toFixed(1)
-      : parseFloat(req.query.freeDiskGB) || 0;
-    const forecast = BaselineForecaster.getForecast(freeDiskGB, 1.4);
+      : (Number.isFinite(parseFloat(req.query.freeDiskGB)) ? parseFloat(req.query.freeDiskGB) : null);
+    const forecast = BaselineForecaster.getForecast(freeDiskGB, null);
     res.json(forecast);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -186,33 +186,29 @@ router.get('/health-check', async (_req, res) => {
       ? fsSize.find((f) => f.mount === '/System/Volumes/Data' || f.mount === '/' || f.mount === 'C:') || fsSize[0]
       : null;
 
-    const diskUsagePct = dataMount ? Math.round(dataMount.use || 0) : 50;
-    const memUsagePct = Math.round((mem.active / mem.total) * 100);
-    const cpuUsagePct = Math.round(currentLoad.currentLoad || 10);
-    const battPercent = batt.hasBattery ? (batt.percent ?? 100) : 100;
+    // Null when unmeasured: an unreadable mount is not 50% used, an unreadable
+    // load is not 10% CPU, and security/integrity are not 98 without a probe.
+    const diskUsagePct = dataMount && Number.isFinite(dataMount.use) ? Math.round(dataMount.use) : null;
+    const memUsagePct = mem.total > 0 ? Math.round((mem.active / mem.total) * 100) : null;
+    const cpuUsagePct = Number.isFinite(currentLoad.currentLoad) ? Math.round(currentLoad.currentLoad) : null;
+    const battPercent = batt.hasBattery && Number.isFinite(batt.percent) ? batt.percent : null;
 
-    const storageScore = Math.max(0, 100 - (diskUsagePct > 70 ? (diskUsagePct - 70) * 2 : 0));
-    const memScore = Math.max(0, 100 - (memUsagePct > 75 ? (memUsagePct - 75) * 2.5 : 0));
-    const cpuScore = Math.max(0, 100 - (cpuUsagePct > 60 ? (cpuUsagePct - 60) * 2 : 0));
-    const battScore = batt.hasBattery ? (battPercent < 20 ? 70 : 100) : 100;
+    const storageScore = diskUsagePct === null ? null : Math.max(0, 100 - (diskUsagePct > 70 ? (diskUsagePct - 70) * 2 : 0));
+    const memScore = memUsagePct === null ? null : Math.max(0, 100 - (memUsagePct > 75 ? (memUsagePct - 75) * 2.5 : 0));
+    const cpuScore = cpuUsagePct === null ? null : Math.max(0, 100 - (cpuUsagePct > 60 ? (cpuUsagePct - 60) * 2 : 0));
+    const battScore = !batt.hasBattery ? null : (battPercent === null ? null : (battPercent < 20 ? 70 : 100));
 
-    const weightedScore = Math.round(
-      storageScore * 0.25 +
-      memScore * 0.20 +
-      cpuScore * 0.20 +
-      98 * 0.15 +
-      98 * 0.10 +
-      battScore * 0.10
-    );
+    const scored = [storageScore, memScore, cpuScore, battScore].filter((s) => typeof s === 'number');
+    const weightedScore = scored.length > 0 ? Math.round(scored.reduce((s, v) => s + v, 0) / scored.length) : null;
 
     res.json({
-      score: Math.min(Math.max(weightedScore, 50), 100),
+      score: weightedScore,
       metrics: {
-        storage: { status: diskUsagePct < 80 ? 'Healthy' : 'Warning', score: storageScore, usage: diskUsagePct },
-        memory: { status: memUsagePct < 85 ? 'Healthy' : 'Warning', score: memScore, usage: memUsagePct },
-        cpu: { status: cpuUsagePct < 80 ? 'Healthy' : 'Warning', score: cpuScore, usage: cpuUsagePct },
-        security: { status: 'Healthy', score: 98 },
-        integrity: { status: 'Healthy', score: 98 },
+        storage: diskUsagePct === null ? { status: 'UNAVAILABLE', score: null, usage: null } : { status: diskUsagePct < 80 ? 'Healthy' : 'Warning', score: storageScore, usage: diskUsagePct },
+        memory: memUsagePct === null ? { status: 'UNAVAILABLE', score: null, usage: null } : { status: memUsagePct < 85 ? 'Healthy' : 'Warning', score: memScore, usage: memUsagePct },
+        cpu: cpuUsagePct === null ? { status: 'UNAVAILABLE', score: null, usage: null } : { status: cpuUsagePct < 80 ? 'Healthy' : 'Warning', score: cpuScore, usage: cpuUsagePct },
+        security: { status: 'NOT_CHECKED', score: null, note: 'No security probe runs in this endpoint.' },
+        integrity: { status: 'NOT_CHECKED', score: null, note: 'No integrity probe runs in this endpoint.' },
       },
     });
   } catch (err) {
@@ -231,7 +227,7 @@ router.get('/performance/diagnosis', async (_req, res) => {
 
 router.get('/thermal/deep', async (_req, res) => {
   try {
-    const thermal = isMac ? await getMacThermalDeep() : { thermalLevel: 'Nominal' };
+    const thermal = isMac ? await getMacThermalDeep() : { thermalLevel: null, note: 'UNAVAILABLE: deep thermal probe is macOS-only.' };
     res.json(thermal);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -392,7 +388,7 @@ router.get('/processes', async (_req, res) => {
         name: p.name,
         cpu: +(p.cpu || 0).toFixed(1),
         mem: +(p.mem || 0).toFixed(1),
-        user: p.user || 'SYSTEM',
+        user: p.user || null,
         command: p.command || '',
       }));
     res.json({ all: processes.all || sorted.length, running: processes.running || sorted.length, list: sorted });
@@ -425,7 +421,7 @@ router.get('/hardware', async (_req, res) => {
 
 router.get('/spotlight', async (_req, res) => {
   try {
-    res.json(isMac ? await getMacSpotlightStatus() : { indexingEnabled: true });
+    res.json(isMac ? await getMacSpotlightStatus() : { indexingEnabled: null, note: 'UNAVAILABLE: Spotlight probe is macOS-only.' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

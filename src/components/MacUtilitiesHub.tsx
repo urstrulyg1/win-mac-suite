@@ -453,7 +453,7 @@ export default function MacUtilitiesHub() {
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>Developer Toolchain &amp; CLI Health</h3>
                 <p className="text-xs font-medium" style={{ color: 'var(--color-ink-4)' }}>
-                  Detected {devHealth?.totalInstalled || 0} active developer runtimes and compilers.
+                  Detected {devHealth?.totalInstalled ?? 'UNAVAILABLE'} active developer runtimes and compilers.
                 </p>
               </div>
               <span className="pill bg-blue-500/10 text-blue-500 border-blue-500/25 text-[10px]">
@@ -503,14 +503,14 @@ export default function MacUtilitiesHub() {
                   setInspectItem({
                     title: 'Apple Silicon Thermal Pressure',
                     category: 'Thermal Subsystem',
-                    badge: thermalInfo?.state || 'Nominal',
+                    badge: thermalInfo?.state ?? 'UNAVAILABLE',
                     badgeType: thermalInfo?.state === 'Nominal' ? 'success' : 'warning',
                     subtitle: 'Thermal throttling sensor condition.',
                     details: [
-                      { label: 'Thermal Pressure State', value: thermalInfo?.state || 'Nominal' },
-                      { label: 'Hardware Throttling', value: 'None Active' },
+                      { label: 'Thermal Pressure State', value: thermalInfo?.state ?? 'UNAVAILABLE' },
+                      { label: 'Hardware Throttling', value: 'UNAVAILABLE' },
                     ],
-                    output: thermalInfo?.detail || 'No thermal warning level has been recorded.',
+                    output: thermalInfo?.detail ?? 'UNAVAILABLE',
                   })
                 }
                 className="p-5 rounded-2xl border text-left cursor-pointer transition-all hover:scale-[1.01]"
@@ -521,10 +521,10 @@ export default function MacUtilitiesHub() {
                   <Activity size={18} className="text-emerald-500" />
                 </div>
                 <p className="text-2xl font-extrabold font-mono text-emerald-500">
-                  {thermalInfo?.state || 'Nominal'}
+                  {thermalInfo?.state ?? 'UNAVAILABLE'}
                 </p>
                 <p className="text-xs mt-1" style={{ color: 'var(--color-ink-3)' }}>
-                  Hardware thermal level is nominal. Zero CPU throttling active.
+                  {thermalInfo?.detail ?? 'UNAVAILABLE: thermal probe has not returned data.'}
                 </p>
               </button>
 
@@ -533,11 +533,11 @@ export default function MacUtilitiesHub() {
                   setInspectItem({
                     title: 'CPU Governor & Fan Governor',
                     category: 'Cooling Subsystem',
-                    badge: 'Apple M1 Dynamic Fanless',
-                    subtitle: 'Passive thermal cooling state.',
+                    badge: 'UNAVAILABLE',
+                    subtitle: 'UNAVAILABLE: cooling profile probe has not returned data.',
                     details: [
-                      { label: 'Cooling Profile', value: 'Passive Heat Dissipation' },
-                      { label: 'Speed Limit', value: '100% Unrestricted' },
+                      { label: 'Cooling Profile', value: 'UNAVAILABLE' },
+                      { label: 'Speed Limit', value: 'UNAVAILABLE' },
                     ],
                   })
                 }
@@ -549,10 +549,10 @@ export default function MacUtilitiesHub() {
                   <Cpu size={18} className="text-blue-500" />
                 </div>
                 <p className="text-2xl font-extrabold font-mono" style={{ color: 'var(--color-ink)' }}>
-                  100%
+                  UNAVAILABLE
                 </p>
                 <p className="text-xs mt-1" style={{ color: 'var(--color-ink-3)' }}>
-                  Full CPU clock speed available with no thermal degradation.
+                  UNAVAILABLE: clock-speed probe has not returned data.
                 </p>
               </button>
             </div>

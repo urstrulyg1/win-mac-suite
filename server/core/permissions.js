@@ -112,19 +112,33 @@ export function buildPermissionMatrix(permissionState = createPermissionState(),
   };
 }
 
-export const PERMISSION_SCENARIOS = {
-  'no-permissions': createPermissionState({ [PERMISSION.USER_APPROVED]: false, [PERMISSION.NETWORK]: false }),
-  'user-approved': createPermissionState({ [PERMISSION.USER_APPROVED]: true, [PERMISSION.NETWORK]: true }),
-  'admin-approved': createPermissionState({ [PERMISSION.USER_APPROVED]: true, [PERMISSION.NETWORK]: true, [PERMISSION.ADMIN]: true }),
-  'full-disk-access': createPermissionState({ [PERMISSION.USER_APPROVED]: true, [PERMISSION.NETWORK]: true, [PERMISSION.ADMIN]: true, [PERMISSION.FULL_DISK_ACCESS]: true }),
-  accessibility: createPermissionState({ [PERMISSION.USER_APPROVED]: true, [PERMISSION.NETWORK]: true, [PERMISSION.ACCESSIBILITY]: true }),
-  'screen-recording': createPermissionState({ [PERMISSION.USER_APPROVED]: true, [PERMISSION.NETWORK]: true, [PERMISSION.SCREEN_RECORDING]: true }),
-  camera: createPermissionState({ [PERMISSION.USER_APPROVED]: true, [PERMISSION.NETWORK]: true, [PERMISSION.CAMERA]: true }),
-  microphone: createPermissionState({ [PERMISSION.USER_APPROVED]: true, [PERMISSION.NETWORK]: true, [PERMISSION.MICROPHONE]: true }),
-  'fully-granted': createPermissionState({
-    [PERMISSION.USER_APPROVED]: true, [PERMISSION.NETWORK]: true, [PERMISSION.ADMIN]: true, [PERMISSION.FULL_DISK_ACCESS]: true,
-    [PERMISSION.ACCESSIBILITY]: true, [PERMISSION.SCREEN_RECORDING]: true, [PERMISSION.CAMERA]: true, [PERMISSION.MICROPHONE]: true,
-    [PERMISSION.DEVELOPER_TOOLS]: true,
-  }),
-  'corporate-managed': createPermissionState({ [PERMISSION.USER_APPROVED]: true, [PERMISSION.NETWORK]: true, [PERMISSION.ADMIN]: false, [PERMISSION.FULL_DISK_ACCESS]: false }),
+// Hypothetical what-if previews for the permissions-matrix simulator. These are
+// explicitly NOT the host's permission state: the live state starts as {}
+// (unprobed/unknown) and is only ever filled by runtime probes. Each scenario
+// declares granted permission names; the builder below materializes the state.
+const SCENARIO_GRANTS = {
+  'no-permissions': [],
+  'user-approved': [PERMISSION.USER_APPROVED, PERMISSION.NETWORK],
+  'admin-approved': [PERMISSION.USER_APPROVED, PERMISSION.NETWORK, PERMISSION.ADMIN],
+  'full-disk-access': [PERMISSION.USER_APPROVED, PERMISSION.NETWORK, PERMISSION.ADMIN, PERMISSION.FULL_DISK_ACCESS],
+  accessibility: [PERMISSION.USER_APPROVED, PERMISSION.NETWORK, PERMISSION.ACCESSIBILITY],
+  'screen-recording': [PERMISSION.USER_APPROVED, PERMISSION.NETWORK, PERMISSION.SCREEN_RECORDING],
+  camera: [PERMISSION.USER_APPROVED, PERMISSION.NETWORK, PERMISSION.CAMERA],
+  microphone: [PERMISSION.USER_APPROVED, PERMISSION.NETWORK, PERMISSION.MICROPHONE],
+  'fully-granted': [
+    PERMISSION.USER_APPROVED, PERMISSION.NETWORK, PERMISSION.ADMIN, PERMISSION.FULL_DISK_ACCESS,
+    PERMISSION.ACCESSIBILITY, PERMISSION.SCREEN_RECORDING, PERMISSION.CAMERA, PERMISSION.MICROPHONE,
+    PERMISSION.DEVELOPER_TOOLS,
+  ],
+  'corporate-managed': [PERMISSION.USER_APPROVED, PERMISSION.NETWORK],
 };
+
+function scenarioState(grantedNames) {
+  const state = createPermissionState();
+  for (const name of grantedNames) state[name] = true;
+  return state;
+}
+
+export const PERMISSION_SCENARIOS = Object.fromEntries(
+  Object.entries(SCENARIO_GRANTS).map(([id, grants]) => [id, scenarioState(grants)]),
+);

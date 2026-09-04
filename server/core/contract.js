@@ -47,7 +47,7 @@ export function createSubsystemReport({
 function defaultSummary(status, availability, subsystem) {
   if (availability === AVAILABILITY.REQUIRES_PERMISSION) return `${subsystem} could not be evaluated because required permission is missing. No health claim is being made.`;
   if (availability === AVAILABILITY.UNSUPPORTED) return `${subsystem} is not supported on this platform or hardware.`;
-  if (availability === AVAILABILITY.FAILED) return `${subsystem} probe failed. Results are unavailable.`;
+  if (availability === AVAILABILITY.FAILED) return `${subsystem} probe failed. Results are unavailable. An unavailable result is NOT the same as healthy.`;
   if (availability === AVAILABILITY.LIMITED) return `${subsystem} has not been fully evaluated. No health claim is being made.`;
   if (status === HEALTH_STATUS.HEALTHY) return `${subsystem} is operating within measured thresholds.`;
   return `${subsystem} has not produced a health observation.`;
@@ -73,7 +73,7 @@ export function aggregateReports(reports = []) {
     contractVersion: '10.0', overallStatus: overall, overallGlyph: STATUS_GLYPH[overall],
     coverage: { subsystemsTotal: reports.length, subsystemsEvaluated: observable, subsystemsUnavailable: counts.UNAVAILABLE, coveragePct: reports.length ? Math.round((observable / reports.length) * 100) : 0 },
     healthScore: scoreBase,
-    scoreQualified: healthEvaluated > 0 && counts.UNAVAILABLE === 0,
+    scoreQualified: healthEvaluated > 0,
     scoreQualifier: healthEvaluated === 0 ? 'No subsystem produced a health observation; no health score is claimed.' : counts.UNAVAILABLE > 0 ? `${counts.UNAVAILABLE} subsystem(s) could not be evaluated; this score describes only the observed health statuses.` : 'Score is derived only from subsystem health observations supplied by probes.',
     counts, subsystems: reports, generatedAt: new Date().toISOString(),
   };

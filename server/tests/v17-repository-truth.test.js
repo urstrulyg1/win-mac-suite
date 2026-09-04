@@ -82,3 +82,55 @@ test('degraded probes never substitute caller fallback telemetry after failure',
 test('fixture-backed production telemetry is absent', () => {
   assert.equal(fs.existsSync(path.join(root, 'server', 'fixtures')), false);
 });
+
+test('no-fabrication purge: invented network, hardware, and cleanup telemetry stay absent', () => {
+  const forbidden = [
+    /Home-Fiber-5G/, /192\.168\.1\.50/, /192\.168\.1\.1/,
+    /Overnight sleep drain was 4%/, /reliabilityScore \|\| 97/, /dnsLatencyMs \|\| 14/,
+    /signalStrengthDbm \|\| -54/, /36 \(5 GHz\)/,
+    /1\.4\s*GB recovered/, /900 MB recovered/, /3\.1 GB (released|reclaimed)/, /reclaimedGB: 3\.1/,
+    /reclaimedBytes: (1503238553|943718400)/, /14\.6 GB/, /18\.5 GB/, /\+18\.4 GB/,
+    /memoryMB: 3800/, /renderThreads: 14/, /memoryAssignedGB: 6\.2/,
+    /Today 14:21/, /inc-1042/, /ChromeCrashEvent', 'DiagnosticIncident'/,
+    /latencyMs: 14 \}/, /memoryPressurePct: 76/, /memoryPressurePct: 46/,
+    /currentLoad \|\| 14/, /sampleRate: 44100/, /48000 Hz/,
+    /High \(96%\)/, /\|\| 'arm64'/, /\|\| 'Macintosh HD'/, /= 'Macintosh HD'/, /Performance nominal/,
+    /port-1.*3131/, /CoreAudio Healthy/, /AirDrop is ready for transfers/,
+    /totalDiskGB \|\| 500/, /freeDiskGB \|\| 150/, /estimatedDaysUntilCritical \|\| 90/,
+    /averageDailyGrowthGB \|\| 1\.4/, /connectedDisplaysCount \|\| 1/, /privacyScore \|\| 92/,
+    /cores \|\| 8/, /ramGB \|\| 8/, /physicalCores \|\| [a-z.]+ \|\| 8/,
+    /currentLoad: 12/, /brand: 'Silicon'/, /loadAvg\[0\] \|\| 1\.8/,
+    /cpu\.speed \|\| 3\.2/, /thermalState: 'Nominal'/, /privacyScore: 75,/,
+    /entry\.result \|\| 'success'/, /= 'Macintosh HD'/, /smartStatus = 'Verified/,
+    /apfsContainer = '\/'/, /reclaimedBytes: 1503238553/, /durationSeconds: 0\.1/, /'0 B'/,
+    /Scoop is up to date\. Everything is indexed/, /killedPids: \[\]/,
+    /pendingRestart: false/, /stuckUpdateDetected: false/,
+    /state: 'Unknown'[^}]*sampleRate: 44100/,
+  ];
+  for (const pattern of forbidden) assert.doesNotMatch(source, pattern, `fabricated pattern still present: ${pattern}`);
+});
+
+test('intelligence engines invent no telemetry without observed input', async () => {
+  const { DiagnosticKnowledgeGraph } = await import('../engine/knowledge-graph.js');
+  const { RecommendationEngine } = await import('../engine/recommendation-engine.js');
+  const { VerificationEngine } = await import('../engine/verification-engine.js');
+  const { incidentManager } = await import('../engine/incident-manager.js');
+
+  assert.deepStrictEqual(new DiagnosticKnowledgeGraph().findCausalChain('ChromeCrashEvent'), []);
+  assert.deepStrictEqual(RecommendationEngine.getRankedRecommendations(), []);
+  assert.deepStrictEqual(RecommendationEngine.getRankedRecommendations('not-an-array'), []);
+  const unverified = await VerificationEngine.verifyExecution('network.flushDNS', async () => {});
+  assert.strictEqual(unverified.verified, false);
+  assert.strictEqual(unverified.beforeState, null);
+  assert.strictEqual(unverified.afterState, null);
+  assert.deepStrictEqual(incidentManager.getAllIncidents(), []);
+});
+
+test('permission scenarios stay hypothetical and never seed host state', async () => {
+  const { PERMISSION_SCENARIOS, createPermissionState } = await import('../core/permissions.js');
+  assert.deepStrictEqual(createPermissionState(), {});
+  assert.ok(Object.keys(PERMISSION_SCENARIOS).length >= 10);
+  const { buildPermissionMatrix } = await import('../core/permissions.js');
+  const matrix = buildPermissionMatrix(createPermissionState());
+  assert.strictEqual(matrix.grantedCount, 0);
+});

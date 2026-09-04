@@ -214,7 +214,7 @@ export default function RunningDashboard({
                         </span>
                       </div>
                       <p className="text-xs text-slate-400">
-                        Reclaimed {(summary.spaceReclaimed ?? 0) >= 1024 ? `${((summary.spaceReclaimed ?? 0) / 1024).toFixed(1)} GB` : `${summary.spaceReclaimed ?? 0} MB`} · Updated {summary.totalUpdated ?? (summary as any).packagesUpdated ?? 0} pkgs · Phase outcomes retained below until you launch a new run.
+                        Reclaimed {summary.spaceReclaimed == null ? 'NOT_MEASURED' : summary.spaceReclaimed >= 1024 ? `${(summary.spaceReclaimed / 1024).toFixed(1)} GB` : `${summary.spaceReclaimed} MB`} · Updated {summary.totalUpdated ?? (summary as any).packagesUpdated ?? 0} pkgs · Phase outcomes retained below until you launch a new run.
                       </p>
                     </div>
                   </div>

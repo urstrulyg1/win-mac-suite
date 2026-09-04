@@ -24,14 +24,14 @@ function buildDiagnosis(query, cpu, memory, disk) {
         diagnosis: `Live telemetry indicates ${causes.join(' and ')}. These are the observed resource signals most relevant to the reported performance issue.`,
         recommendation: 'Open Performance diagnostics to inspect the active resource consumers before making changes.',
         confidence: 'Observed',
-        confidenceScore: 90,
+        confidenceScore: null,
       };
     }
     return {
       diagnosis: 'The current CPU, memory, and disk telemetry does not show a major resource saturation signal. More targeted diagnostics are required to identify the cause.',
       recommendation: 'Open Performance diagnostics for process-level and subsystem checks.',
       confidence: 'Observed',
-      confidenceScore: 80,
+      confidenceScore: null,
     };
   }
 
@@ -42,7 +42,7 @@ function buildDiagnosis(query, cpu, memory, disk) {
         : `The root volume is currently ${disk}% used. This is the live filesystem signal available to the suite; it does not by itself identify which files consume the space.`,
       recommendation: 'Open Storage diagnostics to inspect measured filesystem usage and cleanup candidates.',
       confidence: disk === null ? 'Unavailable' : 'Observed',
-      confidenceScore: disk === null ? 0 : 95,
+      confidenceScore: null,
     };
   }
 
@@ -53,7 +53,7 @@ function buildDiagnosis(query, cpu, memory, disk) {
         : `Live telemetry reports memory utilization at ${memory}%.`,
       recommendation: 'Open Performance diagnostics to identify processes contributing to memory pressure.',
       confidence: memory === null ? 'Unavailable' : 'Observed',
-      confidenceScore: memory === null ? 0 : 95,
+      confidenceScore: null,
     };
   }
 
@@ -64,7 +64,7 @@ function buildDiagnosis(query, cpu, memory, disk) {
         : `Live telemetry reports CPU utilization at ${cpu}%.`,
       recommendation: 'Open Performance diagnostics to inspect process-level CPU consumers.',
       confidence: cpu === null ? 'Unavailable' : 'Observed',
-      confidenceScore: cpu === null ? 0 : 95,
+      confidenceScore: null,
     };
   }
 
@@ -72,7 +72,7 @@ function buildDiagnosis(query, cpu, memory, disk) {
     diagnosis: 'The assistant collected live Windows resource telemetry, but the current query does not map to a specific supported diagnostic rule. No unsupported root cause is being inferred.',
     recommendation: 'Open Health or Performance diagnostics for a broader evidence-backed investigation.',
     confidence: 'Observed',
-    confidenceScore: 70,
+    confidenceScore: null,
   };
 }
 

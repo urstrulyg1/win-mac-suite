@@ -1,67 +1,37 @@
 /**
- * WinSuite & MacSuite v9.0 - Universal Recommendation Center & Ranker
- * Evaluates findings and scores recommendations by Impact * Confidence * Safety.
+ * WinSuite & MacSuite — Universal Recommendation Center & Ranker
+ *
+ * Truthfulness rule: recommendations are produced only from observed findings
+ * supplied by the caller. This module never invents reclaim sizes (no 14.2 GB
+ * / 12.4 GB estimates), impact/confidence/safety scores, or named culprits
+ * (no Adobe/Teams assertions). With no observed findings it returns an empty
+ * ranking — an empty list means "nothing evidenced", not "nothing wrong".
  */
 
 export class RecommendationEngine {
-  static getRankedRecommendations() {
-    const rawRecommendations = [
-      {
-        id: 'rec-01',
-        title: 'Purge Xcode DerivedData & Simulators (~14.2 GB)',
-        description: 'Xcode build artifacts are safely reclaimable without impacting source repositories.',
-        impact: 95, // out of 100
-        confidence: 98,
-        safety: 100, // 100% safe
-        category: 'storage',
-        actionId: 'storage.cleanXcode',
-        reclaimedEstimate: '14.2 GB',
-      },
-      {
-        id: 'rec-02',
-        title: 'Purge Inactive Memory Cache Buffers',
-        description: 'Memory pressure reached 78%. Reclaiming inactive page buffers relieves system contention.',
-        impact: 90,
-        confidence: 96,
-        safety: 100,
-        category: 'performance',
-        actionId: 'storage.purgeRam',
-        reclaimedEstimate: '2.4 GB RAM',
-      },
-      {
-        id: 'rec-03',
-        title: 'Prune Unused Docker Images & Build Cache (~12.4 GB)',
-        description: 'Docker hypervisor VM storage can be pruned cleanly while preserving active local volumes.',
-        impact: 85,
-        confidence: 94,
-        safety: 90,
-        category: 'developer',
-        actionId: 'storage.cleanDocker',
-        reclaimedEstimate: '12.4 GB',
-      },
-      {
-        id: 'rec-04',
-        title: 'Disable 2 High-Impact Startup LaunchAgents',
-        description: 'Adobe and Microsoft Teams background updaters increase system boot dispatch time.',
-        impact: 75,
-        confidence: 92,
-        safety: 95,
-        category: 'startup',
-        actionId: 'startup.toggle',
-        reclaimedEstimate: '-2.4s boot latency',
-      },
-    ];
+  static getRankedRecommendations(observedFindings = []) {
+    if (!Array.isArray(observedFindings) || observedFindings.length === 0) {
+      return [];
+    }
 
-    // Compute composite rank score
-    return rawRecommendations
-      .map((rec) => {
-        const compositeScore = Math.round((rec.impact * 0.4) + (rec.confidence * 0.3) + (rec.safety * 0.3));
-        return {
-          ...rec,
-          compositeScore,
-          rankBadge: compositeScore >= 95 ? 'Top Priority' : compositeScore >= 85 ? 'High Value' : 'Recommended',
-        };
-      })
-      .sort((a, b) => b.compositeScore - a.compositeScore);
+    return observedFindings
+      .filter((f) => f && typeof f.title === 'string')
+      .map((f) => ({
+        id: f.id ?? null,
+        title: f.title,
+        description: f.description ?? 'UNAVAILABLE: no description was observed.',
+        impact: Number.isFinite(f.impact) ? f.impact : null,
+        confidence: Number.isFinite(f.confidence) ? f.confidence : null,
+        safety: Number.isFinite(f.safety) ? f.safety : null,
+        category: f.category ?? null,
+        actionId: f.actionId ?? null,
+        reclaimedEstimate: null,
+        compositeScore:
+          Number.isFinite(f.impact) && Number.isFinite(f.confidence) && Number.isFinite(f.safety)
+            ? Math.round(f.impact * 0.4 + f.confidence * 0.3 + f.safety * 0.3)
+            : null,
+        rankBadge: 'Observed finding',
+      }))
+      .sort((a, b) => (b.compositeScore ?? -1) - (a.compositeScore ?? -1));
   }
 }

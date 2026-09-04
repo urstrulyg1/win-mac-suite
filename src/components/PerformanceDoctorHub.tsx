@@ -109,7 +109,7 @@ export default function PerformanceDoctorHub({ onNavigateTab }: Props) {
                 MAC PERFORMANCE DIAGNOSIS VERDICT
               </span>
               <h2 className="text-base font-extrabold" style={{ color: 'var(--color-ink)' }}>
-                {perfDiagnosis?.verdict || 'Correlating system metrics...'}
+                {perfDiagnosis?.verdict ?? 'UNAVAILABLE: performance probe has not returned data.'}
               </h2>
             </div>
           </div>
@@ -189,18 +189,18 @@ export default function PerformanceDoctorHub({ onNavigateTab }: Props) {
               </div>
             </div>
             <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-[10px]">
-              {thermalDeep?.thermalLevel || 'Nominal'}
+              {thermalDeep?.thermalLevel ?? 'UNAVAILABLE'}
             </span>
           </div>
 
           <div className="grid grid-cols-3 gap-3 pt-1">
             <div className="p-3 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
               <span className="text-[10px] uppercase text-slate-400 font-bold">1m Load Avg</span>
-              <p className="text-base font-extrabold font-mono text-blue-500 mt-0.5">{thermalDeep?.loadAverage1m || '1.8'}</p>
+              <p className="text-base font-extrabold font-mono text-blue-500 mt-0.5">{thermalDeep?.loadAverage1m ?? 'UNAVAILABLE'}</p>
             </div>
             <div className="p-3 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
               <span className="text-[10px] uppercase text-slate-400 font-bold">5m Load Avg</span>
-              <p className="text-base font-extrabold font-mono text-blue-400 mt-0.5">{thermalDeep?.loadAverage5m || '1.6'}</p>
+              <p className="text-base font-extrabold font-mono text-blue-400 mt-0.5">{thermalDeep?.loadAverage5m ?? 'UNAVAILABLE'}</p>
             </div>
             <div className="p-3 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
               <span className="text-[10px] uppercase text-slate-400 font-bold">CPU Speed Limit</span>
@@ -210,7 +210,7 @@ export default function PerformanceDoctorHub({ onNavigateTab }: Props) {
 
           <div className="p-3.5 rounded-xl border bg-blue-500/5 border-blue-500/20 text-xs text-blue-400">
             <strong>Thermal Root-Cause: </strong>
-            {thermalDeep?.rootCauseReasoning || 'Hardware temperatures are nominal.'}
+            {thermalDeep?.rootCauseReasoning ?? 'UNAVAILABLE: thermal probe has not returned data.'}
           </div>
         </div>
 

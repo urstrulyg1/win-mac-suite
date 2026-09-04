@@ -23,7 +23,7 @@ export function logAuditEntry(entry) {
     user: entry.user || os.userInfo()?.username || 'System User',
     risk: entry.risk || 'safe',
     permissionLevel: entry.permissionLevel || (process.platform === 'win32' ? 'Administrator' : 'Root'),
-    result: entry.result || 'success',
+    result: entry.result || 'unknown',
     durationSeconds: entry.durationSeconds || 0,
     changesMade: Array.isArray(entry.changesMade) ? entry.changesMade : [entry.operation || 'Operation executed'],
     reclaimedBytes: typeof entry.reclaimedBytes === 'number' ? entry.reclaimedBytes : 0,

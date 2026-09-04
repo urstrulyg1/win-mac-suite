@@ -162,7 +162,7 @@ export default function AskAssistantHub({ onNavigateTab }: Props) {
                 </h3>
               </div>
               <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-xs font-mono font-bold">
-                Confidence: {response.confidence || 'High (96%)'}
+                Confidence: {response.confidence ?? 'UNAVAILABLE'}
               </span>
             </div>
 
