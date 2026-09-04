@@ -281,7 +281,7 @@ export async function getDegradedModeStatus() {
         || c.requirement === NETWORK_REQUIREMENT.OFFLINE_DEGRADED)
       .map((c) => ({
         id: c.id,
-        available: c.requirement === NETWORK_REQUIREMENT.OFFLINE_SUPPORTED || connectivity.online,
+        available: null,
         networkRequirement: c.requirement,
         verificationState: c.verification,
         offlineCaveat: c.offlineCaveat || null,
@@ -289,9 +289,9 @@ export async function getDegradedModeStatus() {
 
     onlineOnlyCapabilities: ONLINE_ONLY_CAPABILITIES.map((c) => ({
       ...c,
-      available: connectivity.online,
+      available: null,
       optional: true,
-      status: connectivity.online ? 'AVAILABLE' : 'SKIPPED_OFFLINE',
+      status: connectivity.online ? 'NOT_CHECKED' : 'SKIPPED_OFFLINE',
     })),
 
     message: connectivity.online
