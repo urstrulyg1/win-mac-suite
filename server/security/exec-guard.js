@@ -37,6 +37,41 @@ export function redactSensitiveOutput(text) {
 }
 
 /**
+ * Expands Windows %-style environment tokens (e.g. %SystemDrive%, %SystemRoot%)
+ * inside allowlisted command arguments. This keeps commands portable across
+ * drives (the OS is not always installed on C:) without introducing shell
+ * interpolation — tokens are expanded with Node's process.env, never re-parsed.
+ * @param {string[]} args
+ * @returns {string[]}
+ */
+export function expandWindowsEnvTokens(args) {
+  const map = {
+    'SystemDrive': process.env.SystemDrive || 'C:',
+    'SystemRoot': process.env.SystemRoot || 'C:\\Windows',
+    'ProgramData': process.env.ProgramData || '%SystemDrive%\\ProgramData',
+    'ProgramFiles': process.env.ProgramFiles || '%SystemDrive%\\Program Files',
+    'ProgramFiles(x86)': process.env['ProgramFiles(x86)'] || '%SystemDrive%\\Program Files (x86)',
+    'TEMP': process.env.TEMP || process.env.TMP || '%SystemRoot%\\Temp',
+    'TMP': process.env.TMP || process.env.TEMP || '%SystemRoot%\\Temp',
+    'LOCALAPPDATA': process.env.LOCALAPPDATA || '%USERPROFILE%\\AppData\\Local',
+    'USERPROFILE': process.env.USERPROFILE || '%SystemDrive%\\Users',
+    'WINDIR': process.env.WINDIR || '%SystemRoot%',
+  };
+  return args.map((arg) => {
+    if (typeof arg !== 'string') return arg;
+    let out = arg;
+    let prev = null;
+    // Expand repeatedly so that a token value referencing another token (e.g.
+    // "%ProgramData%" -> "%SystemDrive%\ProgramData") is fully resolved.
+    while (prev !== out) {
+      prev = out;
+      out = out.replace(/%([A-Za-z()0-9]+)%/g, (_, name) => map[name] ?? `%${name}%`);
+    }
+    return out;
+  });
+}
+
+/**
  * Classifies output line into INFO, SUCCESS, WARNING, or ERROR
  * @param {string} line
  * @returns {'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR'}
@@ -151,9 +186,9 @@ export async function executeAllowlistedCommand(commandId, params = {}, onStream
   const binaryPath = requiresSudo ? '/usr/bin/sudo' : resolveBinaryPath(spec.bin, spec.platform);
   const args = requiresSudo
     ? (sudoPassword
-        ? ['-S', '-p', '', resolveBinaryPath(spec.bin, spec.platform), ...validation.sanitizedArgs]
-        : ['-n', resolveBinaryPath(spec.bin, spec.platform), ...validation.sanitizedArgs])
-    : validation.sanitizedArgs;
+        ? ['-S', '-p', '', resolveBinaryPath(spec.bin, spec.platform), ...expandWindowsEnvTokens(validation.sanitizedArgs)]
+        : ['-n', resolveBinaryPath(spec.bin, spec.platform), ...expandWindowsEnvTokens(validation.sanitizedArgs)])
+    : expandWindowsEnvTokens(validation.sanitizedArgs);
   const timeoutMs = spec.timeoutMs || 120000;
   const startTime = Date.now();
 

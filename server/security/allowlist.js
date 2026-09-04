@@ -148,7 +148,7 @@ export const COMMAND_ALLOWLIST = {
       '-NoProfile',
       '-NonInteractive',
       '-Command',
-      'Remove-Item -Path "$env:TEMP\\*" -Recurse -Force -ErrorAction SilentlyContinue; Remove-Item -Path "C:\\Windows\\Temp\\*" -Recurse -Force -ErrorAction SilentlyContinue',
+      'Remove-Item -Path "$env:TEMP\\*" -Recurse -Force -ErrorAction SilentlyContinue; Remove-Item -Path "$env:SystemRoot\\Temp\\*" -Recurse -Force -ErrorAction SilentlyContinue',
     ],
     risk: 'safe',
     requiresElevation: false,
@@ -161,13 +161,13 @@ export const COMMAND_ALLOWLIST = {
   'win.defrag.trim': {
     platform: 'windows',
     bin: 'defrag',
-    fixedArgs: ['C:', '/O'],
+    fixedArgs: ['%SystemDrive%\\', '/O'],
     risk: 'safe',
     requiresElevation: true,
     requiresConfirmation: false,
     timeoutMs: 120000,
     reversible: true,
-    description: 'Optimize & TRIM Volume C:',
+    description: 'Optimize & TRIM Primary System Drive',
     verifyMethod: 'none',
   },
   'win.service.toggle': {
@@ -208,7 +208,7 @@ export const COMMAND_ALLOWLIST = {
     fixedArgs: [
       '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
       '-Command',
-      'Stop-Service WSearch -Force -ErrorAction SilentlyContinue; Remove-Item -Path "C:\\ProgramData\\Microsoft\\Search\\Data\\Applications\\Windows\\*" -Recurse -Force -ErrorAction SilentlyContinue; Start-Service WSearch -ErrorAction SilentlyContinue; Write-Output "Windows Search index rebuild initiated."',
+      'Stop-Service WSearch -Force -ErrorAction SilentlyContinue; Remove-Item -Path "$env:ProgramData\\Microsoft\\Search\\Data\\Applications\\Windows\\*" -Recurse -Force -ErrorAction SilentlyContinue; Start-Service WSearch -ErrorAction SilentlyContinue; Write-Output "Windows Search index rebuild initiated."',
     ],
     risk: 'moderate',
     requiresElevation: true,
@@ -256,7 +256,7 @@ export const COMMAND_ALLOWLIST = {
     fixedArgs: [
       '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
       '-Command',
-      'Remove-Item -Path "C:\\Windows\\Prefetch\\*.pf" -Force -ErrorAction SilentlyContinue; Write-Output "Prefetch cache cleaned."',
+      'Remove-Item -Path "$env:SystemRoot\\Prefetch\\*.pf" -Force -ErrorAction SilentlyContinue; Write-Output "Prefetch cache cleaned."',
     ],
     risk: 'safe',
     requiresElevation: true,
@@ -288,7 +288,7 @@ export const COMMAND_ALLOWLIST = {
     fixedArgs: [
       '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
       '-Command',
-      'Stop-Service -Name Spooler -Force -ErrorAction SilentlyContinue; Remove-Item -Path "C:\\Windows\\System32\\spool\\PRINTERS\\*" -Force -ErrorAction SilentlyContinue; Start-Service -Name Spooler -ErrorAction SilentlyContinue; Write-Output "Print spooler flushed and restarted."',
+      'Stop-Service -Name Spooler -Force -ErrorAction SilentlyContinue; Remove-Item -Path "$env:SystemRoot\\System32\\spool\\PRINTERS\\*" -Force -ErrorAction SilentlyContinue; Start-Service -Name Spooler -ErrorAction SilentlyContinue; Write-Output "Print spooler flushed and restarted."',
     ],
     risk: 'moderate',
     requiresElevation: true,

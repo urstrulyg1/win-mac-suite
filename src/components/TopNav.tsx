@@ -65,7 +65,6 @@ export default function TopNav({
     { id: 'crashes',      label: 'Crashes & Stability',  icon: Flame,        color: '#f97316', desc: 'Crash log parser & panic diagnostics' },
     { id: 'hardware',     label: 'Hardware & Displays',  icon: Monitor,      color: '#facc15', desc: 'Peripherals, display config & audio' },
     { id: 'startup',      label: 'Startup Manager',      icon: Sparkles,     color: '#e879f9', desc: isMac ? 'LaunchAgents & Login item control' : 'Startup applications & background services' },
-    ...(isMac ? [{ id: 'windows', label: 'Windows Center', icon: Settings, color: '#60a5fa', desc: 'Apps, Drivers, Services & System Tools' }] : []),
   ];
 
   const activeSpecialist = specialistNavTabs.find((t) => t.id === active);

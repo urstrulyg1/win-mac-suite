@@ -115,7 +115,14 @@ router.get('/security/privacy-risk', async (_req, res) => {
     if (isMac) {
       res.json(await getMacPrivacyRiskScore());
     } else {
-      res.status(404).json({ note: 'Privacy Risk Score is macOS-only. Use /api/privacy for Windows privacy audit.' });
+      // Honest UNAVAILABLE envelope (not a fabricated score and not a 404 that
+      // looks like a missing route): cross-platform callers get a clear signal
+      // that Privacy Risk is macOS-exclusive.
+      res.json({
+        platform: process.platform === 'win32' ? 'windows' : 'unsupported',
+        available: false,
+        note: 'Privacy Risk Score is macOS-exclusive. Use /api/privacy for the cross-platform privacy audit.',
+      });
     }
   } catch (err) {
     res.status(500).json({ error: err.message });

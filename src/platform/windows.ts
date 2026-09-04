@@ -249,7 +249,7 @@ export const WINDOWS_QUICK_ACTIONS: QuickAction[] = [
 export const WINDOWS_CONFIG: PlatformConfig = {
   platform: 'windows',
   productName: 'WinSuite',
-  version: '6.3.0',
+  version: '16.1.1',
   subtitle: 'Windows System Maintenance & Diagnostics',
   tagline: 'Intelligent, capability-aware PC optimization & health management',
   osFamily: 'Windows',

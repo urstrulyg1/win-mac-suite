@@ -122,12 +122,14 @@ export default function ReportsPage({ onStartNew, onExport }: Props) {
 function buildRichHtmlReport(config: any, data: any, isMac: boolean = false): string {
   const host = data.hostname || data.hostName || 'Local Computer';
   const osName = data.osInfo?.distro || data.os || (isMac ? 'macOS' : 'Windows');
-  const cpuName = data.hardware?.chip || data.cpu?.brand || data.processor || (isMac ? 'Apple Silicon M3 Pro' : 'Intel / AMD Processor');
-  const cores = data.cpu?.cores || data.hardware?.cores || 12;
-  const healthScore = data.healthScore || data.sec?.securityScore || 98;
-  const temp = data.cpuTempFormatted || data.hardware?.temp || (data.cpuTemp ? `${data.cpuTemp}°C` : '44°C');
-  const ramGB = data.hardware?.ramGB || data.ramGB || (data.mem?.total ? Math.round(data.mem.total / 1073741824) : 36);
-  const freeGB = data.storage?.freeGB !== undefined ? data.storage.freeGB : (data.freeDiskGB !== undefined ? data.freeDiskGB : 64);
+  // Real data only: if a measurement is genuinely absent we report UNAVAILABLE,
+  // never a fabricated processor, core count, temperature, or capacities.
+  const cpuName = data.hardware?.chip || data.cpu?.brand || data.processor || 'UNAVAILABLE';
+  const cores = data.cpu?.cores || data.hardware?.cores || null;
+  const healthScore = data.healthScore ?? data.sec?.securityScore ?? null;
+  const temp = data.cpuTempFormatted || data.hardware?.temp || (data.cpuTemp ? `${data.cpuTemp}°C` : 'UNAVAILABLE');
+  const ramGB = data.hardware?.ramGB || data.ramGB || (data.mem?.total ? Math.round(data.mem.total / 1073741824) : null);
+  const freeGB = data.storage?.freeGB !== undefined ? data.storage.freeGB : (data.freeDiskGB !== undefined ? data.freeDiskGB : null);
   const dateStr = new Date(data.timestamp || Date.now()).toLocaleString();
   const reportTitle = data.title || `${config.productName} System Diagnostic Snapshot`;
 
@@ -286,13 +288,13 @@ function buildRichHtmlReport(config: any, data: any, isMac: boolean = false): st
     <div class="vitals-grid">
       <div class="vital-box">
         <div class="vital-lbl">System Health</div>
-        <div class="vital-val" style="color: var(--emerald);">${healthScore}%</div>
+        <div class="vital-val" style="color: var(--emerald);">${healthScore === null ? 'UNAVAILABLE' : healthScore + '%'}</div>
         <div class="vital-sub">Overall Health Score</div>
       </div>
       <div class="vital-box">
         <div class="vital-lbl">CPU Architecture</div>
         <div class="vital-val" style="font-size: 16px; color: #60a5fa;">${cpuName}</div>
-        <div class="vital-sub">${cores} Cores Active</div>
+        <div class="vital-sub">${cores === null ? 'Cores UNAVAILABLE' : cores + ' Cores Active'}</div>
       </div>
       <div class="vital-box">
         <div class="vital-lbl">Package Temperature</div>
@@ -301,12 +303,12 @@ function buildRichHtmlReport(config: any, data: any, isMac: boolean = false): st
       </div>
       <div class="vital-box">
         <div class="vital-lbl">Unified RAM</div>
-        <div class="vital-val" style="color: var(--cyan);">${ramGB} GB</div>
+        <div class="vital-val" style="color: var(--cyan);">${ramGB === null ? 'UNAVAILABLE' : ramGB + ' GB'}</div>
         <div class="vital-sub">System Memory</div>
       </div>
       <div class="vital-box">
         <div class="vital-lbl">Free APFS Storage</div>
-        <div class="vital-val" style="color: var(--emerald);">${freeGB} GB</div>
+        <div class="vital-val" style="color: var(--emerald);">${freeGB === null ? 'UNAVAILABLE' : freeGB + ' GB'}</div>
         <div class="vital-sub">Available Space</div>
       </div>
       <div class="vital-box">
@@ -454,7 +456,7 @@ function buildRichHtmlReport(config: any, data: any, isMac: boolean = false): st
           reportType: 'full-system',
           timestamp: new Date().toISOString(),
           hostname: data.hostname || 'Local Computer',
-          healthScore: data.healthScore || 98,
+          healthScore: data.healthScore ?? null,
           data,
         });
       }
@@ -517,12 +519,13 @@ function InPageReportDetail({
   const data = report.data || {};
   const host = report.hostname || data.hostname || data.hostName || 'Local Computer';
   const osName = data.osInfo?.distro || data.os || (isMac ? 'macOS' : 'Windows');
-  const cpuName = data.hardware?.chip || data.cpu?.brand || data.processor || (isMac ? 'Apple Silicon M3 Pro' : 'Intel / AMD Processor');
-  const cores = data.cpu?.cores || data.hardware?.cores || 12;
-  const healthScore = report.healthScore || data.healthScore || data.sec?.securityScore || 98;
-  const temp = data.cpuTempFormatted || data.hardware?.temp || (data.cpuTemp ? `${data.cpuTemp}°C` : '44°C');
-  const ramGB = data.hardware?.ramGB || data.ramGB || (data.mem?.total ? Math.round(data.mem.total / 1073741824) : 36);
-  const freeGB = data.storage?.freeGB !== undefined ? data.storage.freeGB : (data.freeDiskGB !== undefined ? data.freeDiskGB : 64);
+  // Real data only: never fabricate a processor, core count, temperature, or capacity.
+  const cpuName = data.hardware?.chip || data.cpu?.brand || data.processor || 'UNAVAILABLE';
+  const cores = data.cpu?.cores || data.hardware?.cores || null;
+  const healthScore = report.healthScore ?? data.healthScore ?? data.sec?.securityScore ?? null;
+  const temp = data.cpuTempFormatted || data.hardware?.temp || (data.cpuTemp ? `${data.cpuTemp}°C` : 'UNAVAILABLE');
+  const ramGB = data.hardware?.ramGB || data.ramGB || (data.mem?.total ? Math.round(data.mem.total / 1073741824) : null);
+  const freeGB = data.storage?.freeGB !== undefined ? data.storage.freeGB : (data.freeDiskGB !== undefined ? data.freeDiskGB : null);
   const dateStr = new Date(report.timestamp || data.timestamp || Date.now()).toLocaleString();
   const reportTitle = report.title || data.title || `${config.productName} System Diagnostic Snapshot`;
 
@@ -604,14 +607,14 @@ function InPageReportDetail({
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
         <div className="card p-4 rounded-2xl border space-y-1" style={{ borderColor: 'var(--color-line)' }}>
           <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">System Health</span>
-          <p className="text-xl font-extrabold font-mono text-emerald-400">{healthScore}%</p>
+          <p className="text-xl font-extrabold font-mono text-emerald-400">{healthScore === null ? 'UNAVAILABLE' : healthScore + '%'}</p>
           <p className="text-[11px] text-slate-400">Optimal Integrity</p>
         </div>
 
         <div className="card p-4 rounded-2xl border space-y-1" style={{ borderColor: 'var(--color-line)' }}>
           <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">CPU Model</span>
           <p className="text-sm font-extrabold truncate text-blue-400">{cpuName}</p>
-          <p className="text-[11px] text-slate-400">{cores} Active Cores</p>
+          <p className="text-[11px] text-slate-400">{cores === null ? 'Cores UNAVAILABLE' : cores + ' Active Cores'}</p>
         </div>
 
         <div className="card p-4 rounded-2xl border space-y-1" style={{ borderColor: 'var(--color-line)' }}>
@@ -622,13 +625,13 @@ function InPageReportDetail({
 
         <div className="card p-4 rounded-2xl border space-y-1" style={{ borderColor: 'var(--color-line)' }}>
           <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Unified RAM</span>
-          <p className="text-xl font-extrabold font-mono text-cyan-400">{ramGB} GB</p>
+          <p className="text-xl font-extrabold font-mono text-cyan-400">{ramGB === null ? 'UNAVAILABLE' : ramGB + ' GB'}</p>
           <p className="text-[11px] text-slate-400">System Memory</p>
         </div>
 
         <div className="card p-4 rounded-2xl border space-y-1" style={{ borderColor: 'var(--color-line)' }}>
           <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Free Storage</span>
-          <p className="text-xl font-extrabold font-mono text-emerald-400">{freeGB} GB</p>
+          <p className="text-xl font-extrabold font-mono text-emerald-400">{freeGB === null ? 'UNAVAILABLE' : freeGB + ' GB'}</p>
           <p className="text-[11px] text-slate-400">Available Root Space</p>
         </div>
 

@@ -1,7 +1,7 @@
 {
   "name": "win-mac-suite",
   "private": true,
-  "version": "16.1.0",
+  "version": "16.1.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "server": "node server.js",
     "start": "concurrently \"npm run server\" \"npm run dev\"",
-    "test": "node server/tests/v8-safety-and-correlation.test.js && node server/tests/v9-comprehensive-suite.test.js && node server/tests/v10-validation-and-trust.test.js && node server/tests/v10-path-security.test.js && node server/tests/v10-intelligence.test.js && node server/tests/v10-production-audit.test.js",
+    "test": "node server/tests/v8-safety-and-correlation.test.js && node server/tests/v9-comprehensive-suite.test.js && node server/tests/v10-validation-and-trust.test.js && node server/tests/v10-path-security.test.js && node server/tests/v10-intelligence.test.js && node server/tests/v10-production-audit.test.js && node server/tests/v11-platform-bugs.test.js && node server/tests/v11-cross-platform.test.js",
     "test:v10": "node server/tests/v10-validation-and-trust.test.js",
     "test:security": "node server/tests/v10-path-security.test.js",
     "test:intelligence": "node server/tests/v10-intelligence.test.js",
