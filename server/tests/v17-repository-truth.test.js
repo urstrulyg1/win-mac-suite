@@ -18,7 +18,6 @@ function walk(dir) {
     else if (extensions.has(path.extname(entry.name))) files.push(rel);
   }
 }
-
 for (const dir of productionRoots) walk(path.join(root, dir));
 const source = files.map((f) => fs.readFileSync(path.join(root, f), 'utf8')).join('\n');
 
@@ -34,18 +33,47 @@ test('production tree contains no known fabricated telemetry', () => {
 
 test('App initial system state is explicitly unmeasured', () => {
   const app = fs.readFileSync(path.join(root, 'src/App.tsx'), 'utf8');
-  assert.match(app, /ramGB: null/);
-  assert.match(app, /freeDiskGB: null/);
-  assert.match(app, /totalDiskGB: null/);
+  for (const field of ['ramGB', 'freeDiskGB', 'totalDiskGB', 'cpuUsage', 'memoryUsage']) assert.match(app, new RegExp(`${field}: null`));
   assert.match(app, /isOnline: null/);
-  assert.match(app, /cpuUsage: null/);
-  assert.match(app, /memoryUsage: null/);
   assert.doesNotMatch(app, /Local Computer/);
   assert.doesNotMatch(app, /processor: \(data\.processor as string\) \|\| 'CPU'/);
+  assert.doesNotMatch(app, /freeDiskGB: \+\(prev\.freeDiskGB/);
+  assert.match(app, /completed with warnings or errors/);
 });
 
 test('health contract fails closed when availability is not backed by a health probe', () => {
   const contract = fs.readFileSync(path.join(root, 'server/core/contract.js'), 'utf8');
   assert.match(contract, /availability = AVAILABILITY\.LIMITED/);
   assert.match(contract, /return proposedStatus \|\| HEALTH_STATUS\.INFORMATIONAL/);
+});
+
+test('permission state is not optimistic before runtime probing', () => {
+  const permissions = fs.readFileSync(path.join(root, 'server/core/permissions.js'), 'utf8');
+  assert.match(permissions, /return \{ \.\.\.overrides \};/);
+  assert.doesNotMatch(permissions, /USER_APPROVED\]: true/);
+  assert.doesNotMatch(permissions, /NETWORK\]: true/);
+  assert.doesNotMatch(permissions, /createPermissionState\(\)\s*\{[\s\S]*USER_APPROVED/);
+});
+
+test('system capabilities are runtime probes, not platform assumptions', () => {
+  const system = fs.readFileSync(path.join(root, 'server/routes/system.js'), 'utf8');
+  assert.match(system, /commandExists\(command\)/);
+  assert.doesNotMatch(system, /powershell:\s*isWin \? ['\"]available/);
+  assert.doesNotMatch(system, /sfc:\s*isWin \? ['\"]available/);
+  assert.doesNotMatch(system, /capabilities:\s*\{[^}]*homebrew:\s*isMac \? ['\"]available/);
+  assert.match(system, /capabilities: null/);
+});
+
+test('v10 capability matrix never claims checked availability without evidence', () => {
+  const v10 = fs.readFileSync(path.join(root, 'server/routes/v10.js'), 'utf8');
+  assert.doesNotMatch(v10, /PASS \(Observed\)/);
+  assert.doesNotMatch(v10, /PASS \(Pre\/Post Verified\)/);
+  assert.doesNotMatch(v10, /status:\s*['\"]AVAILABLE['\"]/);
+  assert.match(v10, /status: 'NOT_CHECKED'/);
+  assert.match(v10, /evidence: \[\]/);
+});
+
+test('fixture-backed production telemetry is absent', () => {
+  const fixtureDir = path.join(root, 'server', 'fixtures');
+  assert.equal(fs.existsSync(fixtureDir), false);
 });
