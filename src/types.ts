@@ -1,14 +1,6 @@
 export type RunMode = 'Safe' | 'Aggressive' | 'Quick' | 'ScanOnly' | 'CleanupOnly' | 'Custom';
 
-export type SectionStatus =
-  | 'pending'
-  | 'running'
-  | 'success'
-  | 'warning'
-  | 'error'
-  | 'skipped'
-  | 'unavailable'
-  | 'permission-required';
+export type SectionStatus = 'pending' | 'running' | 'success' | 'warning' | 'error' | 'skipped' | 'unavailable' | 'permission-required';
 
 export interface Section {
   id: string;
@@ -40,36 +32,36 @@ export interface SystemInfo {
   os: string;
   build: string;
   processor: string;
-  ramGB: number;
-  freeDiskGB: number;
-  totalDiskGB: number;
-  isOnline: boolean;
-  cpuUsage: number;
-  memoryUsage: number;
+  ramGB: number | null;
+  freeDiskGB: number | null;
+  totalDiskGB: number | null;
+  isOnline: boolean | null;
+  cpuUsage: number | null;
+  memoryUsage: number | null;
   uptime: string;
-  cpuTemp?: number;
+  cpuTemp?: number | null;
   cpuTempFormatted?: string;
 }
 
 export interface BeforeAfterSnapshot {
   timestamp: string;
-  healthScore: number;
-  diskPercentUsed: number;
-  freeDiskGB: number;
-  startupCount: number;
-  issuesCount: number;
+  healthScore: number | null;
+  diskPercentUsed: number | null;
+  freeDiskGB: number | null;
+  startupCount: number | null;
+  issuesCount: number | null;
 }
 
 export interface RunSummary {
-  healthScore: number;
+  healthScore: number | null;
   totalSections: number;
   passedSections: number;
   durationMinutes: number;
-  totalUpdated: number;
-  spaceReclaimed: number;
-  issuesFound: number;
-  issuesFixed: number;
-  rebootRequired: boolean;
+  totalUpdated: number | null;
+  spaceReclaimed: number | null;
+  issuesFound: number | null;
+  issuesFixed: number | null;
+  rebootRequired: boolean | null;
   followUps: string[];
   cancelled?: boolean;
   mode?: RunMode;
