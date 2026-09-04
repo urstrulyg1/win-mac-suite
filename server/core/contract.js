@@ -1,20 +1,48 @@
 /**
- * WinSuite & MacSuite v10.0 — Global System Health Contract.
- * A health claim is valid only when backed by an actual probe result.
+ * WinSuite & MacSuite v10.0 — Global System Health Contract
+ *
+ * Health claims are evidence-driven. A subsystem cannot become HEALTHY merely
+ * because a caller omitted a status or because its feature is configured.
  */
 export const HEALTH_STATUS = {
-  HEALTHY: 'HEALTHY', WARNING: 'WARNING', CRITICAL: 'CRITICAL', UNAVAILABLE: 'UNAVAILABLE', INFORMATIONAL: 'INFORMATIONAL',
+  HEALTHY: 'HEALTHY',
+  WARNING: 'WARNING',
+  CRITICAL: 'CRITICAL',
+  UNAVAILABLE: 'UNAVAILABLE',
+  INFORMATIONAL: 'INFORMATIONAL',
 };
+
 export const AVAILABILITY = {
-  AVAILABLE: 'AVAILABLE', LIMITED: 'LIMITED', REQUIRES_PERMISSION: 'REQUIRES_PERMISSION', UNSUPPORTED: 'UNSUPPORTED', FAILED: 'FAILED',
+  AVAILABLE: 'AVAILABLE',
+  LIMITED: 'LIMITED',
+  REQUIRES_PERMISSION: 'REQUIRES_PERMISSION',
+  UNSUPPORTED: 'UNSUPPORTED',
+  FAILED: 'FAILED',
 };
-export const SEVERITY = { NONE: 'none', INFO: 'info', LOW: 'low', MEDIUM: 'medium', HIGH: 'high', CRITICAL: 'critical' };
+
+export const SEVERITY = {
+  NONE: 'none',
+  INFO: 'info',
+  LOW: 'low',
+  MEDIUM: 'medium',
+  HIGH: 'high',
+  CRITICAL: 'critical',
+};
+
 const SEVERITY_RANK = { none: 0, info: 1, low: 2, medium: 3, high: 4, critical: 5 };
-export const STATUS_GLYPH = { HEALTHY: '🟢', WARNING: '🟡', CRITICAL: '🔴', UNAVAILABLE: '⚪', INFORMATIONAL: '🔵' };
+
+export const STATUS_GLYPH = {
+  HEALTHY: '🟢',
+  WARNING: '🟡',
+  CRITICAL: '🔴',
+  UNAVAILABLE: '⚪',
+  INFORMATIONAL: '🔵',
+};
 
 export function statusForAvailability(availability, proposedStatus) {
   switch (availability) {
     case AVAILABILITY.AVAILABLE:
+      // AVAILABLE means the feature can run; it does not prove the machine is healthy.
       return proposedStatus || HEALTH_STATUS.INFORMATIONAL;
     case AVAILABILITY.LIMITED:
       if (proposedStatus === HEALTH_STATUS.CRITICAL || proposedStatus === HEALTH_STATUS.WARNING) return proposedStatus;
@@ -32,7 +60,7 @@ export function createSubsystemReport({
   subsystem,
   displayName,
   platform = process.platform === 'darwin' ? 'macos' : process.platform === 'win32' ? 'windows' : 'unsupported',
-  availability = AVAILABILITY.UNAVAILABLE,
+  availability = AVAILABILITY.LIMITED,
   status,
   severity,
   summary = '',
@@ -55,48 +83,81 @@ export function createSubsystemReport({
     return rank > (SEVERITY_RANK[worst] ?? 0) ? f.severity : worst;
   }, SEVERITY.NONE);
   const unavailable = resolvedStatus === HEALTH_STATUS.UNAVAILABLE;
+
   return {
-    contractVersion, subsystem, displayName: displayName || subsystem, platform,
-    status: resolvedStatus, statusGlyph: STATUS_GLYPH[resolvedStatus], availability,
+    contractVersion,
+    subsystem,
+    displayName: displayName || subsystem,
+    platform,
+    status: resolvedStatus,
+    statusGlyph: STATUS_GLYPH[resolvedStatus],
+    availability,
     severity: unavailable ? SEVERITY.NONE : derivedSeverity,
     summary: summary || defaultSummary(resolvedStatus, availability, subsystem),
-    findings, evidence, metrics, recommendations, requiredPermissions, missingPermissions,
+    findings,
+    evidence,
+    metrics,
+    recommendations,
+    requiredPermissions,
+    missingPermissions,
     degraded: degraded || availability === AVAILABILITY.LIMITED,
-    degradedReason, dataSources, errors: errors.map(normalizeError), lastUpdated,
+    degradedReason,
+    dataSources,
+    errors: errors.map(normalizeError),
+    lastUpdated,
   };
 }
 
 function defaultSummary(status, availability, subsystem) {
-  if (availability === AVAILABILITY.REQUIRES_PERMISSION) return `${subsystem} could not be evaluated because the required permission has not been granted. No health claim is being made.`;
+  if (availability === AVAILABILITY.REQUIRES_PERMISSION) return `${subsystem} could not be evaluated because required permission is missing. No health claim is being made.`;
   if (availability === AVAILABILITY.UNSUPPORTED) return `${subsystem} is not supported on this platform or hardware.`;
   if (availability === AVAILABILITY.FAILED) return `${subsystem} probe failed. Results are unavailable.`;
-  if (availability === AVAILABILITY.LIMITED) return `${subsystem} was evaluated with partial data. Some checks could not be completed.`;
-  if (status === HEALTH_STATUS.HEALTHY) return `${subsystem} is operating within expected thresholds.`;
-  if (status === HEALTH_STATUS.INFORMATIONAL) return `${subsystem} was evaluated, but no health conclusion was provided by the probe.`;
-  return `${subsystem} evaluated.`;
+  if (availability === AVAILABILITY.LIMITED) return `${subsystem} has not been fully evaluated. No health claim is being made.`;
+  if (status === HEALTH_STATUS.HEALTHY) return `${subsystem} is operating within measured thresholds.`;
+  return `${subsystem} has not produced a health observation.`;
 }
 
 function normalizeError(err) {
   if (typeof err === 'string') return { code: 'PROBE_ERROR', message: err, recoverable: true };
-  return { code: err.code || 'PROBE_ERROR', message: err.message || String(err), recoverable: err.recoverable ?? true, remediation: err.remediation || null };
+  return {
+    code: err.code || 'PROBE_ERROR',
+    message: err.message || String(err),
+    recoverable: err.recoverable ?? true,
+    remediation: err.remediation || null,
+  };
 }
 
 export function aggregateReports(reports = []) {
   const counts = { HEALTHY: 0, WARNING: 0, CRITICAL: 0, UNAVAILABLE: 0, INFORMATIONAL: 0 };
   for (const r of reports) counts[r.status] = (counts[r.status] || 0) + 1;
   const evaluated = reports.length - counts.UNAVAILABLE;
-  const scoreBase = evaluated > 0 ? Math.round(((counts.HEALTHY + counts.INFORMATIONAL * 0.8) / evaluated) * 100) : null;
-  let overall = HEALTH_STATUS.UNAVAILABLE;
+  const scoreBase = evaluated > 0
+    ? Math.round(((counts.HEALTHY + counts.INFORMATIONAL * 0.8) / evaluated) * 100)
+    : null;
+
+  let overall = HEALTH_STATUS.INFORMATIONAL;
   if (counts.CRITICAL > 0) overall = HEALTH_STATUS.CRITICAL;
   else if (counts.WARNING > 0) overall = HEALTH_STATUS.WARNING;
-  else if (evaluated > 0 && counts.HEALTHY > 0) overall = HEALTH_STATUS.HEALTHY;
-  else if (evaluated > 0) overall = HEALTH_STATUS.INFORMATIONAL;
+  else if (evaluated === 0) overall = HEALTH_STATUS.UNAVAILABLE;
+
   return {
-    contractVersion: '10.0', overallStatus: overall, overallGlyph: STATUS_GLYPH[overall],
-    coverage: { subsystemsTotal: reports.length, subsystemsEvaluated: evaluated, subsystemsUnavailable: counts.UNAVAILABLE, coveragePct: reports.length ? Math.round((evaluated / reports.length) * 100) : 0 },
-    healthScore: scoreBase, scoreQualified: counts.UNAVAILABLE > 0,
-    scoreQualifier: counts.UNAVAILABLE > 0 ? `${counts.UNAVAILABLE} subsystem(s) could not be evaluated; this score describes only what was observable.` : 'All subsystems evaluated with full data.',
-    counts, subsystems: reports, generatedAt: new Date().toISOString(),
+    contractVersion: '10.0',
+    overallStatus: overall,
+    overallGlyph: STATUS_GLYPH[overall],
+    coverage: {
+      subsystemsTotal: reports.length,
+      subsystemsEvaluated: evaluated,
+      subsystemsUnavailable: counts.UNAVAILABLE,
+      coveragePct: reports.length ? Math.round((evaluated / reports.length) * 100) : 0,
+    },
+    healthScore: scoreBase,
+    scoreQualified: counts.UNAVAILABLE > 0,
+    scoreQualifier: counts.UNAVAILABLE > 0
+      ? `${counts.UNAVAILABLE} subsystem(s) could not be evaluated; this score describes only what was observable.`
+      : 'Score is based only on subsystem observations supplied by probes.',
+    counts,
+    subsystems: reports,
+    generatedAt: new Date().toISOString(),
   };
 }
 
