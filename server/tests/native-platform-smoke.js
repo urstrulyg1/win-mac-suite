@@ -27,16 +27,9 @@ function request(pathname) {
 }
 
 const probes = [
-  '/api/health',
-  '/api/sysinfo',
-  '/api/capabilities',
-  '/api/permissions',
-  '/api/health-score',
-  '/api/apps/inventory',
-  '/api/services',
-  '/api/storage',
-  '/api/network/diagnostics',
-  '/api/diagnostics/disk-health',
+  '/api/health', '/api/sysinfo', '/api/capabilities', '/api/permissions', '/api/health-score',
+  '/api/v10/capabilities-matrix', '/api/apps/inventory', '/api/services', '/api/storage',
+  '/api/network/diagnostics', '/api/diagnostics/disk-health',
 ];
 
 for (const pathname of probes) {
@@ -53,5 +46,12 @@ for (const field of ['totalDiskGB', 'freeDiskGB', 'ramGB', 'cpuUsage', 'memoryUs
   assert.ok(value === null || Number.isFinite(value), `${field} must be numeric or null, got ${value}`);
 }
 assert.ok(typeof sysinfo.body.processor === 'string' || sysinfo.body.processor === null, 'processor must be observed text or null');
+
+const capabilityMatrix = await request('/api/v10/capabilities-matrix');
+assert.ok(Array.isArray(capabilityMatrix.body.matrix), 'capability matrix must be an array');
+for (const item of capabilityMatrix.body.matrix) {
+  assert.equal(item.status, 'NOT_CHECKED', `${item.feature} must not claim a check without a probe`);
+  assert.deepEqual(item.evidence, [], `${item.feature} must not contain fabricated evidence`);
+}
 
 console.log(`✓ Native ${expected} platform smoke test passed`);
