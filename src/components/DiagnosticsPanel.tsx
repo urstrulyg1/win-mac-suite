@@ -32,7 +32,7 @@ interface Props {
 export default function DiagnosticsPanel({ systemInfo, onStartAction }: Props) {
   const { config, isMac } = usePlatform();
   const [healthItems, setHealthItems] = useState<HealthCheckItem[]>([]);
-  const [overallScore, setOverallScore] = useState(94);
+  const [overallScore, setOverallScore] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [inspectItem, setInspectItem] = useState<InspectorData | null>(null);
@@ -44,29 +44,40 @@ export default function DiagnosticsPanel({ systemInfo, onStartAction }: Props) {
       if (res.ok) {
         const data = await res.json();
         setHealthItems(data.issues || []);
-        if (data.score) setOverallScore(data.score);
+        if (typeof data.score === 'number') setOverallScore(data.score);
+        else setOverallScore(null);
+      } else {
+        setHealthItems([]);
+        setOverallScore(null);
       }
     } catch {
-      // Fallback dynamic health calculation from telemetry
-      const diskPct = Math.round(((systemInfo.totalDiskGB - systemInfo.freeDiskGB) / Math.max(systemInfo.totalDiskGB, 1)) * 100);
-      const items: HealthCheckItem[] = [
-        {
+      // Offline fallback: only report what was actually observed. Unmeasured
+      // values stay out of the list (null is not zero); security posture is
+      // never claimed without a probe.
+      const items: HealthCheckItem[] = [];
+      if (typeof systemInfo.cpuUsage === 'number') {
+        items.push({
           id: 'cpu',
           category: 'CPU',
           status: systemInfo.cpuUsage > 80 ? 'warning' : 'healthy',
           title: 'Processor Load Status',
           description: `Current utilization is ${systemInfo.cpuUsage}%.`,
           value: `${systemInfo.cpuUsage}%`,
-        },
-        {
+        });
+      }
+      if (typeof systemInfo.memoryUsage === 'number') {
+        items.push({
           id: 'mem',
           category: 'Memory',
           status: systemInfo.memoryUsage > 85 ? 'warning' : 'healthy',
           title: 'Memory Utilization',
           description: `Active physical memory is at ${systemInfo.memoryUsage}%.`,
           value: `${systemInfo.memoryUsage}%`,
-        },
-        {
+        });
+      }
+      if (typeof systemInfo.freeDiskGB === 'number' && typeof systemInfo.totalDiskGB === 'number') {
+        const diskPct = Math.round(((systemInfo.totalDiskGB - systemInfo.freeDiskGB) / Math.max(systemInfo.totalDiskGB, 1)) * 100);
+        items.push({
           id: 'storage',
           category: 'Storage',
           status: diskPct > 85 ? 'warning' : 'healthy',
@@ -76,25 +87,28 @@ export default function DiagnosticsPanel({ systemInfo, onStartAction }: Props) {
           recommendation: diskPct > 85 ? 'Storage cleanup recommended.' : undefined,
           actionLabel: diskPct > 85 ? 'Clean Storage' : undefined,
           actionTarget: 'CleanupOnly',
-        },
-        {
-          id: 'sec',
-          category: 'Security',
-          status: 'healthy',
-          title: isMac ? 'XProtect Signatures' : 'Defender Security Engine',
-          description: 'Signatures and real-time heuristics verified.',
-          value: 'Protected',
-        },
-        {
+        });
+      }
+      items.push({
+        id: 'sec',
+        category: 'Security',
+        status: 'warning',
+        title: isMac ? 'XProtect Signatures' : 'Defender Security Engine',
+        description: 'UNAVAILABLE: security probe has not returned data.',
+        value: 'UNAVAILABLE',
+      });
+      if (typeof systemInfo.isOnline === 'boolean') {
+        items.push({
           id: 'net',
           category: 'Network',
           status: systemInfo.isOnline ? 'healthy' : 'critical',
           title: 'Network Connectivity',
-          description: systemInfo.isOnline ? 'Active internet connection verified.' : 'Offline mode.',
+          description: systemInfo.isOnline ? 'Active internet connection observed.' : 'Offline mode observed.',
           value: systemInfo.isOnline ? 'Online' : 'Offline',
-        },
-      ];
+        });
+      }
       setHealthItems(items);
+      setOverallScore(null);
     } finally {
       setLoading(false);
     }
@@ -160,10 +174,16 @@ export default function DiagnosticsPanel({ systemInfo, onStartAction }: Props) {
       {/* Health Score Bento Header */}
       <div className="grid grid-cols-12 gap-4 sm:gap-5 items-stretch">
         <div className="card p-6 col-span-12 lg:col-span-4 flex flex-col items-center justify-center text-center">
-          <HealthScore score={overallScore} />
-          <p className="text-xs font-semibold mt-2" style={{ color: 'var(--color-ink-3)' }}>
-            {overallScore >= 90 ? 'System is fully optimized and healthy' : 'Minor optimization opportunities detected'}
-          </p>
+          {overallScore === null ? (
+            <p className="text-sm text-slate-400">UNAVAILABLE: health score has not been measured.</p>
+          ) : (
+            <>
+              <HealthScore score={overallScore} />
+              <p className="text-xs font-semibold mt-2" style={{ color: 'var(--color-ink-3)' }}>
+                {overallScore >= 90 ? 'System is fully optimized and healthy' : 'Minor optimization opportunities detected'}
+              </p>
+            </>
+          )}
           <button
             onClick={() => onStartAction('ScanOnly')}
             className="btn btn-primary text-xs w-full mt-4 cursor-pointer"
@@ -194,6 +214,7 @@ export default function DiagnosticsPanel({ systemInfo, onStartAction }: Props) {
             {['CPU', 'Memory', 'Storage', 'Security', 'Network'].map((cat) => {
               const Icon = categoryIcons[cat] || Activity;
               const matching = healthItems.filter((i) => i.category === cat);
+              const hasEvidence = matching.length > 0;
               const isWarning = matching.some((i) => i.status === 'warning' || i.status === 'critical');
               const isSelected = selectedCategory === cat;
 
@@ -218,7 +239,7 @@ export default function DiagnosticsPanel({ systemInfo, onStartAction }: Props) {
                   <div>
                     <p className="text-xs font-bold" style={{ color: 'var(--color-ink)' }}>{cat}</p>
                     <p className="text-[11px] font-mono mt-0.5" style={{ color: 'var(--color-ink-4)' }}>
-                      {isWarning ? 'Attention' : 'Optimal'}
+                      {!hasEvidence ? 'UNAVAILABLE' : isWarning ? 'Attention' : 'Optimal'}
                     </p>
                   </div>
                 </button>

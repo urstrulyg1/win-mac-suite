@@ -1,18 +1,20 @@
 import type { Section, SystemInfo } from './types';
 import { WINDOWS_PHASES, WINDOWS_CONFIG } from './platform/windows';
 
+// No hardcoded host telemetry lives here. Initial system state is unknown until
+// /api/sysinfo is polled; missing values stay null (null is not zero).
 export const SYSTEM_INFO: SystemInfo = {
-  hostName: 'Local Host',
-  user: 'User',
-  os: 'OS',
+  hostName: '',
+  user: '',
+  os: '',
   build: '',
-  processor: 'Processor',
-  ramGB: 0,
-  freeDiskGB: 0,
-  totalDiskGB: 0,
-  isOnline: true,
-  cpuUsage: 0,
-  memoryUsage: 0,
+  processor: '',
+  ramGB: null,
+  freeDiskGB: null,
+  totalDiskGB: null,
+  isOnline: null,
+  cpuUsage: null,
+  memoryUsage: null,
   uptime: '',
 };
 

@@ -212,13 +212,11 @@ export async function getWindowsPrivacyAuditor() {
   } catch {}
 
   return {
-    privacyScore: 75,
-    status: 'Partial',
-    categories: [
-      { id: 'telemetry', name: 'Diagnostic & Telemetry Data', status: 'Open', detail: 'Level 3 — Full', recommendation: 'Reduce telemetry level in Settings → Privacy.' },
-      { id: 'advertising', name: 'Advertising ID', status: 'Open', detail: 'Advertising ID active.', recommendation: 'Disable in Settings → Privacy → General.' },
-    ],
+    privacyScore: null,
+    status: 'UNAVAILABLE',
+    categories: [],
     recentChanges: [],
+    note: 'UNAVAILABLE: privacy posture was not measured (registry probe failed). No score is claimed.',
   };
 }
 
@@ -508,7 +506,7 @@ export async function getWindowsPerformanceDiagnosis() {
     };
   } catch {}
 
-  return { platform: 'windows', verdict: 'Performance nominal.', subsystems: [], topProcesses: [], recommendations: [] };
+  return { platform: 'windows', verdict: 'UNAVAILABLE: performance probe could not run.', subsystems: [], topProcesses: [], recommendations: [] };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -554,30 +552,31 @@ export async function getWindowsNetworkDoctor() {
       return {
         allPassed: steps.every(s => s.passed),
         workflow: steps,
-        activeAdapter: p.adapterName || 'Unknown',
-        ip4: p.ip4 || '',
-        gateway: p.gateway || '',
-        dnsLatencyMs: Math.max(p.dnsLatencyMs || 0, 0),
-        packetLossPct: 0,
+        activeAdapter: p.adapterName && p.adapterName !== 'Unknown' ? p.adapterName : null,
+        ip4: p.ip4 && p.ip4 !== 'Not assigned' ? p.ip4 : null,
+        gateway: p.gateway && p.gateway !== 'Unknown' ? p.gateway : null,
+        dnsLatencyMs: p.dnsLatencyMs > 0 ? p.dnsLatencyMs : null,
+        packetLossPct: null,
       };
     }
   } catch {}
 
+  // Probe failed: fail closed with explicit unknown state, never invented addresses or passing checks.
   return {
-    allPassed: true,
+    allPassed: false,
     workflow: [
-      { step: 1, title: 'Network Adapter Connected', passed: true, detail: 'Ethernet / Wi-Fi Active' },
-      { step: 2, title: 'IPv4 Address Assigned', passed: true, detail: '192.168.1.50' },
-      { step: 3, title: 'Default Gateway Ping', passed: true, detail: 'Gateway reachable' },
-      { step: 4, title: 'DNS Resolution', passed: true, detail: 'Resolved in 12ms' },
-      { step: 5, title: 'Internet HTTP/HTTPS Test', passed: true, detail: '200 OK' },
-      { step: 6, title: 'Captive Portal Interception', passed: true, detail: 'None' },
+      { step: 1, title: 'Network Adapter Connected', passed: null, detail: 'UNAVAILABLE: adapter probe could not run' },
+      { step: 2, title: 'IPv4 Address Assigned', passed: null, detail: 'UNAVAILABLE: address probe could not run' },
+      { step: 3, title: 'Default Gateway Ping', passed: null, detail: 'UNAVAILABLE: gateway probe could not run' },
+      { step: 4, title: 'DNS Resolution', passed: null, detail: 'UNAVAILABLE: DNS probe could not run' },
+      { step: 5, title: 'Internet HTTP/HTTPS Test', passed: null, detail: 'UNAVAILABLE: connectivity probe could not run' },
+      { step: 6, title: 'Captive Portal Interception', passed: null, detail: 'UNAVAILABLE: captive-portal probe could not run' },
     ],
-    activeAdapter: 'Ethernet',
-    ip4: '192.168.1.50',
-    gateway: '192.168.1.1',
-    dnsLatencyMs: 12,
-    packetLossPct: 0,
+    activeAdapter: null,
+    ip4: null,
+    gateway: null,
+    dnsLatencyMs: null,
+    packetLossPct: null,
   };
 }
 
@@ -613,12 +612,12 @@ export async function getWindowsWifiIntelligence() {
   }
 
   return {
-    currentSsid: currentSsid || (ifaceOut ? 'Not connected' : 'Unknown'),
+    currentSsid: currentSsid || null,
     signalQuality,
     channel,
     radioType,
     savedNetworks: savedNetworkCount,
-    reliabilityScore: signalQuality !== null ? Math.round(signalQuality) : 85,
+    reliabilityScore: signalQuality !== null ? Math.round(signalQuality) : null,
     note: currentSsid ? `Connected to "${currentSsid}"` : 'No active Wi-Fi connection detected.',
   };
 }
@@ -1063,14 +1062,14 @@ export async function getWindowsHardwareStatus() {
 
   return {
     platform: 'windows',
-    chip: `${cpu.manufacturer || ''} ${cpu.brand || 'Processor'}`,
+    chip: cpu.manufacturer || cpu.brand ? `${cpu.manufacturer || ''} ${cpu.brand || ''}`.trim() : null,
     arch: os.arch(),
-    cores: cpu.cores || 8,
-    physicalCores: cpu.physicalCores || cpu.cores || 8,
-    speed: `${cpu.speed || 3.2} GHz`,
+    cores: cpu.cores || null,
+    physicalCores: cpu.physicalCores || cpu.cores || null,
+    speed: cpu.speed ? `${cpu.speed} GHz` : null,
     ramGB: Math.round(mem.total / 1024 / 1024 / 1024),
     gpu: gpuName,
-    thermalState: 'Nominal',
+    thermalState: null,
     os: `${osInfo.distro || 'Windows'} ${osInfo.release || ''} (Build ${osInfo.build || ''})`,
   };
 }
@@ -1097,15 +1096,9 @@ export async function getWindowsThermalState() {
     }
   } catch {}
 
-  // Fallback: estimate from CPU load
-  try {
-    const load = await si.currentLoad();
-    const cpuPct = Math.round(load.currentLoad || 0);
-    const estTemp = Math.round(38 + (cpuPct / 100) * 28);
-    return { state: 'Nominal', pressureLevel: 'Normal', estimatedTempC: estTemp, detail: 'Temperature estimated from CPU load (WMI thermal probe requires elevation).' };
-  } catch {}
-
-  return { state: 'Nominal', pressureLevel: 'Normal', detail: 'Hardware temperatures nominal.' };
+  // No estimation: CPU load is not a temperature measurement, so an unreadable
+  // thermal zone stays unknown instead of an invented degree figure.
+  return { state: 'Unknown', pressureLevel: 'Unknown', maxTempC: null, estimatedTempC: null, detail: 'UNAVAILABLE: thermal zone probe could not run.' };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1251,9 +1244,9 @@ export async function getWindowsWslHealth() {
     const distros = lines.map(l => {
       const parts = l.trim().replace(/\*/g, '').trim().split(/\s+/);
       return {
-        name: parts[0] || 'Unknown',
-        state: parts[1] || 'Stopped',
-        version: parseInt(parts[2] || '2'),
+        name: parts[0] || null,
+        state: parts[1] || null,
+        version: parts[2] ? parseInt(parts[2], 10) : null,
         isDefault: l.trim().startsWith('*'),
       };
     }).filter(d => d.name && d.name !== 'Unknown');
@@ -1308,9 +1301,9 @@ export async function getWindowsPrinterQueueDoctor() {
         printers: pArr.map((p, i) => ({
           id: `printer-${i}`,
           name: p.Name,
-          status: p.PrinterStatus || 'Normal',
-          jobCount: p.JobCount || 0,
-          healthy: !p.PrinterStatus || p.PrinterStatus === 'Normal',
+          status: p.PrinterStatus || null,
+          jobCount: typeof p.JobCount === 'number' ? p.JobCount : null,
+          healthy: p.PrinterStatus === 'Normal',
         })),
         stuckJobs: stuckJobs.map((j, i) => ({
           id: `job-${i}`,
@@ -1385,14 +1378,14 @@ export async function getWindowsAudioDoctor() {
         serviceHealthy: serviceState === 'Running',
         defaultOutputDevice: outputDevices.length > 0 ? outputDevices[0].name : (devices.length > 0 ? devices[0].name : 'None detected'),
         defaultInputDevice:  inputDevices.length  > 0 ? inputDevices[0].name  : 'None detected',
-        sampleRate: 44100,
+        sampleRate: null,
         devices,
         issues: devices.filter(d => !d.healthy).map(d => `${d.name}: ${d.status}`),
         diagnosisVerdict: allHealthy ? 'Audio subsystem is healthy.' : 'Audio issues detected — check device status.',
       };
     }
   } catch {}
-  return { serviceState: 'Unknown', serviceHealthy: false, defaultOutputDevice: 'Unknown', defaultInputDevice: 'None detected', sampleRate: 44100, devices: [], issues: [], diagnosisVerdict: 'Audio service status unknown.' };
+  return { serviceState: 'Unknown', serviceHealthy: false, defaultOutputDevice: null, defaultInputDevice: null, sampleRate: null, devices: [], issues: [], diagnosisVerdict: 'UNAVAILABLE: audio probe could not run.' };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1486,8 +1479,8 @@ export async function getWindowsDisplayDoctor() {
         name: m.Caption || `Monitor ${i + 1}`,
         manufacturer: m.MonitorManufacturer || 'Unknown',
         resolution: (m.ScreenWidth && m.ScreenHeight) ? `${m.ScreenWidth}x${m.ScreenHeight}` : 'Unknown',
-        status: m.Status || 'OK',
-        healthy: !m.Status || m.Status === 'OK',
+        status: m.Status || null,
+        healthy: m.Status === 'OK',
       }));
       const gpus = gpuArr.map((g, i) => ({
         id: `gpu-${i}`,
@@ -1496,8 +1489,8 @@ export async function getWindowsDisplayDoctor() {
         mode: g.VideoModeDescription || null,
         refreshHz: g.CurrentRefreshRate || null,
         driverVersion: g.DriverVersion || null,
-        status: g.Status || 'OK',
-        healthy: !g.Status || g.Status === 'OK',
+        status: g.Status || null,
+        healthy: g.Status === 'OK',
       }));
       const primaryMon = monitors[0] || null;
       const primaryGpu = gpus[0] || null;
@@ -1851,9 +1844,9 @@ export async function getWindowsExternalDrives() {
       const drives = diskArr.map((d, i) => ({
         id: `ext-${i}`,
         name: d.Caption || `Removable Disk ${i + 1}`,
-        interface: d.InterfaceType || 'USB',
+        interface: d.InterfaceType || null,
         totalGB: d.Size ? Math.round(d.Size / 1024 / 1024 / 1024 * 10) / 10 : null,
-        status: d.Status || 'OK',
+        status: d.Status || null,
         serial: d.SerialNumber || null,
       }));
 
@@ -2116,17 +2109,17 @@ export async function getWindowsDockerStorage() {
     const lines = (stdout || '').trim().split('\n').filter(Boolean);
     const parsed = lines.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
 
-    let imagesSize = '0 B', containersSize = '0 B', volumesSize = '0 B', buildCacheSize = '0 B', reclaimableSize = '0 B';
+    let imagesSize = null, containersSize = null, volumesSize = null, buildCacheSize = null, reclaimableSize = null;
     for (const row of parsed) {
-      if (row.Type === 'Images') imagesSize = row.Size || '0 B';
-      else if (row.Type === 'Containers') containersSize = row.Size || '0 B';
-      else if (row.Type === 'Local Volumes') volumesSize = row.Size || '0 B';
-      else if (row.Type === 'Build Cache') buildCacheSize = row.Size || '0 B';
+      if (row.Type === 'Images') imagesSize = row.Size || null;
+      else if (row.Type === 'Containers') containersSize = row.Size || null;
+      else if (row.Type === 'Local Volumes') volumesSize = row.Size || null;
+      else if (row.Type === 'Build Cache') buildCacheSize = row.Size || null;
       if (row.Reclaimable) reclaimableSize = row.Reclaimable.replace(/\(.*\)/, '').trim();
     }
     return { active: true, imagesSize, containersSize, volumesSize, buildCacheSize, reclaimableSize };
   } catch {
-    return { active: false, imagesSize: '0 B', containersSize: '0 B', volumesSize: '0 B', buildCacheSize: '0 B', reclaimableSize: '0 B', note: 'Docker is not installed or not running.' };
+    return { active: false, imagesSize: null, containersSize: null, volumesSize: null, buildCacheSize: null, reclaimableSize: null, note: 'UNAVAILABLE: Docker did not return storage data.' };
   }
 }
 

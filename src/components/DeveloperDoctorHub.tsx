@@ -195,10 +195,10 @@ export default function DeveloperDoctorHub() {
                       category: 'Developer Toolchain',
                       badge: tool.installed ? tool.version : 'Not Installed',
                       badgeType: tool.installed ? 'success' : 'error',
-                      subtitle: tool.path || 'Binary Path',
+                      subtitle: tool.path ?? 'UNAVAILABLE',
                       details: [
                         { label: 'Executable Path', value: tool.path, isCode: true },
-                        { label: 'Installed Architecture', value: tool.arch || 'arm64' },
+                        { label: 'Installed Architecture', value: tool.arch ?? 'UNAVAILABLE' },
                         { label: 'Multiple Installs', value: tool.multipleInstalls ? 'Yes (Detected)' : 'No (Clean single install)' },
                         { label: 'PATH Integrity', value: tool.pathHealthy ? 'Verified in $PATH' : 'Missing from $PATH' },
                       ],
@@ -220,7 +220,7 @@ export default function DeveloperDoctorHub() {
                       {tool.installed ? tool.version : 'Missing'}
                     </span>
                   </div>
-                  <p className="text-[11px] font-mono text-slate-400 truncate">{tool.path || 'Not discovered'}</p>
+                  <p className="text-[11px] font-mono text-slate-400 truncate">{tool.path ?? 'UNAVAILABLE'}</p>
                 </div>
               ))}
             </div>
@@ -252,12 +252,12 @@ export default function DeveloperDoctorHub() {
                   setInspectItem({
                     title: 'Docker Image Footprint',
                     category: 'Container Storage',
-                    badge: dockerData?.imagesSize || '0 MB',
+                    badge: dockerData?.imagesSize ?? 'UNAVAILABLE',
                     subtitle: 'Local cached OCI/Docker container layer images.',
                     dataSource: 'docker system df / getMacDockerStorage()',
                     evidenceQuality: 'Observed',
                     details: [
-                      { label: 'Image Storage Used', value: dockerData?.imagesSize || '0 MB' },
+                      { label: 'Image Storage Used', value: dockerData?.imagesSize ?? 'UNAVAILABLE' },
                     ],
                   })
                 }
@@ -265,7 +265,7 @@ export default function DeveloperDoctorHub() {
                 style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
               >
                 <span className="text-[10px] uppercase font-bold text-slate-400">Images</span>
-                <p className="text-lg font-extrabold font-mono text-blue-500 mt-1">{dockerData?.imagesSize || '0 MB'}</p>
+                <p className="text-lg font-extrabold font-mono text-blue-500 mt-1">{dockerData?.imagesSize ?? 'UNAVAILABLE'}</p>
               </div>
 
               <div
@@ -273,12 +273,12 @@ export default function DeveloperDoctorHub() {
                   setInspectItem({
                     title: 'Docker Containers Footprint',
                     category: 'Container Storage',
-                    badge: dockerData?.containersSize || '0 MB',
+                    badge: dockerData?.containersSize ?? 'UNAVAILABLE',
                     subtitle: 'Disk space occupied by writable container layers.',
                     dataSource: 'docker system df',
                     evidenceQuality: 'Observed',
                     details: [
-                      { label: 'Container Storage', value: dockerData?.containersSize || '0 MB' },
+                      { label: 'Container Storage', value: dockerData?.containersSize ?? 'UNAVAILABLE' },
                     ],
                   })
                 }
@@ -286,7 +286,7 @@ export default function DeveloperDoctorHub() {
                 style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
               >
                 <span className="text-[10px] uppercase font-bold text-slate-400">Containers</span>
-                <p className="text-lg font-extrabold font-mono text-blue-400 mt-1">{dockerData?.containersSize || '0 MB'}</p>
+                <p className="text-lg font-extrabold font-mono text-blue-400 mt-1">{dockerData?.containersSize ?? 'UNAVAILABLE'}</p>
               </div>
 
               <div
@@ -294,12 +294,12 @@ export default function DeveloperDoctorHub() {
                   setInspectItem({
                     title: 'Docker Local Volumes',
                     category: 'Persistent Storage',
-                    badge: dockerData?.volumesSize || '0 MB',
+                    badge: dockerData?.volumesSize ?? 'UNAVAILABLE',
                     subtitle: 'Persistent database and state volumes mounted into containers.',
                     dataSource: 'docker volume ls',
                     evidenceQuality: 'Observed',
                     details: [
-                      { label: 'Volume Space', value: dockerData?.volumesSize || '0 MB' },
+                      { label: 'Volume Space', value: dockerData?.volumesSize ?? 'UNAVAILABLE' },
                     ],
                   })
                 }
@@ -307,7 +307,7 @@ export default function DeveloperDoctorHub() {
                 style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
               >
                 <span className="text-[10px] uppercase font-bold text-slate-400">Local Volumes</span>
-                <p className="text-lg font-extrabold font-mono text-purple-400 mt-1">{dockerData?.volumesSize || '0 MB'}</p>
+                <p className="text-lg font-extrabold font-mono text-purple-400 mt-1">{dockerData?.volumesSize ?? 'UNAVAILABLE'}</p>
               </div>
 
               <div
@@ -315,12 +315,12 @@ export default function DeveloperDoctorHub() {
                   setInspectItem({
                     title: 'Docker BuildKit Cache',
                     category: 'Build Cache',
-                    badge: dockerData?.buildCacheSize || '0 MB',
+                    badge: dockerData?.buildCacheSize ?? 'UNAVAILABLE',
                     subtitle: 'Intermediate multistage build artifacts generated during docker build.',
                     dataSource: 'docker builder du',
                     evidenceQuality: 'Observed',
                     details: [
-                      { label: 'Build Cache Space', value: dockerData?.buildCacheSize || '0 MB' },
+                      { label: 'Build Cache Space', value: dockerData?.buildCacheSize ?? 'UNAVAILABLE' },
                     ],
                   })
                 }
@@ -328,7 +328,7 @@ export default function DeveloperDoctorHub() {
                 style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
               >
                 <span className="text-[10px] uppercase font-bold text-slate-400">Build Cache</span>
-                <p className="text-lg font-extrabold font-mono text-emerald-500 mt-1">{dockerData?.buildCacheSize || '0 MB'}</p>
+                <p className="text-lg font-extrabold font-mono text-emerald-500 mt-1">{dockerData?.buildCacheSize ?? 'UNAVAILABLE'}</p>
               </div>
             </div>
           </motion.div>
@@ -339,7 +339,7 @@ export default function DeveloperDoctorHub() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4" style={{ borderColor: 'var(--color-line)' }}>
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
-                  Xcode Doctor &amp; Build Artifacts ({xcodeData?.totalGB || '0'} GB Total)
+                  Xcode Doctor &amp; Build Artifacts ({xcodeData?.totalGB ?? 'UNAVAILABLE'}{xcodeData?.totalGB != null ? ' GB Total' : ' GB: UNAVAILABLE'})
                 </h3>
                 <p className="text-xs text-slate-400">DerivedData, device sandboxes, archives, and symbol caches.</p>
               </div>
@@ -397,7 +397,7 @@ export default function DeveloperDoctorHub() {
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
                   SSH Keys, Agent &amp; Git Connectivity
                 </h3>
-                <p className="text-xs text-slate-400">{sshData?.diagnosis || 'SSH environment verified.'}</p>
+                <p className="text-xs text-slate-400">{sshData?.diagnosis ?? 'UNAVAILABLE: SSH probe has not returned data.'}</p>
               </div>
               <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-xs font-bold">
                 SSH Inspected
@@ -431,12 +431,12 @@ export default function DeveloperDoctorHub() {
                   setInspectItem({
                     title: 'Private Keys Inventory',
                     category: 'Developer Credentials',
-                    badge: `${sshData?.privateKeysCount ?? 0} Keys`,
+                    badge: sshData?.privateKeysCount != null ? `${sshData.privateKeysCount} Keys` : 'UNAVAILABLE',
                     subtitle: 'Detected private authentication keys stored inside ~/.ssh.',
                     dataSource: 'fs.readdirSync(~/.ssh)',
                     evidenceQuality: 'Observed',
                     details: [
-                      { label: 'Private Keys Count', value: sshData?.privateKeysCount ?? 0 },
+                      { label: 'Private Keys Count', value: sshData?.privateKeysCount ?? 'UNAVAILABLE' },
                     ],
                   })
                 }
@@ -444,7 +444,7 @@ export default function DeveloperDoctorHub() {
                 style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}
               >
                 <span className="text-[10px] uppercase font-bold text-slate-400">Private Keys</span>
-                <p className="font-mono font-bold text-blue-400 mt-1">{sshData?.privateKeysCount ?? 0} Keys</p>
+                <p className="font-mono font-bold text-blue-400 mt-1">{sshData?.privateKeysCount != null ? `${sshData.privateKeysCount} Keys` : 'UNAVAILABLE'}</p>
               </div>
 
               <div
@@ -516,7 +516,7 @@ export default function DeveloperDoctorHub() {
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
                   Browser Health &amp; Disk Storage
                 </h3>
-                <p className="text-xs text-slate-400">{browserData?.verdict || 'Measured via profile & cache sizes on disk.'}</p>
+                <p className="text-xs text-slate-400">{browserData?.verdict ?? 'UNAVAILABLE: browser probe has not returned data.'}</p>
               </div>
             </div>
 
@@ -586,7 +586,7 @@ export default function DeveloperDoctorHub() {
                         { label: 'Process Name', value: p.process },
                         { label: 'Process ID (PID)', value: p.pid, isCode: true },
                         { label: 'Bind Address', value: p.address },
-                        { label: 'Owner User', value: p.user || 'Current User' },
+                        { label: 'Owner User', value: p.user ?? 'UNAVAILABLE' },
                       ],
                       command: `/usr/bin/lsof -i :${p.port}`,
                       actionButton: {

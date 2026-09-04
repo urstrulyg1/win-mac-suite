@@ -35,7 +35,7 @@ export default function RecommendationCenter({ onNavigateTab }: Props) {
       actionName: rec.title,
       actionDescription: rec.description,
       willChange: [
-        `Reclaim approximately ${rec.reclaimedEstimate}`,
+        rec.reclaimedEstimate ? `Reclaim approximately ${rec.reclaimedEstimate}` : 'Reclaim amount: UNAVAILABLE (not measured)',
         'Clean inactive temporary buffers / caches',
       ],
       willNotChange: [
@@ -84,6 +84,12 @@ export default function RecommendationCenter({ onNavigateTab }: Props) {
         </div>
       )}
 
+      {recommendations.length === 0 && !loading && (
+        <div className="card p-6 text-center text-xs text-slate-400">
+          No recommendations observed. Recommendations appear only when diagnostic findings are actually measured.
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {recommendations.map((rec) => (
           <div
@@ -93,10 +99,10 @@ export default function RecommendationCenter({ onNavigateTab }: Props) {
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <span className="pill bg-blue-500/10 text-blue-400 border-blue-500/25 text-[10px] font-bold">
-                  {rec.rankBadge} (Score {rec.compositeScore})
+                  {rec.rankBadge}{rec.compositeScore != null ? ` (Score ${rec.compositeScore})` : ''}
                 </span>
                 <span className="text-xs font-mono font-bold text-emerald-400">
-                  {rec.reclaimedEstimate}
+                  {rec.reclaimedEstimate ?? 'Reclaim: UNAVAILABLE'}
                 </span>
               </div>
               <h4 className="text-sm font-bold" style={{ color: 'var(--color-ink)' }}>
@@ -109,7 +115,7 @@ export default function RecommendationCenter({ onNavigateTab }: Props) {
 
             <div className="pt-2 flex items-center justify-between border-t" style={{ borderColor: 'var(--color-line)' }}>
               <span className="text-[10px] font-mono text-slate-500">
-                Confidence: {rec.confidence}% · Safety: {rec.safety}%
+                Confidence: {rec.confidence ?? 'UNAVAILABLE'} · Safety: {rec.safety ?? 'UNAVAILABLE'}
               </span>
               <button
                 onClick={() => handleActionClick(rec)}

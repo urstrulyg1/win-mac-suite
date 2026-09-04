@@ -68,19 +68,8 @@ router.get('/storage', async (_req, res) => {
       usedGB,
       freeGB,
       percentUsed,
-      breakdown: isMac
-        ? [
-            { category: 'macOS Core & Sealed Snapshot', sizeGB: 15.2, color: '#3b82f6' },
-            { category: 'Applications & Binaries', sizeGB: +(usedGB * 0.35).toFixed(1), color: '#06b6d4' },
-            { category: 'Developer Build Caches', sizeGB: +(usedGB * 0.12).toFixed(1), color: '#8b5cf6' },
-            { category: 'User Documents & Media', sizeGB: +(usedGB * 0.40).toFixed(1), color: '#10b981' },
-          ]
-        : [
-            { category: 'Windows OS & WinSxS', sizeGB: 28.0, color: '#2563eb' },
-            { category: 'Program Files', sizeGB: +(usedGB * 0.35).toFixed(1), color: '#6366f1' },
-            { category: 'Temporary & Crash Dumps', sizeGB: +(usedGB * 0.08).toFixed(1), color: '#f59e0b' },
-            { category: 'User Profiles & AppData', sizeGB: +(usedGB * 0.42).toFixed(1), color: '#10b981' },
-          ],
+      breakdown: [],
+      breakdownNote: 'UNAVAILABLE: per-category storage accounting requires a privileged filesystem scan; no estimated breakdown is reported.',
       largeFiles,
     });
   } catch (err) {

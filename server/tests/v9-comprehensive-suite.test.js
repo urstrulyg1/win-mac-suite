@@ -34,12 +34,12 @@ async function runSecurityAllowlistTests() {
 function runKnowledgeGraphTests() {
   console.log('\nRunning v9.0 Diagnostic Knowledge Graph Tests...');
 
+  // Empty graph invents nothing: no seeded Chrome/Docker telemetry, no causal chain without evidence.
   const graph = new DiagnosticKnowledgeGraph();
   const chain = graph.findCausalChain('ChromeCrashEvent');
-  assert.strictEqual(chain.length > 0, true);
-  assert.strictEqual(chain[0].rootCause, 'DockerDesktop');
-  assert.strictEqual(chain[0].confidence > 80, true);
-  console.log(`✓ Test 4 Passed: Knowledge Graph inferred causal chain: ${chain[0].summary} (Confidence: ${chain[0].confidence}%)`);
+  assert.strictEqual(Array.isArray(chain), true);
+  assert.strictEqual(chain.length, 0);
+  console.log('✓ Test 4 Passed: Knowledge Graph returns no invented causal chain without observed relationships');
 }
 
 async function runExperimentAndVerificationTests() {
@@ -51,24 +51,51 @@ async function runExperimentAndVerificationTests() {
   assert.strictEqual(exp.status, 'REQUIRES_EXECUTION');
   console.log(`✓ Test 5 Passed: Diagnostic Experiment correctly reports REQUIRES_EXECUTION (no fabricated results)`);
 
+  // No measurements supplied -> explicitly unverified, never a fabricated 14ms PASS.
   const ver = await VerificationEngine.verifyExecution('network.flushDNS', async () => {});
-  assert.strictEqual(ver.verified, true);
-  assert.strictEqual(ver.afterState.latencyMs < 100, true);
-  console.log('✓ Test 6 Passed: Universal Before/After Verification Engine confirmed post-condition');
+  assert.strictEqual(ver.verified, false);
+  assert.strictEqual(ver.beforeState, null);
+  assert.strictEqual(ver.afterState, null);
+  console.log('✓ Test 6 Passed: Verification Engine reports inconclusive without measurements (no fabricated post-condition)');
+
+  // Supplied measurements verify honestly.
+  const ver2 = await VerificationEngine.verifyExecution('network.flushDNS', async () => {}, {
+    preState: { dnsResolution: 'FAIL' },
+    postState: { dnsResolution: 'PASS', latencyMs: 14 },
+    verified: true,
+  });
+  assert.strictEqual(ver2.verified, true);
+  console.log('✓ Test 6b Passed: Verification Engine verifies when real measurements are supplied');
 }
 
 function runRecommendationAndIncidentTests() {
   console.log('\nRunning v9.0 Recommendation & Incident Lifecycle Tests...');
 
+  // No observed findings -> no invented recommendations (no 14.2 GB / 96% fabrications).
   const ranked = RecommendationEngine.getRankedRecommendations();
-  assert.strictEqual(ranked.length >= 3, true);
-  assert.strictEqual(ranked[0].compositeScore >= ranked[1].compositeScore, true);
-  console.log(`✓ Test 7 Passed: Ranked ${ranked.length} recommendations by (Impact × Confidence × Safety). Top: "${ranked[0].title}" (Score: ${ranked[0].compositeScore})`);
+  assert.strictEqual(Array.isArray(ranked), true);
+  assert.strictEqual(ranked.length, 0);
+  console.log('✓ Test 7 Passed: Recommendation engine returns no invented recommendations without observed findings');
 
-  const updated = incidentManager.updateIncidentStatus('inc-1042', INCIDENT_STATUS.VERIFIED, 'Memory pressure normalized to 44%.');
+  // Observed findings rank honestly.
+  const ranked2 = RecommendationEngine.getRankedRecommendations([
+    { id: 'rec-a', title: 'Observed issue A', impact: 80, confidence: 70, safety: 90, category: 'storage', actionId: 'storage.inspect' },
+    { id: 'rec-b', title: 'Observed issue B', impact: 50, confidence: 50, safety: 50, category: 'storage', actionId: 'storage.inspect' },
+  ]);
+  assert.strictEqual(ranked2.length, 2);
+  assert.strictEqual(ranked2[0].compositeScore >= ranked2[1].compositeScore, true);
+  assert.strictEqual(ranked2[0].reclaimedEstimate, null);
+  console.log('✓ Test 7b Passed: Observed findings rank without invented reclaim figures');
+
+  // No seeded incidents: the store starts empty and only records observed incidents.
+  assert.strictEqual(incidentManager.getAllIncidents().length, 0);
+  const recorded = incidentManager.recordIncident({ id: 'inc-observed-1', title: 'Observed memory pressure', status: INCIDENT_STATUS.CONFIRMED });
+  assert.strictEqual(recorded.id, 'inc-observed-1');
+  const updated = incidentManager.updateIncidentStatus('inc-observed-1', INCIDENT_STATUS.VERIFIED, 'Observed verification evidence.');
   assert.strictEqual(updated.verified, true);
   assert.strictEqual(updated.status, INCIDENT_STATUS.VERIFIED);
-  console.log('✓ Test 8 Passed: Incident lifecycle transitioned to VERIFIED with audit evidence');
+  assert.strictEqual(incidentManager.updateIncidentStatus('inc-1042', INCIDENT_STATUS.VERIFIED), null);
+  console.log('✓ Test 8 Passed: Incident lifecycle records observed incidents only (no seeded inc-1042)');
 }
 
 async function main() {

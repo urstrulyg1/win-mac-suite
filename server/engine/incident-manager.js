@@ -1,6 +1,10 @@
 /**
- * WinSuite & MacSuite v9.0 - Persistent Incident Lifecycle Manager
+ * WinSuite & MacSuite — Persistent Incident Lifecycle Manager
  * Tracks incidents through: Detected -> Investigating -> Confirmed -> Remediation -> Resolved -> Verified.
+ *
+ * Truthfulness rule: no incidents are seeded. An incident exists only after it
+ * is recorded from observed telemetry via recordIncident(). An empty store
+ * means "no incidents observed", not "no incidents exist".
  */
 
 export const INCIDENT_STATUS = {
@@ -15,23 +19,18 @@ export const INCIDENT_STATUS = {
 class IncidentManager {
   constructor() {
     this.incidents = new Map();
-    this.seedDefaultIncidents();
   }
 
-  seedDefaultIncidents() {
-    const inc1 = {
-      id: 'inc-1042',
-      title: 'Chrome instability under elevated memory pressure',
-      firstDetected: 'Today 14:21',
-      lastDetected: 'Today 14:27',
-      severity: 'High',
-      status: INCIDENT_STATUS.CONFIRMED,
-      rootCause: 'Concurrent allocation between Docker hypervisor VM and Chromium renderer',
-      evidenceSignalsCount: 7,
-      remediationPlan: 'Purge inactive memory cache buffers and limit Docker hypervisor memory ceiling',
+  recordIncident(incident) {
+    if (!incident || typeof incident.id !== 'string') return null;
+    const entry = {
+      ...incident,
+      firstDetected: incident.firstDetected ?? new Date().toISOString(),
+      lastDetected: incident.lastDetected ?? new Date().toISOString(),
       verified: false,
     };
-    this.incidents.set(inc1.id, inc1);
+    this.incidents.set(entry.id, entry);
+    return entry;
   }
 
   getAllIncidents() {
@@ -44,7 +43,7 @@ class IncidentManager {
     inc.status = newStatus;
     if (newStatus === INCIDENT_STATUS.VERIFIED) {
       inc.verified = true;
-      inc.verificationDetails = verificationDetails || 'Post-execution telemetry confirmed resolved.';
+      inc.verificationDetails = verificationDetails ?? 'UNAVAILABLE: no verification measurements supplied.';
     }
     return inc;
   }

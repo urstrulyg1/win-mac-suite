@@ -120,8 +120,8 @@ export default function ReportsPage({ onStartNew, onExport }: Props) {
   };
 
 function buildRichHtmlReport(config: any, data: any, isMac: boolean = false): string {
-  const host = data.hostname || data.hostName || 'Local Computer';
-  const osName = data.osInfo?.distro || data.os || (isMac ? 'macOS' : 'Windows');
+  const host = data.hostname || data.hostName || 'UNAVAILABLE';
+  const osName = data.osInfo?.distro || data.os || 'UNAVAILABLE';
   // Real data only: if a measurement is genuinely absent we report UNAVAILABLE,
   // never a fabricated processor, core count, temperature, or capacities.
   const cpuName = data.hardware?.chip || data.cpu?.brand || data.processor || 'UNAVAILABLE';
@@ -313,7 +313,7 @@ function buildRichHtmlReport(config: any, data: any, isMac: boolean = false): st
       </div>
       <div class="vital-box">
         <div class="vital-lbl">DNS Resolution</div>
-        <div class="vital-val" style="font-size: 18px; color: var(--violet);">${data.net?.dnsLatencyMs || 14} ms</div>
+        <div class="vital-val" style="font-size: 18px; color: var(--violet);">${data.net?.dnsLatencyMs ?? 'UNAVAILABLE'}${data.net?.dnsLatencyMs != null ? ' ms' : ''}</div>
         <div class="vital-sub">Gateway Reachable</div>
       </div>
     </div>
@@ -381,12 +381,12 @@ function buildRichHtmlReport(config: any, data: any, isMac: boolean = false): st
       <div class="vitals-grid" style="margin-bottom: 0;">
         <div class="vital-box">
           <div class="vital-lbl">${isMac ? 'Cycle Count' : 'Battery Status'}</div>
-          <div class="vital-val" style="font-size: 18px; color: #60a5fa;">${battery?.cycleCount ? `${battery.cycleCount} / 1000` : (battery?.present ? (battery?.status || 'OK') : 'AC Connected')}</div>
+          <div class="vital-val" style="font-size: 18px; color: #60a5fa;">${battery?.cycleCount ? `${battery.cycleCount} / 1000` : (battery?.present ? (battery?.status ?? 'UNAVAILABLE') : 'UNAVAILABLE')}</div>
           <div class="vital-sub">${isMac ? 'Design Lifetime' : 'ACPI Standard'}</div>
         </div>
         <div class="vital-box">
           <div class="vital-lbl">Capacity Health</div>
-          <div class="vital-val" style="font-size: 18px; color: var(--emerald);">${battery?.healthPercent ? `${battery.healthPercent}%` : (battery?.present ? 'Operational' : 'Desktop')}</div>
+          <div class="vital-val" style="font-size: 18px; color: var(--emerald);">${battery?.healthPercent ? `${battery.healthPercent}%` : 'UNAVAILABLE'}</div>
           <div class="vital-sub">Health Status</div>
         </div>
         <div class="vital-box">
@@ -455,7 +455,7 @@ function buildRichHtmlReport(config: any, data: any, isMac: boolean = false): st
           title: `${config.productName} Live System Diagnostic Snapshot`,
           reportType: 'full-system',
           timestamp: new Date().toISOString(),
-          hostname: data.hostname || 'Local Computer',
+          hostname: data.hostname || 'UNAVAILABLE',
           healthScore: data.healthScore ?? null,
           data,
         });
@@ -517,8 +517,8 @@ function InPageReportDetail({
   const [copied, setCopied] = useState(false);
   const [showJson, setShowJson] = useState(false);
   const data = report.data || {};
-  const host = report.hostname || data.hostname || data.hostName || 'Local Computer';
-  const osName = data.osInfo?.distro || data.os || (isMac ? 'macOS' : 'Windows');
+  const host = report.hostname || data.hostname || data.hostName || 'UNAVAILABLE';
+  const osName = data.osInfo?.distro || data.os || 'UNAVAILABLE';
   // Real data only: never fabricate a processor, core count, temperature, or capacity.
   const cpuName = data.hardware?.chip || data.cpu?.brand || data.processor || 'UNAVAILABLE';
   const cores = data.cpu?.cores || data.hardware?.cores || null;
@@ -587,9 +587,9 @@ function InPageReportDetail({
       {/* Hero Title Section */}
       <div className="space-y-1">
         <div className="flex items-center gap-2 flex-wrap mb-1">
-          <span className="font-mono text-xs text-blue-400 font-bold">#{report.id || 'SNAPSHOT'}</span>
+          <span className="font-mono text-xs text-blue-400 font-bold">#{report.id ?? 'UNAVAILABLE'}</span>
           <span className="pill bg-blue-500/10 text-blue-400 border-blue-500/25 text-[10px]">
-            {report.reportType || 'System Diagnostic'}
+            {report.reportType ?? 'UNAVAILABLE'}
           </span>
           <span className="pill bg-emerald-500/10 text-emerald-400 border-emerald-500/25 text-[10px]">
             Verified Inode Telemetry
@@ -637,7 +637,7 @@ function InPageReportDetail({
 
         <div className="card p-4 rounded-2xl border space-y-1" style={{ borderColor: 'var(--color-line)' }}>
           <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">DNS Latency</span>
-          <p className="text-xl font-extrabold font-mono text-indigo-400">{data.net?.dnsLatencyMs || 14} ms</p>
+          <p className="text-xl font-extrabold font-mono text-indigo-400">{data.net?.dnsLatencyMs ?? 'UNAVAILABLE'}{data.net?.dnsLatencyMs != null ? ' ms' : ''}</p>
           <p className="text-[11px] text-slate-400">Gateway Reachable</p>
         </div>
       </div>
@@ -989,7 +989,7 @@ function InPageReportDetail({
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-400">
-                    Storage: <span className="font-mono text-slate-200">{dbInfo?.sizeFormatted || '68.0 KB'}</span> / 25.0 MB ({dbInfo?.sizePercentage || 0.3}% capacity) · {savedReports.length} Reports · {transactions.length} Manifests · {auditHistory.length} Audit Entries
+                    Storage: <span className="font-mono text-slate-200">{dbInfo?.sizeFormatted ?? 'UNAVAILABLE'}</span> / 25.0 MB ({dbInfo?.sizePercentage ?? 'UNAVAILABLE'}{dbInfo?.sizePercentage != null ? '% capacity' : ' capacity: UNAVAILABLE'}) · {savedReports.length} Reports · {transactions.length} Manifests · {auditHistory.length} Audit Entries
                   </p>
                 </div>
               </div>

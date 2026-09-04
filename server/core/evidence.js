@@ -81,7 +81,7 @@ export function createEvidence({
     ageMs: age,
     isFact: resolvedQuality === EVIDENCE_QUALITY.OBSERVED,
     reason,
-    estimationMethod: resolvedQuality === EVIDENCE_QUALITY.ESTIMATED ? estimationMethod : null,
+    estimationMethod: resolvedQuality === EVIDENCE_QUALITY.ESTIMATED ? (estimationMethod || 'UNAVAILABLE: estimation method not supplied by caller.') : null,
   };
 }
 

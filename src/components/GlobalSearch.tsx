@@ -119,7 +119,7 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
               id: `app-${app.name}`,
               category: 'Applications',
               title: app.name,
-              subtitle: `${app.version || 'Version verified'} · ${app.publisher || app.category || 'Installed Application'}`,
+              subtitle: `${app.version ?? 'UNAVAILABLE'} · ${app.publisher || app.category || 'UNAVAILABLE'}`,
               icon: <Package size={14} />,
             });
             if (found.length >= 5) break;

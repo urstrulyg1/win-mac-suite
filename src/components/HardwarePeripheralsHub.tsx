@@ -111,12 +111,12 @@ export default function HardwarePeripheralsHub() {
                     FILESYSTEM &amp; NVMe STORAGE HEALTH
                   </span>
                   <h3 className="text-base font-extrabold" style={{ color: 'var(--color-ink)' }}>
-                    {diskData?.filesystem || 'APFS'} · {diskData?.volumeName || 'Macintosh HD'}
+                    {diskData?.filesystem ?? 'UNAVAILABLE'} · {diskData?.volumeName ?? 'UNAVAILABLE'}
                   </h3>
                   <p className="text-xs text-slate-300 mt-1">{diskData?.firstAidGuidance}</p>
                 </div>
                 <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-xs font-bold shrink-0">
-                  {diskData?.smartStatus || 'Verified'}
+                  {diskData?.smartStatus ?? 'UNAVAILABLE'}
                 </span>
               </div>
             </div>
@@ -130,7 +130,7 @@ export default function HardwarePeripheralsHub() {
               <div className="p-4 rounded-xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
                 <span className="text-[10px] uppercase font-bold text-slate-400">Read / Write Speed</span>
                 <p className="font-mono font-bold text-emerald-400">{diskData?.readWriteStatistics}</p>
-                <p className="text-slate-400 mt-1">PCIe Bus: Nominal Bandwidth</p>
+                <p className="text-slate-400 mt-1">{diskData?.busInfo ?? 'Bus info: UNAVAILABLE'}</p>
               </div>
               <div className="p-4 rounded-xl border space-y-1" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
                 <span className="text-[10px] uppercase font-bold text-slate-400">Capacity Depletion Risk</span>
@@ -150,8 +150,8 @@ export default function HardwarePeripheralsHub() {
                 </h3>
                 <p className="text-xs text-slate-400">{audioData?.diagnosisVerdict}</p>
               </div>
-              <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-xs font-bold">
-                CoreAudio Healthy
+              <span className="pill bg-slate-500/10 text-slate-400 border-slate-500/25 text-xs font-bold">
+                {audioData ? 'Audio Probed' : 'Audio: UNAVAILABLE'}
               </span>
             </div>
 
@@ -203,7 +203,7 @@ export default function HardwarePeripheralsHub() {
             <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-line)' }}>
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
-                  Displays ({displayData?.connectedDisplaysCount || 1} Connected)
+                  Displays ({displayData?.connectedDisplaysCount ?? 'UNAVAILABLE'} Connected)
                 </h3>
                 <p className="text-xs text-slate-400">{displayData?.externalMonitorTroubleshoot}</p>
               </div>

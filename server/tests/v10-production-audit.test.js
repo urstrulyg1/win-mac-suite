@@ -79,7 +79,8 @@ test('Zero-fabrication: Update Doctor probes real softwareupdate and osInfo', as
   console.log('✓ Test 3 Passed: Update doctor probes real system software status');
 });
 
-test('Zero-fabrication: Disk Health Doctor probes real APFS volumes', async () => {
+test('Zero-fabrication: Disk Health Doctor probes real APFS volumes', async (t) => {
+  if (process.platform !== 'darwin') { t.skip('macOS-only probe'); return; }
   const disk = await getMacDiskHealth();
   assert.equal(disk.evidenceQuality, 'Observed');
   assert.equal(disk.filesystem, 'APFS (Apple File System)');

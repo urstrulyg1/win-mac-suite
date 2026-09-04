@@ -1,30 +1,17 @@
 /**
- * WinSuite & MacSuite v9.0 - Diagnostic Knowledge Graph & Reasoning Engine
- * Represents multi-subsystem relationships and supports causal inference queries.
+ * WinSuite & MacSuite — Diagnostic Knowledge Graph & Reasoning Engine
+ *
+ * Truthfulness rule: the graph contains only relationships that were actually
+ * observed on this host. There are no seeded telemetry values (no invented
+ * Chrome memory figures, Docker assignments, swap sizes, edge weights, or
+ * crash events). An empty graph means "no relationships observed", not
+ * "everything is fine".
  */
 
 export class DiagnosticKnowledgeGraph {
   constructor() {
     this.nodes = new Map();
     this.edges = [];
-    this.buildDefaultGraph();
-  }
-
-  buildDefaultGraph() {
-    // Entities
-    this.addNode('Chrome', 'Process', { memoryMB: 3800, renderThreads: 14 });
-    this.addNode('DockerDesktop', 'Hypervisor', { memoryAssignedGB: 6.2, cores: 6 });
-    this.addNode('UnifiedMemory', 'Subsystem', { capacityGB: 16, pressurePct: 78 });
-    this.addNode('CompressedSwap', 'Subsystem', { sizeGB: 1.4, readWriteRate: '12 MB/s' });
-    this.addNode('NVMeDiskIO', 'Hardware', { busSpeed: '4.8 GB/s', latencyMs: 2.1 });
-    this.addNode('ChromeCrashEvent', 'DiagnosticIncident', { fault: 'EXC_BAD_ACCESS', frequency: 3 });
-
-    // Relationships
-    this.addEdge('DockerDesktop', 'UnifiedMemory', 'consumes', { weight: 0.92 });
-    this.addEdge('Chrome', 'UnifiedMemory', 'consumes', { weight: 0.85 });
-    this.addEdge('UnifiedMemory', 'CompressedSwap', 'triggers_expansion', { weight: 0.90 });
-    this.addEdge('CompressedSwap', 'NVMeDiskIO', 'causes_io_contention', { weight: 0.80 });
-    this.addEdge('UnifiedMemory', 'ChromeCrashEvent', 'precipitates_memory_fault', { weight: 0.96 });
   }
 
   addNode(id, type, properties = {}) {
@@ -37,35 +24,36 @@ export class DiagnosticKnowledgeGraph {
 
   /**
    * Traverses the graph to trace the causal root-cause path for a target incident.
+   * Returns an empty array when no observed relationships support the target —
+   * causality is never invented.
    * @param {string} targetIncident
    */
   findCausalChain(targetIncident = 'ChromeCrashEvent') {
-    const incomingEdges = this.edges.filter(e => e.target === targetIncident);
+    const incomingEdges = this.edges.filter((e) => e.target === targetIncident);
     const chain = [];
 
     for (const edge of incomingEdges) {
       const sourceNode = this.nodes.get(edge.source);
-      const antecedents = this.edges.filter(e => e.target === edge.source);
+      const antecedents = this.edges.filter((e) => e.target === edge.source);
 
       for (const ante of antecedents) {
         const rootNode = this.nodes.get(ante.source);
+        const w1 = Number.isFinite(ante.metadata?.weight) ? ante.metadata.weight : null;
+        const w2 = Number.isFinite(edge.metadata?.weight) ? edge.metadata.weight : null;
         chain.push({
-          rootCause: rootNode?.id,
-          rootType: rootNode?.type,
-          intermediateSubsystem: sourceNode?.id,
+          rootCause: rootNode?.id ?? null,
+          rootType: rootNode?.type ?? null,
+          intermediateSubsystem: sourceNode?.id ?? null,
           consequence: targetIncident,
-          confidence: Math.round((ante.metadata.weight || 0.8) * (edge.metadata.weight || 0.8) * 100),
-          summary: `${rootNode?.id} (${rootNode?.type}) -> ${sourceNode?.id} -> ${targetIncident}`,
+          confidence: w1 !== null && w2 !== null ? Math.round(w1 * w2 * 100) : null,
+          summary:
+            rootNode?.id && sourceNode?.id
+              ? `${rootNode.id} (${rootNode.type}) -> ${sourceNode.id} -> ${targetIncident}`
+              : 'UNAVAILABLE: insufficient observed relationships to name a causal chain.',
         });
       }
     }
 
-    return chain.length > 0 ? chain : [{
-      rootCause: 'DockerDesktop',
-      intermediateSubsystem: 'UnifiedMemory',
-      consequence: 'ChromeCrashEvent',
-      confidence: 91,
-      summary: 'DockerDesktop (Hypervisor) -> UnifiedMemory -> ChromeCrashEvent',
-    }];
+    return chain;
   }
 }

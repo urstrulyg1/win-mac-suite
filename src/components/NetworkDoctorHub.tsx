@@ -191,11 +191,11 @@ export default function NetworkDoctorHub() {
               </div>
               <div className="p-3 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
                 <span className="text-[10px] uppercase text-slate-400 font-bold">DNS Latency</span>
-                <p className="text-xs font-mono font-bold text-emerald-500 mt-0.5">{doctorData?.dnsLatencyMs || 14} ms</p>
+                <p className="text-xs font-mono font-bold text-emerald-500 mt-0.5">{doctorData?.dnsLatencyMs ?? 'UNAVAILABLE'}{doctorData?.dnsLatencyMs != null ? ' ms' : ''}</p>
               </div>
               <div className="p-3 rounded-xl border text-center" style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-line)' }}>
                 <span className="text-[10px] uppercase text-slate-400 font-bold">Packet Loss</span>
-                <p className="text-xs font-mono font-bold text-emerald-500 mt-0.5">0.0%</p>
+                <p className="text-xs font-mono font-bold text-emerald-500 mt-0.5">{doctorData?.packetLossPct ?? 'UNAVAILABLE'}{doctorData?.packetLossPct != null ? '%' : ''}</p>
               </div>
             </div>
           </motion.div>
@@ -206,12 +206,12 @@ export default function NetworkDoctorHub() {
             <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: 'var(--color-line)' }}>
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--color-ink)' }}>
-                  Connected: {wifiData?.currentSsid || 'Home-Fiber-5G'}
+                  Connected: {wifiData?.currentSsid ?? 'UNAVAILABLE'}
                 </h3>
-                <p className="text-xs text-slate-400">Signal: {wifiData?.signalStrengthDbm || -54} dBm · Channel: {wifiData?.channel || '36 (5 GHz)'}</p>
+                <p className="text-xs text-slate-400">Signal: {wifiData?.signalStrengthDbm ?? wifiData?.signalQuality ?? 'UNAVAILABLE'}{wifiData?.signalStrengthDbm != null || wifiData?.signalQuality != null ? (wifiData?.signalStrengthDbm != null ? ' dBm' : '%') : ''} · Channel: {wifiData?.channel ?? 'UNAVAILABLE'}</p>
               </div>
               <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-xs font-bold">
-                {wifiData?.reliabilityScore || 97}% Network Reliability
+                {wifiData?.reliabilityScore ?? 'UNAVAILABLE'}{wifiData?.reliabilityScore != null ? '% Network Reliability' : ' Network Reliability: UNAVAILABLE'}
               </span>
             </div>
 
@@ -249,14 +249,14 @@ export default function NetworkDoctorHub() {
                     <h3 className="text-sm font-bold" style={{ color: 'var(--color-ink)' }}>
                       AirDrop Doctor
                     </h3>
-                    <p className="text-xs text-slate-400">Visibility: {btData?.airDrop?.visibilityMode || 'Contacts Only'} · Daemon: {btData?.airDrop?.sharingDaemonStatus || 'Active'}</p>
+                    <p className="text-xs text-slate-400">Visibility: {btData?.airDrop?.visibilityMode ?? 'UNAVAILABLE'} · Daemon: {btData?.airDrop?.sharingDaemonStatus ?? 'UNAVAILABLE'}</p>
                   </div>
                 </div>
-                <span className="pill bg-emerald-500/10 text-emerald-500 border-emerald-500/25 text-[10px]">
-                  AirDrop Ready
+                <span className="pill bg-slate-500/10 text-slate-400 border-slate-500/25 text-[10px]">
+                  {btData?.airDrop ? 'AirDrop Probed' : 'AirDrop: UNAVAILABLE'}
                 </span>
               </div>
-              <p className="text-xs text-slate-300">{btData?.airDrop?.verdict || 'AirDrop is ready for transfers.'}</p>
+              <p className="text-xs text-slate-300">{btData?.airDrop?.verdict ?? 'UNAVAILABLE: AirDrop probe has not returned data.'}</p>
             </div>
 
             {/* Bluetooth Paired Devices */}
@@ -383,7 +383,7 @@ export default function NetworkDoctorHub() {
             </div>
 
             <div className="space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Registered Application Firewalls ({firewallData?.count ?? 0})</h4>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Registered Application Firewalls ({firewallData?.count ?? 'UNAVAILABLE'})</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-1">
                 {Array.isArray(firewallData?.rules) && firewallData.rules.length > 0 ? (
                   firewallData.rules.map((rule: any, idx: number) => (
